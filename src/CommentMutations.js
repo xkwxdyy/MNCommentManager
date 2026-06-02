@@ -1,0 +1,386 @@
+var __MN_COMMENT_MUTATIONS__ = (function () {
+  function normalizeIndexArray(indices) {
+    if (!Array.isArray(indices)) return [];
+    return Array.from(new Set(indices
+      .map((index) => parseInt(index, 10))
+      .filter((index) => Number.isFinite(index) && index >= 0)))
+      .sort((a, b) => a - b);
+  }
+
+  function getNoteOrThrow(noteId) {
+    const note = __MN_COMMENT_DATA__.getWrappedNoteById(noteId);
+    if (!note) throw new Error("未找到卡片");
+    return note;
+  }
+
+  function refreshNote(note) {
+    try {
+      if (note && typeof note.refresh === "function") note.refresh();
+    } catch (error) {
+      // ignore refresh failure
+    }
+  }
+
+  function getCommentCount(note) {
+    return note && Array.isArray(note.comments) ? note.comments.length : 0;
+  }
+
+  function getInverseCommentIndices(note, keepIndices) {
+    const keepSet = new Set(normalizeIndexArray(keepIndices));
+    return Array.from({ length: getCommentCount(note) }, (_, index) => index)
+      .filter((index) => !keepSet.has(index))
+      .sort((a, b) => b - a);
+  }
+
+  function getSerializedComments(note) {
+    const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+    return snapshot && Array.isArray(snapshot.comments) ? snapshot.comments : [];
+  }
+
+  function getSerializedComment(note, index) {
+    return getSerializedComments(note).find((comment) => comment.index === index) || null;
+  }
+
+  function requireComment(note, index) {
+    const rawComment = note.comments && note.comments[index];
+    if (!rawComment) throw new Error(`未找到评论 #${index}`);
+    return rawComment;
+  }
+
+  function requireCapability(serializedComment, capability, message) {
+    if (!serializedComment || !serializedComment.capabilities || !serializedComment.capabilities[capability]) {
+      throw new Error(message || "当前评论不支持此操作");
+    }
+  }
+
+  function moveSingleComment(note, fromIndex, toIndex) {
+    if (typeof note.moveComment === "function") {
+      note.moveComment(fromIndex, toIndex, false);
+      return;
+    }
+    if (note.note && typeof note.note.moveComment === "function") {
+      note.note.moveComment(fromIndex, toIndex);
+      return;
+    }
+    throw new Error("当前环境不支持移动评论");
+  }
+
+  function removeSingleComment(note, index) {
+    if (typeof note.removeCommentByIndex === "function") {
+      note.removeCommentByIndex(index);
+      return;
+    }
+    if (note.note && typeof note.note.removeCommentByIndex === "function") {
+      note.note.removeCommentByIndex(index);
+      return;
+    }
+    throw new Error("当前环境不支持删除评论");
+  }
+
+  function removeCommentsByIndices(note, indices) {
+    const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
+    if (sorted.length === 0) return;
+    if (typeof note.removeCommentsByIndices === "function") {
+      note.removeCommentsByIndices(sorted);
+      return;
+    }
+    if (typeof note.removeCommentsByIndexArr === "function") {
+      note.removeCommentsByIndexArr(sorted);
+      return;
+    }
+    sorted.forEach((index) => removeSingleComment(note, index));
+  }
+
+  function removeClonedChildren(note) {
+    try {
+      const childNotes = note && Array.isArray(note.childNotes) ? note.childNotes : [];
+      for (let i = childNotes.length - 1; i >= 0; i--) {
+        if (childNotes[i] && typeof childNotes[i].removeFromParent === "function") {
+          childNotes[i].removeFromParent();
+        }
+      }
+    } catch (error) {
+      // Keeping cloned child notes is less harmful than failing the extraction.
+    }
+  }
+
+  function cloneNoteOrThrow(note) {
+    let clonedNote = null;
+    if (note && typeof note.clone === "function") {
+      clonedNote = note.clone();
+    } else if (typeof MNNote !== "undefined" && MNNote && typeof MNNote.clone === "function") {
+      clonedNote = MNNote.clone(note);
+    }
+    if (!clonedNote) throw new Error("当前环境不支持克隆卡片");
+    return clonedNote;
+  }
+
+  function appendTextComment(note, text) {
+    if (typeof note.appendTextComment === "function") {
+      note.appendTextComment(text);
+      return;
+    }
+    if (note.note && typeof note.note.appendTextComment === "function") {
+      note.note.appendTextComment(text);
+      return;
+    }
+    throw new Error("当前环境不支持添加文本评论");
+  }
+
+  function appendMarkdownComment(note, text) {
+    if (typeof note.appendMarkdownComment === "function") {
+      note.appendMarkdownComment(text);
+      return;
+    }
+    if (note.note && typeof note.note.appendMarkdownComment === "function") {
+      note.note.appendMarkdownComment(text);
+      return;
+    }
+    appendTextComment(note, text);
+  }
+
+  function replaceCommentText(note, index, text, markdown) {
+    const rawComment = requireComment(note, index);
+    const serialized = getSerializedComment(note, index);
+    requireCapability(serialized, "canEditText", `#${index} ${serialized ? serialized.type : ""} 不支持文本编辑`);
+
+    if (rawComment && "text" in rawComment) {
+      rawComment.text = String(text || "");
+      return;
+    }
+    if (rawComment && "q_htext" in rawComment) {
+      rawComment.q_htext = String(text || "");
+      if (rawComment.noteid) {
+        const mergedNote = __MN_COMMENT_DATA__.getWrappedNoteById(rawComment.noteid);
+        if (mergedNote) mergedNote.excerptText = String(text || "");
+      }
+      return;
+    }
+
+    removeSingleComment(note, index);
+    if (markdown) appendMarkdownComment(note, text);
+    else appendTextComment(note, text);
+    moveSingleComment(note, getCommentCount(note) - 1, index);
+  }
+
+  function moveComments(noteId, indices, targetIndex) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices);
+    if (sorted.length === 0) throw new Error("请选择评论");
+
+    const count = getCommentCount(note);
+    let target = parseInt(targetIndex, 10);
+    if (!Number.isFinite(target)) target = count;
+    target = Math.max(0, Math.min(count, target));
+
+    if (sorted.indexOf(target) >= 0) {
+      throw new Error("目标位置不能在所选评论内部");
+    }
+
+    MNUtil.undoGrouping(() => {
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
+      if (target < min) {
+        sorted.forEach((index, offset) => moveSingleComment(note, index, target + offset));
+      } else if (target > max) {
+        for (let i = sorted.length - 1; i >= 0; i--) {
+          moveSingleComment(note, sorted[i], target - (sorted.length - i));
+        }
+      }
+      refreshNote(note);
+    });
+
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function deleteComments(noteId, indices) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
+    if (sorted.length === 0) throw new Error("请选择评论");
+
+    MNUtil.undoGrouping(() => {
+      sorted.forEach((index) => removeSingleComment(note, index));
+      refreshNote(note);
+    });
+
+    MNUtil.showHUD(`已删除 ${sorted.length} 条评论`);
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function countReverseLinks(noteId, indices) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices);
+    const serializedComments = getSerializedComments(note);
+    let reverseCount = 0;
+    sorted.forEach((index) => {
+      const serialized = serializedComments.find((item) => item.index === index);
+      if (!serialized || !serialized.capabilities || !serialized.capabilities.canBidirectionalDelete) return;
+      const comment = note.comments && note.comments[index];
+      const link = __MN_COMMENT_DATA__.extractPureMarginNoteLink(comment && comment.text);
+      if (!link) return;
+      const targetNote = __MN_COMMENT_DATA__.getWrappedNoteById(link.noteId);
+      if (!targetNote || !Array.isArray(targetNote.comments)) return;
+      targetNote.comments.forEach((targetComment) => {
+        const reverseLink = __MN_COMMENT_DATA__.extractPureMarginNoteLink(targetComment && targetComment.text);
+        if (reverseLink && reverseLink.noteId === String(noteId).toUpperCase()) reverseCount += 1;
+      });
+    });
+    return reverseCount;
+  }
+
+  function deleteBidirectionalLinks(noteId, indices) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
+    if (sorted.length === 0) throw new Error("请选择评论");
+
+    const sourceId = String(noteId || "").toUpperCase();
+    const serializedComments = getSerializedComments(note);
+    const invalid = sorted.filter((index) => {
+      const serialized = serializedComments.find((item) => item.index === index);
+      return !serialized || !serialized.capabilities || !serialized.capabilities.canBidirectionalDelete;
+    });
+    if (invalid.length > 0) {
+      throw new Error(`双向删除只支持纯卡片链接评论，请取消选择 #${invalid.join(", #")}`);
+    }
+    const reverseTargets = [];
+    sorted.forEach((index) => {
+      const comment = note.comments && note.comments[index];
+      const link = __MN_COMMENT_DATA__.extractPureMarginNoteLink(comment && comment.text);
+      if (!link) return;
+      const targetNote = __MN_COMMENT_DATA__.getWrappedNoteById(link.noteId);
+      if (!targetNote || !Array.isArray(targetNote.comments)) return;
+      const reverseIndices = [];
+      targetNote.comments.forEach((targetComment, targetIndex) => {
+        const reverseLink = __MN_COMMENT_DATA__.extractPureMarginNoteLink(targetComment && targetComment.text);
+        if (reverseLink && reverseLink.noteId === sourceId) reverseIndices.push(targetIndex);
+      });
+      if (reverseIndices.length > 0) reverseTargets.push({ targetNote, reverseIndices });
+    });
+
+    MNUtil.undoGrouping(() => {
+      sorted.forEach((index) => removeSingleComment(note, index));
+      reverseTargets.forEach((item) => {
+        normalizeIndexArray(item.reverseIndices).sort((a, b) => b - a)
+          .forEach((index) => removeSingleComment(item.targetNote, index));
+        refreshNote(item.targetNote);
+      });
+      refreshNote(note);
+    });
+
+    const reverseCount = reverseTargets.reduce((sum, item) => sum + item.reverseIndices.length, 0);
+    MNUtil.showHUD(`已删除 ${sorted.length} 条评论和 ${reverseCount} 条反向链接`);
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function mergeTextComments(noteId, indices, text, markdown) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices);
+    const finalText = String(text || "").trim();
+    if (sorted.length < 2) throw new Error("请至少选择 2 条评论");
+    if (!finalText) throw new Error("合并内容为空");
+    const serializedComments = getSerializedComments(note);
+    sorted.forEach((index) => {
+      const comment = serializedComments.find((item) => item.index === index);
+      requireCapability(comment, "canMergeText", `#${index} 不适合合并为文本评论`);
+      requireCapability(comment, "canCopyText", `#${index} 没有可合并文本`);
+    });
+
+    MNUtil.undoGrouping(() => {
+      if (markdown) appendMarkdownComment(note, finalText);
+      else appendTextComment(note, finalText);
+      const insertedIndex = getCommentCount(note) - 1;
+      const firstIndex = sorted[0];
+      moveSingleComment(note, insertedIndex, firstIndex);
+      sorted.sort((a, b) => b - a).forEach((index) => removeSingleComment(note, index + 1));
+      refreshNote(note);
+    });
+
+    MNUtil.showHUD(`已合并 ${sorted.length} 条评论`);
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function editCommentText(noteId, index, text, markdown) {
+    const note = getNoteOrThrow(noteId);
+    const commentIndex = parseInt(index, 10);
+    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论索引无效");
+
+    MNUtil.undoGrouping(() => {
+      replaceCommentText(note, commentIndex, text, !!markdown);
+      refreshNote(note);
+    });
+
+    MNUtil.showHUD("已更新评论");
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function extractCommentsToChildNote(noteId, indices, title) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices);
+    if (sorted.length === 0) throw new Error("请选择评论");
+    const childTitle = String(title || "").trim() || `提取自 ${note.noteTitle || "当前卡片"}`;
+    let child = null;
+
+    sorted.forEach((index) => requireComment(note, index));
+
+    MNUtil.undoGrouping(() => {
+      child = cloneNoteOrThrow(note);
+      child.title = childTitle;
+      removeClonedChildren(child);
+      removeCommentsByIndices(child, getInverseCommentIndices(child, sorted));
+      note.addChild(child);
+      refreshNote(child);
+      refreshNote(note);
+    });
+
+    if (child && child.noteId) {
+      MNUtil.focusNoteInMindMapById(child.noteId, 0.2);
+    }
+    MNUtil.showHUD(`已原样提取 ${sorted.length} 条评论`);
+    return {
+      createdNoteId: child && child.noteId ? child.noteId : "",
+      createdNoteTitle: child && child.noteTitle ? child.noteTitle : childTitle,
+      snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
+    };
+  }
+
+  function copyText(text) {
+    MNUtil.copy(String(text || ""));
+    return true;
+  }
+
+  function copyCommentImage(noteId, index) {
+    const note = getNoteOrThrow(noteId);
+    const commentIndex = parseInt(index, 10);
+    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论索引无效");
+    const serialized = getSerializedComment(note, commentIndex);
+    requireCapability(serialized, "canCopyImage", `#${commentIndex} 没有可复制图片`);
+    const rawComment = requireComment(note, commentIndex);
+    const imageHash = serialized.imageHash ||
+      (rawComment && rawComment.paint) ||
+      (rawComment && rawComment.q_hpic && rawComment.q_hpic.paint);
+    const imageData = imageHash ? MNUtil.getMediaByHash(imageHash) : null;
+    if (!imageData) throw new Error("未读取到图片数据");
+    MNUtil.copyImage(imageData);
+    MNUtil.showHUD("已复制图片");
+    return true;
+  }
+
+  function focusLinkedNote(noteId) {
+    if (!noteId) throw new Error("缺少卡片 ID");
+    MNUtil.focusNoteInMindMapById(String(noteId), 0.2);
+    return true;
+  }
+
+  return {
+    moveComments,
+    deleteComments,
+    countReverseLinks,
+    deleteBidirectionalLinks,
+    mergeTextComments,
+    editCommentText,
+    extractCommentsToChildNote,
+    copyText,
+    copyCommentImage,
+    focusLinkedNote,
+  };
+})();

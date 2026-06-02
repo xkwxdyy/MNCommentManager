@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub Issue Tracker"
+  short_description: "Track MN Comment Manager issues and commits"
+  default_prompt: "Use $github-issue-tracker to create, update, link, or close MN Comment Manager GitHub issues."
+policy:
+  allow_implicit_invocation: true
