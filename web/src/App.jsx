@@ -1043,7 +1043,7 @@ function App() {
                 ) : null}
                 <article
                   id={`comment-${comment.index}`}
-                  className={`comment-card ${selectedNow ? "selected" : ""} ${rangeAnchor === comment.index ? "range-anchor" : ""}`}
+                  className={`comment-card comment-kind-${meta.filter} ${selectedNow ? "selected" : ""} ${rangeAnchor === comment.index ? "range-anchor" : ""}`}
                   onClick={() => handleCommentClick(comment.index)}
                   role="button"
                   tabIndex={0}
@@ -1163,7 +1163,7 @@ function App() {
             <p>{hasSelection ? `${getSelectionHint(selectedComments)}：${selectedIndices.map((index) => `#${index}`).join(" ")}` : "尚未选择"}</p>
           </section>
 
-          <section className="pane-section">
+          <section className="pane-section move-section">
             <h2>移动</h2>
             <div className="button-grid move-controls">
               <Button onClick={() => moveSelection(0)} disabled={loading || !hasSelection}>移到最上方</Button>
@@ -1174,7 +1174,7 @@ function App() {
             <Button className={insertMode ? "active wide" : "secondary wide"} disabled={!hasSelection} onClick={() => setInsertMode((value) => !value)}>选择插入位置</Button>
           </section>
 
-          <section className="pane-section">
+          <section className="pane-section process-section">
             <h2>处理</h2>
             <div className="stack">
               <Button className="secondary" disabled={loading || !selectedCanCopyText} onClick={copySelectedText}>复制文本</Button>
@@ -1199,7 +1199,7 @@ function App() {
             </div>
           </section>
 
-          <section className="pane-section danger-zone">
+          <section className="pane-section danger-zone delete-section">
             <h2>删除</h2>
             <button
               type="button"

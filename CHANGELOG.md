@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## 0.1.0（2026-06-02）[4]
+
+### 样式重构
+
+- **CSS 变量体系全面重命名**：将旧语义变量（`--bg`、`--panel`、`--text`、`--muted`、`--brand` 等）替换为新的分层命名体系（`--bg-app`、`--bg-sidebar`、`--bg-panel`、`--text-primary`、`--text-secondary`、`--accent-blue` 等），亮暗模式均同步更新
+- **评论卡片左边框色块**：移除旧 `border-left: 4px solid` 方案，改用 `::before` 伪元素实现，并新增 `comment-kind-*` 类（`image`、`link`、`html`）按评论类型显示不同颜色
+- **选中/锚点卡片样式**：`selected` 改用 `--accent-blue-soft` 背景，`range-anchor` 改用橙色系背景，移除旧品牌色描边
+- **按钮体系简化**：合并 `.secondary` 与默认按钮样式（均为中性），`.primary`/`.active` 统一为蓝色实心，`.danger` 改为文字色 + 悬停变实心，新增 `.pressing` 轻触态
+- **左侧导航栏重构**：使用 `--bg-sidebar` 背景，新增 `::before` 伪元素显示标题「MN Comments」，移除原 h1 标题节点；分段按钮（`.segmented`）和导航项（`.nav-item`）统一为透明底样式，数量角标改为 pill 样式
+- **右侧面板重构**：样式变量全部更新；`selection-summary` 改为独立卡片样式；`danger-zone` 标题变红色
+- **顶栏 / 状态栏**：改为半透明毛玻璃背景（`rgba + backdrop-filter`）；标题字号从 18px 降为 15px；状态栏字号降为 12px；第三列状态 span 默认隐藏
+- **布局网格**：`.workspace` 新增 `grid-template-areas`（`nav main inspector`）；`.comment-manager` 高度改用 `100%` 而非 `100vh`
+- **响应式断点调整**：主断点从 979px 上调至 1180px；右侧面板在折叠态改用 flex+滚动，最大高度 38vh；操作区在折叠态按 delete→move→process 顺序重排（`order`）
+- **过渡动画统一**：全局 transition 统一为 `--transition`（0.2s spring）变量，移除旧 `--transition-fast`/`--transition-spring`
+- **图片样式**：`comment-body img` 从 `.link-summary` 块中移出，作为独立规则，边框颜色改用 `--border-light`
+
+### 新增功能
+
+- **启动错误页**：`main.jsx` 新增全局 `error` / `unhandledrejection` 监听，捕获启动异常后渲染 `.startup-error` 错误页，防止白屏无提示
+
+### 优化
+
+- 面板区段新增语义 class（`move-section`、`process-section`、`delete-section`），支持响应式重排
+- `body` 新增 `overflow: hidden`，配合 `html/body/#root` 的 `width/height: 100%` 彻底修复滚动溢出
+- `.comment-card` 新增 `contain: layout paint` 提升渲染性能，移除 `will-change: transform`
+- `.search-box span` 改为屏幕外隐藏（无障碍标签），输入框去除显式边框，改用背景色区分
+
+---
+
 ## 0.1.0（2026-06-02）[3]
 
 ### 新功能
