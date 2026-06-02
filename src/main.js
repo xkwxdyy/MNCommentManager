@@ -3,6 +3,7 @@ JSB.require("vendor/mnnote");
 JSB.require("WebDevServerConfig");
 JSB.require("CommentData");
 JSB.require("CommentMutations");
+JSB.require("BatchCommentActions");
 JSB.require("WebBridgeCommands");
 JSB.require("WebPanelController");
 JSB.require("MNCommentManagerAddon");

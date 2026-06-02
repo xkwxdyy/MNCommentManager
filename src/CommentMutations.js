@@ -91,6 +91,21 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     sorted.forEach((index) => removeSingleComment(note, index));
   }
 
+  function noteHasExcerpt(note) {
+    try {
+      if (!note) return false;
+      if (String(note.excerptText || "").trim()) return true;
+      if (note.excerptPic) return true;
+      if (note.note) {
+        if (String(note.note.excerptText || "").trim()) return true;
+        if (note.note.excerptPic) return true;
+      }
+    } catch (error) {
+      return false;
+    }
+    return false;
+  }
+
   function removeClonedChildren(note) {
     try {
       const childNotes = note && Array.isArray(note.childNotes) ? note.childNotes : [];
@@ -313,7 +328,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
 
-  function extractCommentsToChildNote(noteId, indices, title) {
+  function extractCommentsToChildNote(noteId, indices, title, removeOriginal) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
     if (sorted.length === 0) throw new Error("先选择要提取的评论");
@@ -329,13 +344,18 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       removeCommentsByIndices(child, getInverseCommentIndices(child, sorted));
       note.addChild(child);
       refreshNote(child);
+      if (removeOriginal === true) {
+        removeCommentsByIndices(note, sorted);
+      }
       refreshNote(note);
     });
 
     if (child && child.noteId) {
       MNUtil.focusNoteInMindMapById(child.noteId, 0.2);
     }
-    MNUtil.showHUD(`已用 ${sorted.length} 条评论创建子卡片`);
+    MNUtil.showHUD(removeOriginal === true
+      ? `已用 ${sorted.length} 条评论创建子卡片，并删除原评论`
+      : `已用 ${sorted.length} 条评论创建子卡片`);
     return {
       createdNoteId: child && child.noteId ? child.noteId : "",
       createdNoteTitle: child && child.noteTitle ? child.noteTitle : childTitle,
@@ -375,6 +395,70 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return true;
   }
 
+  function keepFirstContentForNotes(notes) {
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    const seen = new Set();
+    const targetNotes = [];
+
+    sourceNotes.forEach((candidate) => {
+      if (!candidate || !candidate.noteId) return;
+      const noteId = String(candidate.noteId || "").trim();
+      if (!noteId || seen.has(noteId)) return;
+      seen.add(noteId);
+      targetNotes.push(candidate);
+    });
+
+    if (targetNotes.length <= 1) throw new Error("请先多选至少 2 张卡片");
+
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      excerptCleared: 0,
+      keptFirst: 0,
+      noComment: 0,
+      removedComments: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    MNUtil.undoGrouping(() => {
+      targetNotes.forEach((note) => {
+        try {
+          const commentCount = getCommentCount(note);
+          if (commentCount <= 0) {
+            stats.noComment += 1;
+            return;
+          }
+
+          const indices = noteHasExcerpt(note)
+            ? Array.from({ length: commentCount }, (_, index) => index)
+            : Array.from({ length: Math.max(0, commentCount - 1) }, (_, index) => index + 1);
+
+          if (indices.length <= 0) {
+            stats.noComment += 1;
+            return;
+          }
+
+          removeCommentsByIndices(note, indices);
+          refreshNote(note);
+          stats.changed += 1;
+          stats.removedComments += indices.length;
+          if (noteHasExcerpt(note)) stats.excerptCleared += 1;
+          else stats.keptFirst += 1;
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({
+            noteId: String(note && note.noteId || ""),
+            message: error && error.message ? error.message : String(error),
+          });
+        }
+      });
+    });
+
+    MNUtil.showHUD(`已处理 ${stats.changed}/${stats.total} 张卡片，删除 ${stats.removedComments} 条评论`);
+    return stats;
+  }
+
   return {
     moveComments,
     deleteComments,
@@ -386,5 +470,6 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     copyText,
     copyCommentImage,
     focusLinkedNote,
+    keepFirstContentForNotes,
   };
 })();

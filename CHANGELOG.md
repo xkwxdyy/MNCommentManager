@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 0.1.1（2026-06-03）
+
+### 新功能
+
+- **批量评论处理**：新增 `BatchCommentActions` 模块，支持多选卡片后触发浮动「批」按钮；当前提供「只保留第一条内容」操作，有摘录的卡片清空所有评论，无摘录的保留第一条，操作前显示影响预览确认弹窗
+- **多选事件监听**：插件注册 `mindmapViewOnMultipleSelection` 和 `mindmapViewBottomToolbarClosed` 两个观察者，多选结束或底部工具栏关闭时自动隐藏批处理按钮
+- **提取子卡片时可选删除原评论**：`extractCommentsToChildNote` 新增 `removeOriginal` 参数；Web UI 对话框增加复选框「同时删除原卡片中的所选评论」，勾选后提取并同步清理原卡片对应评论
+
+### 优化
+
+- `keepFirstContentForNotes` 内部新增 `noteHasExcerpt` 辅助函数，统一判断卡片摘录是否存在（含代理卡 `note.note` 层）
+- 提取子卡片的对话框说明文案精简，去掉「原卡片不会被修改」等过期描述，补充不清理反向链接的提示
+
+### 样式
+
+- 新增 `.dialog-check` 复选框组件样式：grid 布局对齐 checkbox 与说明文字，支持标题（`strong`）+ 描述（`small`）两行结构，使用 `accent-color` 适配系统强调色
+
 ## 0.1.0（2026-06-02）[4]
 
 ### 样式重构

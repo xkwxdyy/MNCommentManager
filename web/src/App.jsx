@@ -888,17 +888,21 @@ function App() {
     if (!requireSelection()) return;
     setDialog({
       title: "提取为子卡片",
-      body: "将创建一个子卡片，只保留所选评论。原卡片不会被修改，图片、手写、音频等内容会尽量保留。",
+      body: "将创建一个子卡片，只保留所选评论。图片、手写、音频等内容会尽量保留。",
       inputLabel: "新卡片标题",
       inputValue: `提取自 ${snapshot.noteTitle || "当前卡片"}`,
+      checkboxLabel: "同时删除原卡片中的所选评论",
+      checkboxDescription: "只删除当前卡片里的这些评论，不清理目标卡片中的反向链接。",
+      checkboxDefault: false,
       confirmText: "创建子卡片",
-      onConfirm: async (value) => {
+      onConfirm: async (value, options = {}) => {
         setDialog(null);
         await runCommand("extractCommentsToChildNote", {
           noteId: snapshot.noteId,
           indices: selectedIndices,
           title: value,
-        }, { message: "子卡片已创建" });
+          removeOriginal: options.checked === true,
+        }, { message: options.checked ? "子卡片已创建，原评论已删除" : "子卡片已创建" });
       },
     });
   };
@@ -1234,18 +1238,19 @@ function Dialog({ dialog, loading, onClose }) {
 
 function TextDialog({ dialog, loading, onClose }) {
   const [value, setValue] = useState(dialog.inputValue || "");
+  const [checked, setChecked] = useState(dialog.checkboxDefault === true);
 
   useEffect(() => {
     const handler = (event) => {
       if (event.key === "Escape") onClose();
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        Promise.resolve(dialog.onConfirm(value)).catch(() => {});
+        Promise.resolve(dialog.onConfirm(value, { checked })).catch(() => {});
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [dialog, onClose, value]);
+  }, [checked, dialog, onClose, value]);
 
   return (
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
@@ -1258,12 +1263,25 @@ function TextDialog({ dialog, loading, onClose }) {
             <textarea value={value} onChange={(event) => setValue(event.target.value)} autoFocus />
           </label>
         ) : null}
+        {dialog.checkboxLabel ? (
+          <label className="dialog-check">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(event) => setChecked(event.target.checked)}
+            />
+            <span>
+              <strong>{dialog.checkboxLabel}</strong>
+              {dialog.checkboxDescription ? <small>{dialog.checkboxDescription}</small> : null}
+            </span>
+          </label>
+        ) : null}
         <div className="dialog-actions">
           <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
           <Button
             className={dialog.danger ? "danger" : "primary"}
             disabled={loading}
-            onClick={() => dialog.onConfirm(value)}
+            onClick={() => dialog.onConfirm(value, { checked })}
           >
             {dialog.confirmText || "确认"}
           </Button>

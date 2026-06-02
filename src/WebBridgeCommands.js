@@ -75,6 +75,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
       payload.noteId,
       payload.indices,
       payload.title,
+      payload.removeOriginal === true,
     );
   }
 
