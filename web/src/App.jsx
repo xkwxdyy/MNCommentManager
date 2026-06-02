@@ -10,10 +10,10 @@ const TYPE_META = {
   linkComment: { label: "卡片链接", filter: "link" },
   summaryComment: { label: "概要链接", filter: "link" },
   imageComment: { label: "图片", filter: "image" },
-  imageCommentWithDrawing: { label: "图片手写", filter: "image" },
+  imageCommentWithDrawing: { label: "图片+手写", filter: "image" },
   drawingComment: { label: "手写", filter: "image" },
   mergedImageComment: { label: "合并图片", filter: "image" },
-  mergedImageCommentWithDrawing: { label: "合并图片手写", filter: "image" },
+  mergedImageCommentWithDrawing: { label: "合并图片+手写", filter: "image" },
   mergedChildMapComment: { label: "子脑图", filter: "other" },
   mergedTextComment: { label: "合并文本", filter: "text" },
   blankTextComment: { label: "空文本", filter: "text" },
@@ -32,28 +32,27 @@ const FILTERS = [
   { key: "other", label: "其他" },
 ];
 
-const STAGE_LABELS = {
-  text: "文本层",
-  html: "HTML 层",
-  "merged-text": "合并文本",
-  "merged-image": "合并图片",
-  "merged-child-map": "子脑图",
-  paint: "绘图层",
-  audio: "音频层",
-  unknown: "未知层",
-};
-
 const LINK_DIRECTION_LABELS = {
   both: "双向",
   "one-way": "单向",
 };
+
+const INLINE_MERGE_TYPES = new Set([
+  "textComment",
+  "markdownComment",
+  "markdownLinkComment",
+  "tagComment",
+  "linkComment",
+  "summaryComment",
+  "mergedTextComment",
+]);
 
 function getTypeMeta(comment) {
   return TYPE_META[comment?.type] || TYPE_META.unknownComment;
 }
 
 function normalizeError(error) {
-  if (!error) return "未知错误";
+  if (!error) return "操作失败，请重试";
   if (typeof error === "string") return error;
   return error.message || JSON.stringify(error);
 }
@@ -99,12 +98,8 @@ function anySelectedCan(comments, capability) {
   return comments.some((comment) => canComment(comment, capability));
 }
 
-function getStageLabel(comment) {
-  return STAGE_LABELS[comment?.lifecycleStage] || "未知层";
-}
-
 function getSelectionHint(comments) {
-  if (comments.length === 0) return "未选择评论";
+  if (comments.length === 0) return "尚未选择";
   const textCount = comments.filter((comment) => canComment(comment, "canCopyText")).length;
   const imageCount = comments.filter((comment) => canComment(comment, "canCopyImage")).length;
   const linkCount = comments.filter((comment) => canComment(comment, "canFocusLink")).length;
@@ -117,6 +112,58 @@ function getSelectionHint(comments) {
 
 function sortedSetValues(set) {
   return Array.from(set).sort((a, b) => a - b);
+}
+
+function isPureMarginNoteLinkText(text) {
+  return /^marginnote\d*(?:app)?:\/\/note\/[^\s]+$/i.test(String(text || "").trim());
+}
+
+function escapeMarkdownLinkText(text) {
+  return String(text || "").replace(/\]/g, "\\]");
+}
+
+function escapeMarkdownLinkUrl(url) {
+  return String(url || "").replace(/\)/g, "%29").trim();
+}
+
+function splitListMarkerForInlineLink(text) {
+  const rawText = String(text || "");
+  const match = rawText.match(/^(\s*-\s+)(\S[\s\S]*)$/);
+  if (!match) return { prefix: "", text: rawText };
+  return { prefix: match[1], text: match[2] };
+}
+
+function makeMarkdownInlineLink(text, url) {
+  const material = splitListMarkerForInlineLink(text);
+  const displayText = escapeMarkdownLinkText(material.text || "链接");
+  return `${material.prefix}[${displayText}](${escapeMarkdownLinkUrl(url)})`;
+}
+
+function getInlineMergeLinkUrl(comment) {
+  const text = commentText(comment).trim();
+  if (comment?.linkedNoteUrl) return comment.linkedNoteUrl;
+  if (isPureMarginNoteLinkText(text)) return text;
+  return "";
+}
+
+function canInlineMergeComment(comment) {
+  if (!comment || !canComment(comment, "canCopyText")) return false;
+  return INLINE_MERGE_TYPES.has(comment.type);
+}
+
+function buildInlineMergeMaterial(comment, order) {
+  const text = commentText(comment);
+  const linkUrl = getInlineMergeLinkUrl(comment);
+  const isLink = !!linkUrl && (comment.type === "linkComment" || comment.type === "summaryComment");
+  return {
+    index: comment.index,
+    order,
+    kind: isLink ? "link" : "text",
+    label: isLink ? "链接" : getTypeMeta(comment).label,
+    text,
+    linkUrl: linkUrl || text,
+    defaultText: isLink ? (linkUrl || text) : text,
+  };
 }
 
 function buildFieldGroups(comments) {
@@ -142,7 +189,7 @@ function buildFieldGroups(comments) {
       }
       current = {
         id: `field-${comment.index}`,
-        name: commentText(comment).replace(/<[^>]*>/g, "").trim() || "HTML 字段",
+        name: commentText(comment).replace(/<[^>]*>/g, "").trim() || "字段标题",
         anchorIndex: comment.index,
         comments: [],
       };
@@ -169,7 +216,7 @@ function makeEmptySnapshot() {
   return { noteId: "", noteTitle: "", comments: [], error: "" };
 }
 
-function Button({ children, className = "", disabled = false, onClick, title, type = "button" }) {
+function Button({ children, className = "", disabled = false, onClick, title, type = "button", ...props }) {
   const handleClick = (event) => {
     if (disabled || !onClick) return;
     try {
@@ -181,7 +228,7 @@ function Button({ children, className = "", disabled = false, onClick, title, ty
   };
 
   return (
-    <button type={type} className={className} disabled={disabled} onClick={handleClick} title={title}>
+    <button type={type} className={className} disabled={disabled} onClick={handleClick} title={title} {...props}>
       {children}
     </button>
   );
@@ -192,7 +239,8 @@ function App() {
   const [selected, setSelected] = useState(() => new Set());
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("正在加载当前卡片...");
+  const [status, setStatus] = useState("正在读取当前卡片...");
+  const [statusKey, setStatusKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [rangePicking, setRangePicking] = useState(false);
   const [rangeAnchor, setRangeAnchor] = useState(null);
@@ -248,6 +296,15 @@ function App() {
     const last = selectedIndices[selectedIndices.length - 1];
     return last - first + 1 === selectedIndices.length;
   }, [hasSelection, selectedIndices]);
+  const selectedCanInlineMerge = hasMultiSelection
+    && selectionIsContinuous
+    && selectedComments.every(canInlineMergeComment)
+    && selectedComments.some((comment) => getInlineMergeLinkUrl(comment));
+
+  const notifyStatus = (message) => {
+    setStatus(message);
+    setStatusKey((current) => current + 1);
+  };
 
   const applySnapshot = (nextSnapshot, message = "") => {
     setSnapshot(nextSnapshot || makeEmptySnapshot());
@@ -255,11 +312,11 @@ function App() {
     setRangePicking(false);
     setRangeAnchor(null);
     setInsertMode(false);
-    setStatus(message || (nextSnapshot?.error ? nextSnapshot.error : "已同步当前卡片"));
+    notifyStatus(message || (nextSnapshot?.error ? nextSnapshot.error : "当前卡片已更新"));
   };
 
   const runCommand = async (command, payload, options = {}) => {
-    const { message = "操作完成", keepSelection = false } = options;
+    const { message = "已完成", keepSelection = false } = options;
     setLoading(true);
     try {
       const result = await MNBridge.send(command, payload);
@@ -268,11 +325,11 @@ function App() {
       } else if (result?.comments) {
         applySnapshot(result, message);
       } else if (!keepSelection) {
-        setStatus(message);
+        notifyStatus(message);
       }
       return result;
     } catch (error) {
-      setStatus(normalizeError(error));
+      notifyStatus(normalizeError(error));
       throw error;
     } finally {
       setLoading(false);
@@ -281,7 +338,7 @@ function App() {
 
   const loadCurrentNote = async () => {
     try {
-      await runCommand("getCurrentNoteComments", null, { message: "已加载当前卡片" });
+      await runCommand("getCurrentNoteComments", null, { message: "当前卡片已刷新" });
     } catch (_) {
       // status has been set by runCommand
     }
@@ -301,9 +358,9 @@ function App() {
       try {
         const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
         if (!payload?.snapshot) return;
-        applySnapshot(payload.snapshot, payload.snapshot.error ? payload.snapshot.error : "已识别当前卡片");
+        applySnapshot(payload.snapshot, payload.snapshot.error ? payload.snapshot.error : "已切换到当前卡片");
       } catch (error) {
-        setStatus(normalizeError(error));
+        notifyStatus(normalizeError(error));
       }
     };
 
@@ -341,7 +398,7 @@ function App() {
       if (rangeAnchor === null) {
         setRangeAnchor(index);
         setSelected(new Set([index]));
-        setStatus(`已设范围起点 #${index}，再点一个终点`);
+        notifyStatus(`范围起点为 #${index}，再选择终点`);
         return;
       }
       const start = Math.min(rangeAnchor, index);
@@ -349,7 +406,7 @@ function App() {
       setSelection(allIndices.filter((item) => item >= start && item <= end));
       setRangePicking(false);
       setRangeAnchor(null);
-      setStatus(`已选择 #${start} - #${end}`);
+      notifyStatus(`已选中 #${start} 到 #${end}`);
       return;
     }
     toggleIndex(index);
@@ -357,7 +414,7 @@ function App() {
 
   const requireSelection = () => {
     if (selectedIndices.length === 0) {
-      setStatus("请先选择评论");
+      notifyStatus("先选择要处理的评论");
       return false;
     }
     return true;
@@ -369,7 +426,7 @@ function App() {
       noteId: snapshot.noteId,
       indices: selectedIndices,
       targetIndex,
-    }, { message: "已移动评论" });
+    }, { message: "评论位置已更新" });
   };
 
   const getCommentPosition = (index) => comments.findIndex((comment) => comment.index === index);
@@ -377,13 +434,13 @@ function App() {
   const moveSingleComment = async (commentIndex, direction, toEdge = false) => {
     const position = getCommentPosition(commentIndex);
     if (position < 0) {
-      setStatus("未找到目标评论");
+      notifyStatus("这条评论已不存在，请刷新后再试");
       return;
     }
 
     if (direction === "up") {
       if (position === 0) {
-        setStatus("已经在最顶部");
+        notifyStatus("已在最上方");
         return;
       }
       const targetIndex = toEdge ? 0 : comments[position - 1].index;
@@ -391,12 +448,12 @@ function App() {
         noteId: snapshot.noteId,
         indices: [commentIndex],
         targetIndex,
-      }, { message: toEdge ? "已置顶评论" : "已上移评论" });
+      }, { message: toEdge ? "已移到最上方" : "已上移一位" });
       return;
     }
 
     if (position >= comments.length - 1) {
-      setStatus("已经在最底部");
+      notifyStatus("已在最下方");
       return;
     }
     const afterNext = comments[position + 2];
@@ -405,14 +462,14 @@ function App() {
       noteId: snapshot.noteId,
       indices: [commentIndex],
       targetIndex,
-    }, { message: toEdge ? "已置底评论" : "已下移评论" });
+    }, { message: toEdge ? "已移到最下方" : "已下移一位" });
   };
 
   const deleteSingleComment = async (commentIndex) => {
     await runCommand("deleteComments", {
       noteId: snapshot.noteId,
       indices: [commentIndex],
-    }, { message: "已删除评论" });
+    }, { message: "评论已删除" });
   };
 
   const moveByStep = async (direction) => {
@@ -421,19 +478,19 @@ function App() {
     const last = selectedIndices[selectedIndices.length - 1];
     const expected = last - first + 1;
     if (expected !== selectedIndices.length) {
-      setStatus("上移/下移只支持连续选择");
+      notifyStatus("批量上移/下移需要选择连续评论");
       return;
     }
     if (direction === "up") {
       if (first === 0) {
-        setStatus("已经在最顶部");
+        notifyStatus("已在最上方");
         return;
       }
       await moveSelection(first - 1);
       return;
     }
     if (last >= comments.length - 1) {
-      setStatus("已经在最底部");
+      notifyStatus("已在最下方");
       return;
     }
     await moveSelection(last + 2);
@@ -444,13 +501,13 @@ function App() {
     await runCommand("deleteComments", {
       noteId: snapshot.noteId,
       indices: selectedIndices,
-    }, { message: "已删除评论" });
+    }, { message: "所选评论已删除" });
   };
 
   const confirmBidirectionalDelete = async () => {
     if (!requireSelection()) return;
     if (!selectedCanBidirectionalDelete) {
-      setStatus("选中评论没有纯卡片链接，不能双向删除");
+      notifyStatus("双向删除只适用于纯卡片链接评论");
       return;
     }
     try {
@@ -460,8 +517,8 @@ function App() {
       }, { keepSelection: true });
       const reverseCount = result?.reverseCount || 0;
       setDialog({
-        title: "双向删除",
-        body: `将删除当前卡片 ${selectedIndices.length} 条评论，并删除目标卡片中约 ${reverseCount} 条纯反向链接。Markdown 行内链接不会被处理。`,
+        title: "删除双向链接",
+        body: `将删除当前卡片中的 ${selectedIndices.length} 条链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
         confirmText: "确认双向删除",
         danger: true,
         onConfirm: async () => {
@@ -469,7 +526,7 @@ function App() {
           await runCommand("deleteBidirectionalLinks", {
             noteId: snapshot.noteId,
             indices: selectedIndices,
-          }, { message: "已完成双向删除" });
+          }, { message: "双向链接已删除" });
         },
       });
     } catch (_) {
@@ -491,7 +548,7 @@ function App() {
 
   const startDeletePress = () => {
     if (loading || !hasSelection) {
-      setStatus("请先选择评论");
+      notifyStatus("先选择要删除的评论");
       return;
     }
     clearDeletePress();
@@ -542,31 +599,31 @@ function App() {
 
   const startRangeSelection = () => {
     if (comments.length === 0) {
-      setStatus("当前卡片没有评论");
+      notifyStatus("当前卡片还没有评论");
       return;
     }
     const anchor = selectedIndices[0] ?? null;
     setRangePicking(true);
     setRangeAnchor(anchor);
-    setStatus(anchor === null ? "请选择范围起点" : `范围起点 #${anchor}，再点一个终点`);
+    notifyStatus(anchor === null ? "选择第一条评论作为范围起点" : `起点为 #${anchor}，再选择终点`);
   };
 
   const openMergeDialog = () => {
     if (selectedIndices.length < 2) {
-      setStatus("请至少选择 2 条评论");
+      notifyStatus("至少选择 2 条评论才能合并");
       return;
     }
     if (!selectedCanMergeText) {
-      setStatus("只能合并有文本内容的文本/HTML/链接类评论");
+      notifyStatus("只能合并带文本的评论");
       return;
     }
     const text = selectedComments.map(commentText).filter(Boolean).join("\n\n");
     setDialog({
-      title: "合并文本评论",
-      body: "将选中的文本内容合并为一条新的 Markdown 评论，原评论会被删除。",
+      title: "合并为一条评论",
+      body: "所选文本会合并成一条新的 Markdown 评论，原评论会被移除。",
       inputLabel: "合并后的内容",
       inputValue: text,
-      confirmText: "确认合并",
+      confirmText: "合并",
       onConfirm: async (value) => {
         setDialog(null);
         await runCommand("mergeTextComments", {
@@ -574,25 +631,67 @@ function App() {
           indices: selectedIndices,
           text: value,
           markdown: true,
-        }, { message: "已合并评论" });
+        }, { message: "评论已合并" });
+      },
+    });
+  };
+
+  const openInlineMergeDialog = () => {
+    if (selectedIndices.length < 2) {
+      notifyStatus("至少选择 2 条评论才能合并");
+      return;
+    }
+    if (!selectionIsContinuous) {
+      notifyStatus("行内链接合并需要选择连续评论");
+      return;
+    }
+    const unsupported = selectedComments.find((comment) => !canInlineMergeComment(comment));
+    if (unsupported) {
+      notifyStatus(`#${unsupported.index} 不是可合并的文本或链接评论`);
+      return;
+    }
+    if (!selectedComments.some((comment) => getInlineMergeLinkUrl(comment))) {
+      notifyStatus("至少包含 1 条纯卡片链接评论");
+      return;
+    }
+    setDialog({
+      kind: "inlineMerge",
+      title: "合并为行内链接",
+      body: "把连续选择的文本和卡片链接整理成一条 Markdown 评论，原评论会被移除。",
+      materials: selectedComments.map((comment, order) => buildInlineMergeMaterial(comment, order)),
+      indices: selectedIndices,
+      confirmText: "合并",
+      onConfirm: async (value) => {
+        const text = String(value || "").trim();
+        if (!text) {
+          notifyStatus("请先填写合并后的内容");
+          return;
+        }
+        setDialog(null);
+        await runCommand("mergeTextComments", {
+          noteId: snapshot.noteId,
+          indices: selectedIndices,
+          text,
+          markdown: true,
+        }, { message: "行内链接已合并" });
       },
     });
   };
 
   const openEditDialog = () => {
     if (selectedIndices.length !== 1) {
-      setStatus("编辑需要且只能选择 1 条评论");
+      notifyStatus("编辑文本时只能选择 1 条评论");
       return;
     }
     const index = selectedIndices[0];
     const current = commentByIndex.get(index);
     if (!canComment(current, "canEditText")) {
-      setStatus(`#${index} ${getTypeMeta(current).label} 不支持文本编辑`);
+      notifyStatus(`#${index} 不是可编辑的文本评论`);
       return;
     }
     setDialog({
-      title: `编辑 #${index}`,
-      body: "只修改当前评论文本，不维护反向链接。",
+      title: `编辑评论 #${index}`,
+      body: "只修改这条评论的文本内容；如需维护卡片链接，请使用链接相关操作。",
       inputLabel: "评论内容",
       inputValue: commentText(current),
       confirmText: "保存",
@@ -603,7 +702,7 @@ function App() {
           index,
           text: value,
           markdown: !!current?.capabilities?.isMarkdown,
-        }, { message: "已更新评论" });
+        }, { message: "评论已更新" });
       },
     });
   };
@@ -611,18 +710,18 @@ function App() {
   const openExtractDialog = () => {
     if (!requireSelection()) return;
     setDialog({
-      title: "原样提取为子卡片",
-      body: "将克隆当前卡片并只保留选中的评论，HTML 样式、手写、图片、音频等原生评论数据会尽量保留；原卡片不会被删改。",
+      title: "提取为子卡片",
+      body: "将创建一个子卡片，只保留所选评论。原卡片不会被修改，图片、手写、音频等内容会尽量保留。",
       inputLabel: "新卡片标题",
       inputValue: `提取自 ${snapshot.noteTitle || "当前卡片"}`,
-      confirmText: "原样提取",
+      confirmText: "创建子卡片",
       onConfirm: async (value) => {
         setDialog(null);
         await runCommand("extractCommentsToChildNote", {
           noteId: snapshot.noteId,
           indices: selectedIndices,
           title: value,
-        }, { message: "已创建子卡片" });
+        }, { message: "子卡片已创建" });
       },
     });
   };
@@ -631,39 +730,39 @@ function App() {
     if (!requireSelection()) return;
     const text = selectedComments.filter((comment) => canComment(comment, "canCopyText")).map(commentText).filter(Boolean).join("\n\n");
     if (!text) {
-      setStatus("选中评论没有可复制文本");
+      notifyStatus("所选评论没有可复制的文本");
       return;
     }
-    await runCommand("copyText", { text }, { message: "已复制文本", keepSelection: true });
+    await runCommand("copyText", { text }, { message: "文本已复制", keepSelection: true });
   };
 
   const copySelectedImage = async () => {
     if (!hasOneSelection) {
-      setStatus("复制图片需要且只能选择 1 条图片评论");
+      notifyStatus("复制图片时只能选择 1 条图片评论");
       return;
     }
     const current = selectedComments[0];
     if (!canComment(current, "canCopyImage")) {
-      setStatus(`#${current?.index ?? ""} 没有可复制图片`);
+      notifyStatus(`#${current?.index ?? ""} 没有可复制的图片`);
       return;
     }
     await runCommand("copyCommentImage", {
       noteId: snapshot.noteId,
       index: current.index,
-    }, { message: "已复制图片", keepSelection: true });
+    }, { message: "图片已复制", keepSelection: true });
   };
 
   const focusSelectedLink = async () => {
     if (!hasOneSelection) {
-      setStatus("定位链接需要且只能选择 1 条卡片链接评论");
+      notifyStatus("定位链接时只能选择 1 条卡片链接评论");
       return;
     }
     const current = selectedComments[0];
     if (!canComment(current, "canFocusLink")) {
-      setStatus(`#${current?.index ?? ""} 不是纯卡片链接`);
+      notifyStatus(`#${current?.index ?? ""} 不是可定位的卡片链接`);
       return;
     }
-    await runCommand("focusLinkedNote", { noteId: current.linkedNoteId }, { message: "已定位链接卡片", keepSelection: true });
+    await runCommand("focusLinkedNote", { noteId: current.linkedNoteId }, { message: "已打开目标卡片", keepSelection: true });
   };
 
   const scrollToComment = (index) => {
@@ -674,8 +773,8 @@ function App() {
     <div className="comment-manager">
       <header className="topbar">
         <div>
-          <h1>MN Comment Manager</h1>
-          <p>{snapshot.noteTitle || "未选择卡片"}</p>
+          <h1>评论管理器</h1>
+          <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
           <Button className="secondary" onClick={loadCurrentNote} disabled={loading}>刷新</Button>
@@ -684,23 +783,23 @@ function App() {
       </header>
 
       <div className="statusbar" aria-live="polite">
-        <span>评论 {comments.length}</span>
-        <span>已选 {selectedIndices.length}</span>
-        <span>显示 {visibleComments.length}</span>
-        <span>{status}</span>
+        <span>共 {comments.length} 条</span>
+        <span>已选 {selectedIndices.length} 条</span>
+        <span>当前显示 {visibleComments.length} 条</span>
+        <span key={statusKey} className="status-message updated">{status}</span>
       </div>
 
       <main className="workspace">
         <aside className="left-pane">
           <section className="pane-section">
-            <h2>筛选</h2>
+            <h2>查找</h2>
             <label className="search-box">
               <span>搜索</span>
               <input
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="文本 / 类型 / 标题"
+                placeholder="搜索文本、类型或目标卡片"
               />
             </label>
             <div className="segmented">
@@ -718,20 +817,20 @@ function App() {
           </section>
 
           <section className="pane-section">
-            <h2>选择</h2>
+            <h2>批量选择</h2>
             <div className="button-grid">
               <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected(new Set(visibleComments.map((comment) => comment.index)))}>全选</Button>
               <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected((prev) => new Set(visibleComments.map((comment) => comment.index).filter((index) => !prev.has(index))))}>反选</Button>
-              <Button className="secondary" disabled={!hasSelection} onClick={() => setSelected(new Set())}>清空</Button>
-              <Button className={rangePicking ? "active" : "secondary"} disabled={comments.length === 0} onClick={startRangeSelection}>范围</Button>
+              <Button className="secondary" disabled={!hasSelection} onClick={() => setSelected(new Set())}>取消选择</Button>
+              <Button className={rangePicking ? "active" : "secondary"} disabled={comments.length === 0} onClick={startRangeSelection}>选范围</Button>
             </div>
             <p className="helper-text">
-              {rangePicking ? (rangeAnchor === null ? "点一条评论作为起点" : `起点 #${rangeAnchor}，点终点完成`) : "筛选后全选/反选只作用于当前显示项"}
+              {rangePicking ? (rangeAnchor === null ? "先点范围的第一条评论" : `起点 #${rangeAnchor}，再点最后一条`) : "全选和反选只作用于当前显示结果"}
             </p>
           </section>
 
           <section className="pane-section">
-            <h2>字段目录</h2>
+            <h2>快速定位</h2>
             <Button className="nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[0]?.index ?? 0)}>顶部</Button>
             {fieldGroups.map((field) => (
               <Button
@@ -748,7 +847,7 @@ function App() {
 
         <section className="comment-list" aria-label="评论列表">
           {visibleComments.length === 0 ? (
-            <div className="empty">暂无评论数据</div>
+            <div className="empty">{comments.length === 0 ? "当前卡片还没有评论" : "没有匹配的评论"}</div>
           ) : visibleComments.map((comment, visiblePosition) => {
             const meta = getTypeMeta(comment);
             const selectedNow = selected.has(comment.index);
@@ -789,7 +888,6 @@ function App() {
                     />
                     <span className="comment-index">#{comment.index}</span>
                     <span className={`type-pill type-${meta.filter}`}>{meta.label}</span>
-                    <span className="stage-pill">{getStageLabel(comment)}</span>
                     {comment.linkDirection ? (
                       <span className={`direction-pill direction-${comment.linkDirection}`}>
                         {LINK_DIRECTION_LABELS[comment.linkDirection] || comment.linkDirection}
@@ -801,10 +899,10 @@ function App() {
                         className="text-action"
                         onClick={(event) => {
                           event.stopPropagation();
-                          return runCommand("focusLinkedNote", { noteId: comment.linkedNoteId }, { message: "已定位链接卡片", keepSelection: true });
+                          return runCommand("focusLinkedNote", { noteId: comment.linkedNoteId }, { message: "已打开目标卡片", keepSelection: true });
                         }}
                       >
-                        定位
+                        打开
                       </Button>
                     ) : null}
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
@@ -812,7 +910,7 @@ function App() {
                         type="button"
                         className="quick-action-btn"
                         disabled={loading || isFirstComment}
-                        title="单击上移，长按置顶"
+                        title="点按上移，按住移到最上方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "up")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
@@ -825,7 +923,7 @@ function App() {
                         type="button"
                         className="quick-action-btn"
                         disabled={loading || isLastComment}
-                        title="单击下移，长按置底"
+                        title="点按下移，按住移到最下方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "down")}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "down")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
@@ -849,7 +947,7 @@ function App() {
                     </div>
                   </div>
                   <div className="comment-body">
-                    {imageSrc ? <img src={imageSrc} alt={`评论 #${comment.index}`} /> : null}
+                    {imageSrc ? <img src={imageSrc} alt={`评论 #${comment.index}`} loading="lazy" /> : null}
                     {commentText(comment) ? (
                       <pre>{clampText(commentText(comment))}</pre>
                     ) : comment.capabilities?.hasImage ? (
@@ -866,36 +964,37 @@ function App() {
             );
           })}
           {insertMode && visibleComments.length > 0 ? (
-            <Button className="insert-end" disabled={loading || !hasSelection} onClick={() => moveSelection(comments.length)}>移动到底部</Button>
+            <Button className="insert-end" disabled={loading || !hasSelection} onClick={() => moveSelection(comments.length)}>移动到最后</Button>
           ) : null}
         </section>
 
         <aside className="right-pane">
           <section className="pane-section selection-summary">
             <h2>当前选择</h2>
-            <p>{hasSelection ? `${getSelectionHint(selectedComments)}：${selectedIndices.map((index) => `#${index}`).join(" ")}` : "未选择评论"}</p>
+            <p>{hasSelection ? `${getSelectionHint(selectedComments)}：${selectedIndices.map((index) => `#${index}`).join(" ")}` : "尚未选择"}</p>
           </section>
 
           <section className="pane-section">
             <h2>移动</h2>
             <div className="button-grid">
-              <Button onClick={() => moveSelection(0)} disabled={loading || !hasSelection}>置顶</Button>
+              <Button onClick={() => moveSelection(0)} disabled={loading || !hasSelection}>移到最上方</Button>
               <Button onClick={() => moveByStep("up")} disabled={loading || !selectionIsContinuous}>上移</Button>
               <Button onClick={() => moveByStep("down")} disabled={loading || !selectionIsContinuous}>下移</Button>
-              <Button onClick={() => moveSelection(comments.length)} disabled={loading || !hasSelection}>置底</Button>
+              <Button onClick={() => moveSelection(comments.length)} disabled={loading || !hasSelection}>移到最下方</Button>
             </div>
-            <Button className={insertMode ? "active wide" : "secondary wide"} disabled={!hasSelection} onClick={() => setInsertMode((value) => !value)}>插入位置</Button>
+            <Button className={insertMode ? "active wide" : "secondary wide"} disabled={!hasSelection} onClick={() => setInsertMode((value) => !value)}>选择插入位置</Button>
           </section>
 
           <section className="pane-section">
-            <h2>编辑</h2>
+            <h2>处理</h2>
             <div className="stack">
               <Button className="secondary" disabled={loading || !selectedCanCopyText} onClick={copySelectedText}>复制文本</Button>
               <Button className="secondary" disabled={loading || !selectedCanCopyImage} onClick={copySelectedImage}>复制图片</Button>
               <Button className="secondary" disabled={loading || !selectedCanEditText} onClick={openEditDialog}>编辑文本</Button>
               <Button className="secondary" disabled={loading || !selectedCanMergeText} onClick={openMergeDialog}>合并文本</Button>
-              <Button className="secondary" disabled={loading || !selectedCanFocusLink} onClick={focusSelectedLink}>定位链接</Button>
-              <Button className="secondary" disabled={loading || !hasSelection} onClick={openExtractDialog}>原样提取</Button>
+              <Button className="secondary" disabled={loading || !selectedCanInlineMerge} onClick={openInlineMergeDialog}>生成行内链接</Button>
+              <Button className="secondary" disabled={loading || !selectedCanFocusLink} onClick={focusSelectedLink}>打开链接卡片</Button>
+              <Button className="secondary" disabled={loading || !hasSelection} onClick={openExtractDialog}>提取为子卡片</Button>
             </div>
           </section>
 
@@ -909,11 +1008,11 @@ function App() {
               onPointerLeave={cancelDeletePress}
               onPointerCancel={cancelDeletePress}
               disabled={loading || !hasSelection}
-              title="单击普通删除，长按触发双向删除确认"
+              title="点按只删除当前卡片评论；按住可同时清理反向链接"
             >
               删除
             </button>
-            <p>单击普通删除。长按 0.56 秒后进入双向删除确认，只处理纯卡片链接。</p>
+            <p>点按只删除当前卡片中的所选评论。按住可进入双向链接删除确认，只处理纯卡片链接。</p>
           </section>
         </aside>
       </main>
@@ -926,6 +1025,13 @@ function App() {
 }
 
 function Dialog({ dialog, loading, onClose }) {
+  if (dialog.kind === "inlineMerge") {
+    return <InlineMergeDialog dialog={dialog} loading={loading} onClose={onClose} />;
+  }
+  return <TextDialog dialog={dialog} loading={loading} onClose={onClose} />;
+}
+
+function TextDialog({ dialog, loading, onClose }) {
   const [value, setValue] = useState(dialog.inputValue || "");
 
   useEffect(() => {
@@ -959,6 +1065,162 @@ function Dialog({ dialog, loading, onClose }) {
             onClick={() => dialog.onConfirm(value)}
           >
             {dialog.confirmText || "确认"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InlineMergeDialog({ dialog, loading, onClose }) {
+  const [builderText, setBuilderText] = useState("");
+  const [builderLink, setBuilderLink] = useState("");
+  const [cookingText, setCookingText] = useState("");
+  const cookingRef = useRef(null);
+  const materials = Array.isArray(dialog.materials) ? dialog.materials : [];
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.key === "Escape") onClose();
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        Promise.resolve(dialog.onConfirm(cookingText)).catch(() => {});
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [dialog, onClose, cookingText]);
+
+  const focusCooking = () => {
+    if (cookingRef.current) cookingRef.current.focus();
+  };
+
+  const insertAtCursor = (text) => {
+    const textarea = cookingRef.current;
+    const insertText = String(text || "");
+    if (!textarea || !insertText) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || start;
+    setCookingText((current) => {
+      const next = current.slice(0, start) + insertText + current.slice(end);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const cursor = start + insertText.length;
+        textarea.setSelectionRange(cursor, cursor);
+      });
+      return next;
+    });
+  };
+
+  const wrapCookingSelection = (url) => {
+    const textarea = cookingRef.current;
+    if (!textarea) return false;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || start;
+    if (end <= start) return false;
+    const selectedText = cookingText.slice(start, end);
+    const inlineLink = makeMarkdownInlineLink(selectedText, url);
+    const next = cookingText.slice(0, start) + inlineLink + cookingText.slice(end);
+    setCookingText(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + inlineLink.length;
+      textarea.setSelectionRange(cursor, cursor);
+    });
+    return true;
+  };
+
+  const applyMaterial = (material) => {
+    if (!material) return;
+    if (material.kind === "link") {
+      if (wrapCookingSelection(material.linkUrl)) return;
+      setBuilderLink(material.linkUrl || "");
+      return;
+    }
+    setBuilderText(material.text || "");
+  };
+
+  const appendMaterial = (material) => {
+    if (!material) return;
+    insertAtCursor(material.defaultText || material.text || material.linkUrl || "");
+  };
+
+  const insertBuilderText = () => {
+    if (!builderText.trim()) return;
+    insertAtCursor(builderText);
+  };
+
+  const insertBuilderLink = () => {
+    const text = builderText.trim();
+    const link = builderLink.trim();
+    if (!text || !link) return;
+    insertAtCursor(makeMarkdownInlineLink(text, link));
+  };
+
+  const canConfirm = cookingText.trim().length > 0 && materials.length >= 2 && !loading;
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <section className="dialog inline-merge-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onClick={(event) => event.stopPropagation()}>
+        <h2 id="dialog-title">{dialog.title}</h2>
+        <p>{dialog.body}</p>
+
+        <section className="merge-section">
+          <h3>已选内容</h3>
+          <div className="merge-material-list">
+            {materials.map((material) => (
+              <button
+                key={`${material.index}-${material.order}`}
+                type="button"
+                className="merge-material"
+                title="点按填入下方输入框，双击直接加入最终内容"
+                onClick={() => applyMaterial(material)}
+                onDoubleClick={() => appendMaterial(material)}
+              >
+                <span className="merge-material-meta">#{material.index} · {material.label}</span>
+                <span className="merge-material-content">{material.kind === "link" ? material.linkUrl : material.text}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="merge-section">
+          <h3>组合链接</h3>
+          <div className="merge-builder-row">
+            <input value={builderText} onChange={(event) => setBuilderText(event.target.value)} placeholder="显示文本" />
+            <input value={builderLink} onChange={(event) => setBuilderLink(event.target.value)} placeholder="链接地址" />
+          </div>
+          <div className="merge-actions">
+            <Button className="secondary" disabled={!builderText.trim()} onClick={insertBuilderText}>插入文本</Button>
+            <Button className="secondary" disabled={!builderText.trim() || !builderLink.trim()} onClick={insertBuilderLink}>插入行内链接</Button>
+            <Button className="secondary" disabled={!builderText && !builderLink} onClick={() => {
+              setBuilderText("");
+              setBuilderLink("");
+            }}>清空输入</Button>
+          </div>
+        </section>
+
+        <section className="merge-section">
+          <h3>最终内容</h3>
+          <textarea
+            ref={cookingRef}
+            value={cookingText}
+            onChange={(event) => setCookingText(event.target.value)}
+            autoFocus
+            spellCheck={false}
+          />
+          <div className="merge-actions">
+            <Button className="secondary" disabled={!cookingText} onClick={() => {
+              setCookingText("");
+              focusCooking();
+            }}>清空内容</Button>
+          </div>
+        </section>
+
+        <div className="dialog-actions">
+          <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
+          <Button disabled={!canConfirm} onClick={() => dialog.onConfirm(cookingText)}>
+            {dialog.confirmText || "合并"}
           </Button>
         </div>
       </section>

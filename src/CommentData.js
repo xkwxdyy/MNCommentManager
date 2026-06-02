@@ -291,7 +291,7 @@ var __MN_COMMENT_DATA__ = (function () {
         noteId: "",
         noteTitle: "",
         comments: [],
-        error: "未找到当前卡片",
+        error: "没有读取到当前卡片，请先选中一张卡片",
       };
     }
 

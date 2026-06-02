@@ -9,7 +9,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function getNoteOrThrow(noteId) {
     const note = __MN_COMMENT_DATA__.getWrappedNoteById(noteId);
-    if (!note) throw new Error("未找到卡片");
+    if (!note) throw new Error("没有找到这张卡片，请刷新后再试");
     return note;
   }
 
@@ -43,13 +43,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function requireComment(note, index) {
     const rawComment = note.comments && note.comments[index];
-    if (!rawComment) throw new Error(`未找到评论 #${index}`);
+    if (!rawComment) throw new Error(`没有找到评论 #${index}，请刷新后再试`);
     return rawComment;
   }
 
   function requireCapability(serializedComment, capability, message) {
     if (!serializedComment || !serializedComment.capabilities || !serializedComment.capabilities[capability]) {
-      throw new Error(message || "当前评论不支持此操作");
+      throw new Error(message || "这条评论不支持当前操作");
     }
   }
 
@@ -62,7 +62,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       note.note.moveComment(fromIndex, toIndex);
       return;
     }
-    throw new Error("当前环境不支持移动评论");
+    throw new Error("当前版本无法移动评论，请更新 MarginNote 后再试");
   }
 
   function removeSingleComment(note, index) {
@@ -74,7 +74,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       note.note.removeCommentByIndex(index);
       return;
     }
-    throw new Error("当前环境不支持删除评论");
+    throw new Error("当前版本无法删除评论，请更新 MarginNote 后再试");
   }
 
   function removeCommentsByIndices(note, indices) {
@@ -111,7 +111,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     } else if (typeof MNNote !== "undefined" && MNNote && typeof MNNote.clone === "function") {
       clonedNote = MNNote.clone(note);
     }
-    if (!clonedNote) throw new Error("当前环境不支持克隆卡片");
+    if (!clonedNote) throw new Error("当前版本无法创建子卡片，请更新 MarginNote 后再试");
     return clonedNote;
   }
 
@@ -124,7 +124,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       note.note.appendTextComment(text);
       return;
     }
-    throw new Error("当前环境不支持添加文本评论");
+    throw new Error("当前版本无法新增文本评论，请更新 MarginNote 后再试");
   }
 
   function appendMarkdownComment(note, text) {
@@ -142,7 +142,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function replaceCommentText(note, index, text, markdown) {
     const rawComment = requireComment(note, index);
     const serialized = getSerializedComment(note, index);
-    requireCapability(serialized, "canEditText", `#${index} ${serialized ? serialized.type : ""} 不支持文本编辑`);
+    requireCapability(serialized, "canEditText", `#${index} 不是可编辑的文本评论`);
 
     if (rawComment && "text" in rawComment) {
       rawComment.text = String(text || "");
@@ -166,7 +166,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function moveComments(noteId, indices, targetIndex) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
-    if (sorted.length === 0) throw new Error("请选择评论");
+    if (sorted.length === 0) throw new Error("先选择要移动的评论");
 
     const count = getCommentCount(note);
     let target = parseInt(targetIndex, 10);
@@ -174,7 +174,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     target = Math.max(0, Math.min(count, target));
 
     if (sorted.indexOf(target) >= 0) {
-      throw new Error("目标位置不能在所选评论内部");
+      throw new Error("不能把评论移动到所选范围内部");
     }
 
     MNUtil.undoGrouping(() => {
@@ -196,7 +196,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function deleteComments(noteId, indices) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
-    if (sorted.length === 0) throw new Error("请选择评论");
+    if (sorted.length === 0) throw new Error("先选择要删除的评论");
 
     MNUtil.undoGrouping(() => {
       sorted.forEach((index) => removeSingleComment(note, index));
@@ -231,7 +231,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function deleteBidirectionalLinks(noteId, indices) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
-    if (sorted.length === 0) throw new Error("请选择评论");
+    if (sorted.length === 0) throw new Error("先选择要删除的链接评论");
 
     const sourceId = String(noteId || "").toUpperCase();
     const serializedComments = getSerializedComments(note);
@@ -240,7 +240,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       return !serialized || !serialized.capabilities || !serialized.capabilities.canBidirectionalDelete;
     });
     if (invalid.length > 0) {
-      throw new Error(`双向删除只支持纯卡片链接评论，请取消选择 #${invalid.join(", #")}`);
+      throw new Error(`双向删除只适用于纯卡片链接，请取消选择 #${invalid.join(", #")}`);
     }
     const reverseTargets = [];
     sorted.forEach((index) => {
@@ -268,7 +268,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     });
 
     const reverseCount = reverseTargets.reduce((sum, item) => sum + item.reverseIndices.length, 0);
-    MNUtil.showHUD(`已删除 ${sorted.length} 条评论和 ${reverseCount} 条反向链接`);
+    MNUtil.showHUD(`已删除 ${sorted.length} 条链接评论，并清理 ${reverseCount} 条反向链接`);
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
 
@@ -276,13 +276,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
     const finalText = String(text || "").trim();
-    if (sorted.length < 2) throw new Error("请至少选择 2 条评论");
-    if (!finalText) throw new Error("合并内容为空");
+    if (sorted.length < 2) throw new Error("至少选择 2 条评论才能合并");
+    if (!finalText) throw new Error("请填写合并后的内容");
     const serializedComments = getSerializedComments(note);
     sorted.forEach((index) => {
       const comment = serializedComments.find((item) => item.index === index);
-      requireCapability(comment, "canMergeText", `#${index} 不适合合并为文本评论`);
-      requireCapability(comment, "canCopyText", `#${index} 没有可合并文本`);
+      requireCapability(comment, "canMergeText", `#${index} 不是可合并的文本评论`);
+      requireCapability(comment, "canCopyText", `#${index} 没有可合并的文本`);
     });
 
     MNUtil.undoGrouping(() => {
@@ -302,21 +302,21 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function editCommentText(noteId, index, text, markdown) {
     const note = getNoteOrThrow(noteId);
     const commentIndex = parseInt(index, 10);
-    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论索引无效");
+    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论位置无效，请刷新后再试");
 
     MNUtil.undoGrouping(() => {
       replaceCommentText(note, commentIndex, text, !!markdown);
       refreshNote(note);
     });
 
-    MNUtil.showHUD("已更新评论");
+    MNUtil.showHUD("评论已更新");
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
 
   function extractCommentsToChildNote(noteId, indices, title) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
-    if (sorted.length === 0) throw new Error("请选择评论");
+    if (sorted.length === 0) throw new Error("先选择要提取的评论");
     const childTitle = String(title || "").trim() || `提取自 ${note.noteTitle || "当前卡片"}`;
     let child = null;
 
@@ -335,7 +335,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     if (child && child.noteId) {
       MNUtil.focusNoteInMindMapById(child.noteId, 0.2);
     }
-    MNUtil.showHUD(`已原样提取 ${sorted.length} 条评论`);
+    MNUtil.showHUD(`已用 ${sorted.length} 条评论创建子卡片`);
     return {
       createdNoteId: child && child.noteId ? child.noteId : "",
       createdNoteTitle: child && child.noteTitle ? child.noteTitle : childTitle,
@@ -351,22 +351,22 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   function copyCommentImage(noteId, index) {
     const note = getNoteOrThrow(noteId);
     const commentIndex = parseInt(index, 10);
-    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论索引无效");
+    if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论位置无效，请刷新后再试");
     const serialized = getSerializedComment(note, commentIndex);
-    requireCapability(serialized, "canCopyImage", `#${commentIndex} 没有可复制图片`);
+    requireCapability(serialized, "canCopyImage", `#${commentIndex} 没有可复制的图片`);
     const rawComment = requireComment(note, commentIndex);
     const imageHash = serialized.imageHash ||
       (rawComment && rawComment.paint) ||
       (rawComment && rawComment.q_hpic && rawComment.q_hpic.paint);
     const imageData = imageHash ? MNUtil.getMediaByHash(imageHash) : null;
-    if (!imageData) throw new Error("未读取到图片数据");
+    if (!imageData) throw new Error("没有读取到图片数据，请刷新后再试");
     MNUtil.copyImage(imageData);
-    MNUtil.showHUD("已复制图片");
+    MNUtil.showHUD("图片已复制");
     return true;
   }
 
   function focusLinkedNote(noteId) {
-    if (!noteId) throw new Error("缺少卡片 ID");
+    if (!noteId) throw new Error("没有找到目标卡片");
     MNUtil.focusNoteInMindMapById(String(noteId), 0.2);
     return true;
   }

@@ -333,7 +333,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function setupWebPanelUI(controller) {
-    controller.navigationItem.title = "MN Comment Manager";
+    controller.navigationItem.title = "评论管理器";
     controller.view.autoresizingMask = 0;
     controller.view.backgroundColor = UIColor.clearColor();
     controller.view.layer.shadowOffset = { width: 0, height: 2 };
@@ -361,7 +361,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     controller.titleBar.autoresizingMask = (1 << 1);
 
     controller.titleLabel = new UILabel({ x: 40, y: 0, width: initWidth - 80, height: TITLE_HEIGHT });
-    controller.titleLabel.text = "MN Comment Manager";
+    controller.titleLabel.text = "评论管理器";
     controller.titleLabel.textAlignment = 1;
     controller.titleLabel.font = UIFont.boldSystemFontOfSize(14);
     controller.titleLabel.textColor = UIColor.darkGrayColor();
