@@ -87,7 +87,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function focusLinkedNote(context, payload) {
-    return __MN_COMMENT_MUTATIONS__.focusLinkedNote(payload.noteId);
+    return __MN_COMMENT_MUTATIONS__.focusLinkedNote(payload.noteId, payload.mode);
   }
 
   const commands = {

@@ -130,6 +130,13 @@ button.secondary:hover:not(:disabled) {
   background: var(--panel-soft);
 }
 
+button.secondary.pressing {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
 button.active {
   color: var(--brand);
   border-color: var(--brand);
@@ -592,6 +599,15 @@ textarea:focus-visible,
   background: var(--brand-soft);
 }
 
+.link-locate-action {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.link-locate-action:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
 .quick-action-btn {
   flex: 0 0 auto;
   width: 29px;
@@ -631,11 +647,20 @@ textarea:focus-visible,
   background: var(--danger-soft);
 }
 
-.quick-action-btn.danger:hover:not(:disabled) {
+.quick-action-btn.danger:hover:not(:disabled),
+.quick-action-btn.danger.pressing {
   color: var(--danger);
   border-color: transparent;
   background: var(--danger-soft);
   box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.quick-action-btn.danger.pressing {
+  color: #ffffff;
+  border-color: var(--danger-strong);
+  background: var(--danger-strong);
+  box-shadow: inset 0 0 0 1px var(--danger-strong);
+  transform: scale(0.94);
 }
 
 .comment-body {
@@ -1015,18 +1040,31 @@ textarea:focus-visible,
     justify-content: flex-end;
   }
 
-  .right-pane {
-    display: none;
-  }
 }
 
 @media (max-width: 720px) {
   .workspace {
     grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .left-pane {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .right-pane {
-    display: none;
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  .comment-list {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .comment-position {

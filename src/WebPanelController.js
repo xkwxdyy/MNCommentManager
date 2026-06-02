@@ -109,7 +109,10 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function scheduleCurrentNoteSnapshotPush(controller, reason) {
+    controller._snapshotSyncSeq = (controller._snapshotSyncSeq || 0) + 1;
+    const syncSeq = controller._snapshotSyncSeq;
     NSTimer.scheduledTimerWithTimeInterval(0.05, false, function () {
+      if (controller._snapshotSyncSeq !== syncSeq) return;
       pushCurrentNoteSnapshot(controller, reason);
     });
   }

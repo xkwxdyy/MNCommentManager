@@ -1,4 +1,11 @@
 function createMNCommentManagerAddon(mainPath) {
+  function syncVisiblePanel(addon, reason) {
+    if (!addon || !addon.webController) return;
+    const view = addon.webController.view;
+    if (!view || !view.window || view.hidden) return;
+    __MN_WEB_API_MNCommentManagerAddon.syncCurrentNote(addon.webController, reason);
+  }
+
   return JSB.defineClass("MNCommentManagerAddon : JSExtension", {
     sceneWillConnect: function () {
       self.mainPath = mainPath;
@@ -8,10 +15,13 @@ function createMNCommentManagerAddon(mainPath) {
         __MN_WEB_API_MNCommentManagerAddon.ensureLayout(self.webController);
       };
 
+      MNUtil.addObserver(self, "onPopupMenuOnNote:", "PopupMenuOnNote");
       console.log("[MN Comment Manager] initialized");
     },
 
     sceneDidDisconnect: function () {
+      MNUtil.removeObserver(self, "PopupMenuOnNote");
+
       if (self.webController && self.webController.view && self.webController.view.superview) {
         self.webController.view.removeFromSuperview();
       }
@@ -47,6 +57,8 @@ function createMNCommentManagerAddon(mainPath) {
           ? true
           : false;
 
+      syncVisiblePanel(self, "command-status");
+
       return {
         image: "icon.png",
         object: self,
@@ -68,6 +80,10 @@ function createMNCommentManagerAddon(mainPath) {
       }
 
       Application.sharedInstance().studyController(self.window).refreshAddonCommands();
+    },
+
+    onPopupMenuOnNote: function () {
+      syncVisiblePanel(self, "popup-menu-note");
     },
   });
 }

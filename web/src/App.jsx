@@ -47,6 +47,8 @@ const INLINE_MERGE_TYPES = new Set([
   "mergedTextComment",
 ]);
 
+const LINK_FOCUS_LONG_PRESS_MS = 520;
+
 function getTypeMeta(comment) {
   return TYPE_META[comment?.type] || TYPE_META.unknownComment;
 }
@@ -247,10 +249,18 @@ function App() {
   const [insertMode, setInsertMode] = useState(false);
   const [dialog, setDialog] = useState(null);
   const [deletePressing, setDeletePressing] = useState(false);
+  const [singleDeletePressing, setSingleDeletePressing] = useState(null);
   const deleteTimer = useRef(null);
   const deleteLongPressFired = useRef(false);
+  const singleDeleteTimer = useRef(null);
+  const singleDeleteLongPressFired = useRef(false);
   const didInitialLoad = useRef(false);
   const quickMoveTimers = useRef({});
+  const linkFocusTimers = useRef({});
+  const linkFocusLongPressFired = useRef({});
+  const selectedLinkFocusTimer = useRef(null);
+  const selectedLinkFocusLongPressFired = useRef(false);
+  const [selectedLinkPressing, setSelectedLinkPressing] = useState(false);
 
   const comments = snapshot.comments || [];
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -350,6 +360,13 @@ function App() {
     loadCurrentNote();
     return () => {
       clearDeleteTimer();
+      clearSingleDeleteTimer();
+      if (selectedLinkFocusTimer.current) {
+        clearTimeout(selectedLinkFocusTimer.current);
+        selectedLinkFocusTimer.current = null;
+      }
+      Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
+      Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
     };
   }, []);
 
@@ -534,6 +551,36 @@ function App() {
     }
   };
 
+  const confirmSingleBidirectionalDelete = async (commentIndex) => {
+    const comment = commentByIndex.get(commentIndex);
+    if (!canComment(comment, "canBidirectionalDelete")) {
+      notifyStatus("双向删除只适用于纯卡片链接评论");
+      return;
+    }
+    try {
+      const result = await runCommand("countReverseLinks", {
+        noteId: snapshot.noteId,
+        indices: [commentIndex],
+      }, { keepSelection: true });
+      const reverseCount = result?.reverseCount || 0;
+      setDialog({
+        title: "删除双向链接",
+        body: `将删除当前卡片中的 #${commentIndex} 链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
+        confirmText: "确认双向删除",
+        danger: true,
+        onConfirm: async () => {
+          setDialog(null);
+          await runCommand("deleteBidirectionalLinks", {
+            noteId: snapshot.noteId,
+            indices: [commentIndex],
+          }, { message: "双向链接已删除" });
+        },
+      });
+    } catch (_) {
+      // status has been set
+    }
+  };
+
   function clearDeleteTimer() {
     if (deleteTimer.current) {
       clearTimeout(deleteTimer.current);
@@ -544,6 +591,18 @@ function App() {
   function clearDeletePress() {
     clearDeleteTimer();
     setDeletePressing(false);
+  }
+
+  function clearSingleDeleteTimer() {
+    if (singleDeleteTimer.current) {
+      clearTimeout(singleDeleteTimer.current);
+      singleDeleteTimer.current = null;
+    }
+  }
+
+  function clearSingleDeletePress() {
+    clearSingleDeleteTimer();
+    setSingleDeletePressing(null);
   }
 
   const startDeletePress = () => {
@@ -572,6 +631,32 @@ function App() {
     clearDeletePress();
   };
 
+  const startSingleDeletePress = (event, commentIndex) => {
+    event.stopPropagation();
+    if (loading) return;
+    clearSingleDeletePress();
+    singleDeleteLongPressFired.current = false;
+    setSingleDeletePressing(commentIndex);
+    singleDeleteTimer.current = setTimeout(() => {
+      singleDeleteLongPressFired.current = true;
+      clearSingleDeletePress();
+      execute(() => confirmSingleBidirectionalDelete(commentIndex));
+    }, 560);
+  };
+
+  const endSingleDeletePress = (event, commentIndex) => {
+    event.stopPropagation();
+    const fired = singleDeleteLongPressFired.current;
+    clearSingleDeletePress();
+    if (!fired) execute(() => deleteSingleComment(commentIndex));
+  };
+
+  const cancelSingleDeletePress = (event) => {
+    event.stopPropagation();
+    singleDeleteLongPressFired.current = true;
+    clearSingleDeletePress();
+  };
+
   const startQuickMovePress = (event, commentIndex, direction) => {
     event.stopPropagation();
     if (loading) return;
@@ -595,6 +680,86 @@ function App() {
     event.stopPropagation();
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = null;
+  };
+
+  const locateLinkedNote = async (noteId, mode = "mindmap") => {
+    if (!noteId) {
+      notifyStatus("没有找到目标卡片");
+      return;
+    }
+    await runCommand("focusLinkedNote", { noteId, mode }, {
+      message: mode === "float" ? "已在浮窗定位目标卡片" : "已定位目标卡片",
+      keepSelection: true,
+    });
+  };
+
+  const startInlineLinkFocusPress = (event, comment) => {
+    event.stopPropagation();
+    if (loading || !canComment(comment, "canFocusLink")) return;
+    const key = comment.index;
+    clearTimeout(linkFocusTimers.current[key]);
+    linkFocusLongPressFired.current[key] = false;
+    linkFocusTimers.current[key] = setTimeout(() => {
+      linkFocusLongPressFired.current[key] = true;
+      linkFocusTimers.current[key] = null;
+      execute(() => locateLinkedNote(comment.linkedNoteId, "float"));
+    }, LINK_FOCUS_LONG_PRESS_MS);
+  };
+
+  const finishInlineLinkFocusPress = (event, comment) => {
+    event.stopPropagation();
+    const key = comment.index;
+    const timer = linkFocusTimers.current[key];
+    if (timer) {
+      clearTimeout(timer);
+      linkFocusTimers.current[key] = null;
+    }
+    if (linkFocusLongPressFired.current[key]) {
+      linkFocusLongPressFired.current[key] = false;
+      return;
+    }
+    execute(() => locateLinkedNote(comment.linkedNoteId, "mindmap"));
+  };
+
+  const cancelInlineLinkFocusPress = (event, commentIndex) => {
+    event.stopPropagation();
+    clearTimeout(linkFocusTimers.current[commentIndex]);
+    linkFocusTimers.current[commentIndex] = null;
+    linkFocusLongPressFired.current[commentIndex] = false;
+  };
+
+  function clearSelectedLinkFocusPress() {
+    if (selectedLinkFocusTimer.current) {
+      clearTimeout(selectedLinkFocusTimer.current);
+      selectedLinkFocusTimer.current = null;
+    }
+    setSelectedLinkPressing(false);
+  }
+
+  const startSelectedLinkFocusPress = () => {
+    if (loading || !selectedCanFocusLink) {
+      notifyStatus("定位链接时只能选择 1 条卡片链接评论");
+      return;
+    }
+    clearSelectedLinkFocusPress();
+    selectedLinkFocusLongPressFired.current = false;
+    setSelectedLinkPressing(true);
+    selectedLinkFocusTimer.current = setTimeout(() => {
+      selectedLinkFocusLongPressFired.current = true;
+      clearSelectedLinkFocusPress();
+      execute(() => focusSelectedLink("float"));
+    }, LINK_FOCUS_LONG_PRESS_MS);
+  };
+
+  const endSelectedLinkFocusPress = () => {
+    const fired = selectedLinkFocusLongPressFired.current;
+    clearSelectedLinkFocusPress();
+    if (!fired) execute(() => focusSelectedLink("mindmap"));
+  };
+
+  const cancelSelectedLinkFocusPress = () => {
+    selectedLinkFocusLongPressFired.current = true;
+    clearSelectedLinkFocusPress();
   };
 
   const startRangeSelection = () => {
@@ -752,7 +917,7 @@ function App() {
     }, { message: "图片已复制", keepSelection: true });
   };
 
-  const focusSelectedLink = async () => {
+  const focusSelectedLink = async (mode = "mindmap") => {
     if (!hasOneSelection) {
       notifyStatus("定位链接时只能选择 1 条卡片链接评论");
       return;
@@ -762,7 +927,7 @@ function App() {
       notifyStatus(`#${current?.index ?? ""} 不是可定位的卡片链接`);
       return;
     }
-    await runCommand("focusLinkedNote", { noteId: current.linkedNoteId }, { message: "已打开目标卡片", keepSelection: true });
+    await locateLinkedNote(current.linkedNoteId, mode);
   };
 
   const scrollToComment = (index) => {
@@ -842,6 +1007,7 @@ function App() {
                 <b>{field.comments.length}</b>
               </Button>
             ))}
+            <Button className="nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[comments.length - 1]?.index ?? 0)}>底部</Button>
           </section>
         </aside>
 
@@ -896,13 +1062,17 @@ function App() {
                     <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
                     {comment.linkedNoteTitle ? (
                       <Button
-                        className="text-action"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          return runCommand("focusLinkedNote", { noteId: comment.linkedNoteId }, { message: "已打开目标卡片", keepSelection: true });
-                        }}
+                        className="text-action link-locate-action"
+                        title="点按定位，按住在浮窗定位"
+                        onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
+                        onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
+                        onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                        onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                        onClick={(event) => event.stopPropagation()}
+                        onContextMenu={(event) => event.preventDefault()}
+                        disabled={loading}
                       >
-                        打开
+                        定位
                       </Button>
                     ) : null}
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
@@ -934,13 +1104,14 @@ function App() {
                       </button>
                       <button
                         type="button"
-                        className="quick-action-btn danger"
+                        className={singleDeletePressing === comment.index ? "quick-action-btn danger pressing" : "quick-action-btn danger"}
                         disabled={loading}
-                        title="删除这条评论"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          execute(() => deleteSingleComment(comment.index));
-                        }}
+                        title="点按删除这条评论；按住可同时清理反向链接"
+                        onPointerDown={(event) => startSingleDeletePress(event, comment.index)}
+                        onPointerUp={(event) => endSingleDeletePress(event, comment.index)}
+                        onPointerLeave={cancelSingleDeletePress}
+                        onPointerCancel={cancelSingleDeletePress}
+                        onClick={(event) => event.stopPropagation()}
                       >
                         ×
                       </button>
@@ -993,7 +1164,19 @@ function App() {
               <Button className="secondary" disabled={loading || !selectedCanEditText} onClick={openEditDialog}>编辑文本</Button>
               <Button className="secondary" disabled={loading || !selectedCanMergeText} onClick={openMergeDialog}>合并文本</Button>
               <Button className="secondary" disabled={loading || !selectedCanInlineMerge} onClick={openInlineMergeDialog}>生成行内链接</Button>
-              <Button className="secondary" disabled={loading || !selectedCanFocusLink} onClick={focusSelectedLink}>打开链接卡片</Button>
+              <button
+                type="button"
+                className={selectedLinkPressing ? "secondary pressing" : "secondary"}
+                disabled={loading || !selectedCanFocusLink}
+                title="点按定位链接卡片，按住在浮窗定位"
+                onPointerDown={startSelectedLinkFocusPress}
+                onPointerUp={endSelectedLinkFocusPress}
+                onPointerLeave={cancelSelectedLinkFocusPress}
+                onPointerCancel={cancelSelectedLinkFocusPress}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                定位链接卡片
+              </button>
               <Button className="secondary" disabled={loading || !hasSelection} onClick={openExtractDialog}>提取为子卡片</Button>
             </div>
           </section>

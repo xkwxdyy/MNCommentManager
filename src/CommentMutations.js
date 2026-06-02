@@ -365,9 +365,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return true;
   }
 
-  function focusLinkedNote(noteId) {
+  function focusLinkedNote(noteId, mode) {
     if (!noteId) throw new Error("没有找到目标卡片");
-    MNUtil.focusNoteInMindMapById(String(noteId), 0.2);
+    if (mode === "float") {
+      MNUtil.focusNoteInFloatMindMapById(String(noteId), 0.2);
+    } else {
+      MNUtil.focusNoteInMindMapById(String(noteId), 0.2);
+    }
     return true;
   }
 

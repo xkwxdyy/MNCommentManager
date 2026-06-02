@@ -1,7 +1,7 @@
 {
   "addonid": "marginnote.extension.mncommentmanager",
   "author": "Kangwei Xia",
-  "title": "评论管理器",
+  "title": "MN Comment Manager",
   "version": "0.1.0",
   "marginnote_version_min": "4.2.3",
   "cert_key": ""
