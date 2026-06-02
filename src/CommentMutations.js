@@ -154,27 +154,34 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     appendTextComment(note, text);
   }
 
+  function escapeMarkdownLinkText(text) {
+    return String(text || "").replace(/\]/g, "\\]");
+  }
+
+  function escapeMarkdownLinkUrl(url) {
+    return String(url || "").replace(/\)/g, "%29").trim();
+  }
+
   function replaceCommentText(note, index, text, markdown) {
     const rawComment = requireComment(note, index);
     const serialized = getSerializedComment(note, index);
     requireCapability(serialized, "canEditText", `#${index} 不是可编辑的文本评论`);
+    const nextText = String(text || "");
+    if (!nextText.trim()) throw new Error("评论内容不能为空");
 
-    if (rawComment && "text" in rawComment) {
-      rawComment.text = String(text || "");
-      return;
-    }
-    if (rawComment && "q_htext" in rawComment) {
-      rawComment.q_htext = String(text || "");
+    if (rawComment && rawComment.type === "LinkNote" && "q_htext" in rawComment) {
+      rawComment.q_htext = nextText;
+      if (markdown && "markdown" in rawComment) rawComment.markdown = true;
       if (rawComment.noteid) {
         const mergedNote = __MN_COMMENT_DATA__.getWrappedNoteById(rawComment.noteid);
-        if (mergedNote) mergedNote.excerptText = String(text || "");
+        if (mergedNote) mergedNote.excerptText = nextText;
       }
       return;
     }
 
     removeSingleComment(note, index);
-    if (markdown) appendMarkdownComment(note, text);
-    else appendTextComment(note, text);
+    if (markdown) appendMarkdownComment(note, nextText);
+    else appendTextComment(note, nextText);
     moveSingleComment(note, getCommentCount(note) - 1, index);
   }
 
@@ -328,6 +335,48 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
 
+  function editMarkdownLink(noteId, commentIndex, linkIndex, displayText, url) {
+    const note = getNoteOrThrow(noteId);
+    const parsedCommentIndex = parseInt(commentIndex, 10);
+    const parsedLinkIndex = parseInt(linkIndex, 10);
+    if (!Number.isFinite(parsedCommentIndex) || parsedCommentIndex < 0) {
+      throw new Error("评论位置无效，请刷新后再试");
+    }
+    if (!Number.isFinite(parsedLinkIndex) || parsedLinkIndex < 0) {
+      throw new Error("链接位置无效，请刷新后再试");
+    }
+
+    const serialized = getSerializedComment(note, parsedCommentIndex);
+    requireCapability(serialized, "canEditText", `#${parsedCommentIndex} 不是可编辑的文本评论`);
+    requireCapability(serialized, "hasMarkdownLinks", `#${parsedCommentIndex} 没有行内链接`);
+
+    const links = Array.isArray(serialized.markdownLinks) ? serialized.markdownLinks : [];
+    const targetLink = links[parsedLinkIndex];
+    if (!targetLink) throw new Error("没有找到这个行内链接，请刷新后再试");
+
+    const nextDisplayText = String(displayText || "").trim();
+    const nextUrl = String(url || "").trim();
+    if (!nextDisplayText) throw new Error("请输入链接文本");
+    if (!nextUrl) throw new Error("请输入链接地址");
+    if (nextDisplayText === targetLink.displayText && nextUrl === targetLink.url) {
+      throw new Error("链接未修改");
+    }
+
+    const originalText = String(serialized.text || "");
+    const nextLinkMarkdown = `[${escapeMarkdownLinkText(nextDisplayText)}](${escapeMarkdownLinkUrl(nextUrl)})`;
+    const nextText = originalText.slice(0, targetLink.startIndex) +
+      nextLinkMarkdown +
+      originalText.slice(targetLink.endIndex);
+
+    MNUtil.undoGrouping(() => {
+      replaceCommentText(note, parsedCommentIndex, nextText, true);
+      refreshNote(note);
+    });
+
+    MNUtil.showHUD("行内链接已更新");
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
   function extractCommentsToChildNote(noteId, indices, title, removeOriginal) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
@@ -466,6 +515,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     deleteBidirectionalLinks,
     mergeTextComments,
     editCommentText,
+    editMarkdownLink,
     extractCommentsToChildNote,
     copyText,
     copyCommentImage,

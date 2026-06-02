@@ -1,25 +1,74 @@
 var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   const BUTTON_TAG = 9304101;
-  const BUTTON_SIZE = 36;
+  const MNPINNER_FOLLOW_BUTTON_TAG = 9205101;
+  const BUTTON_WIDTH = 54;
+  const BUTTON_HEIGHT = 36;
   const BUTTON_GAP = 10;
   const INITIAL_SHOW_DELAY = 0.02;
-  const STALE_HIDE_DELAY = 4.0;
 
   function nowToken() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function toArrayLike(raw) {
+    const out = [];
+    try {
+      if (!raw) return out;
+      if (Array.isArray(raw)) return raw.filter((item) => !!item);
+      const length = Number(raw.length);
+      if (Number.isFinite(length) && length >= 0) {
+        for (let i = 0; i < length; i += 1) {
+          const item = raw[i];
+          if (item) out.push(item);
+        }
+        if (out.length > 0 || length === 0) return out;
+      }
+      const count = typeof raw.count === "function" ? Number(raw.count()) : Number(raw.count);
+      if (Number.isFinite(count) && count >= 0 && typeof raw.objectAtIndex === "function") {
+        for (let i = 0; i < count; i += 1) {
+          const item = raw.objectAtIndex(i);
+          if (item) out.push(item);
+        }
+      }
+    } catch (error) {
+      // Native NSArray-like objects can throw on unsupported accessors.
+    }
+    return out;
+  }
+
   function findSubviewByTag(parent, tag) {
     try {
-      if (!parent || !Array.isArray(parent.subviews)) return null;
-      for (let i = 0; i < parent.subviews.length; i += 1) {
-        const child = parent.subviews[i];
+      if (!parent) return null;
+      if (typeof parent.viewWithTag === "function") {
+        const found = parent.viewWithTag(Number(tag));
+        if (found) return found;
+      }
+      const subviews = toArrayLike(parent.subviews);
+      for (let i = 0; i < subviews.length; i += 1) {
+        const child = subviews[i];
         if (child && Number(child.tag) === Number(tag)) return child;
       }
     } catch (error) {
       return null;
     }
     return null;
+  }
+
+  function forEachSubview(parent, visitor, depth) {
+    try {
+      if (!parent || depth > 8) return false;
+      const subviews = toArrayLike(parent.subviews);
+      if (subviews.length <= 0) return false;
+      for (let i = 0; i < subviews.length; i += 1) {
+        const child = subviews[i];
+        if (!child) continue;
+        if (visitor(child)) return true;
+        if (forEachSubview(child, visitor, depth + 1)) return true;
+      }
+    } catch (error) {
+      return false;
+    }
+    return false;
   }
 
   function getHostView(addon) {
@@ -81,7 +130,11 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       if (!noteId || seen.has(noteId)) return;
       let note = null;
       try {
-        note = candidate && candidate.noteId ? candidate : MNNote.new(noteId, false);
+        if (candidate && candidate.noteId && (Array.isArray(candidate.comments) || typeof candidate.removeCommentByIndex === "function")) {
+          note = candidate;
+        } else {
+          note = MNNote.new(noteId, false);
+        }
       } catch (error) {
         note = null;
       }
@@ -92,9 +145,10 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
     try {
       const userInfo = sender && sender.userInfo ? sender.userInfo : {};
-      const selViewLst = Array.isArray(userInfo.selViewLst)
-        ? userInfo.selViewLst
-        : (MNUtil && MNUtil.mindmapView && Array.isArray(MNUtil.mindmapView.selViewLst) ? MNUtil.mindmapView.selViewLst : []);
+      let selViewLst = toArrayLike(userInfo.selViewLst);
+      if (selViewLst.length <= 0 && typeof MNUtil !== "undefined" && MNUtil && MNUtil.mindmapView) {
+        selViewLst = toArrayLike(MNUtil.mindmapView.selViewLst);
+      }
       selViewLst.forEach(pushNote);
     } catch (error) {
       // fall back below
@@ -103,7 +157,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     if (notes.length <= 1) {
       try {
         const focusNotes = MNNote && typeof MNNote.getFocusNotes === "function" ? MNNote.getFocusNotes() : [];
-        if (Array.isArray(focusNotes)) focusNotes.forEach(pushNote);
+        toArrayLike(focusNotes).forEach(pushNote);
       } catch (error) {
         // no selection fallback
       }
@@ -139,36 +193,136 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     };
   }
 
+  function rectOverlapArea(left, right) {
+    try {
+      if (!left || !right) return 0;
+      const x1 = Math.max(Number(left.x || 0), Number(right.x || 0));
+      const y1 = Math.max(Number(left.y || 0), Number(right.y || 0));
+      const x2 = Math.min(Number(left.x || 0) + Number(left.width || 0), Number(right.x || 0) + Number(right.width || 0));
+      const y2 = Math.min(Number(left.y || 0) + Number(left.height || 0), Number(right.y || 0) + Number(right.height || 0));
+      return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function collectMNPinnerFollowButtonRects(hostView) {
+    const rects = [];
+    const seen = [];
+    const pushButton = (button) => {
+      try {
+        if (!button || button.hidden === true) return;
+        if (seen.indexOf(button) >= 0) return;
+        seen.push(button);
+        const rect = rectFromView(button, hostView);
+        if (rect && Number(rect.width || 0) > 0 && Number(rect.height || 0) > 0) rects.push(rect);
+      } catch (error) {
+        // ignore sibling inspection failures
+      }
+    };
+
+    try {
+      if (typeof pinnerUtils !== "undefined" && pinnerUtils && pinnerUtils.pinnerController) {
+        pushButton(pinnerUtils.pinnerController.followModeButton);
+      }
+    } catch (error) {
+      // pinnerUtils may not exist
+    }
+
+    try {
+      pushButton(findSubviewByTag(hostView, MNPINNER_FOLLOW_BUTTON_TAG));
+      forEachSubview(hostView, (child) => {
+        try {
+          if (Number(child.tag) === MNPINNER_FOLLOW_BUTTON_TAG) pushButton(child);
+        } catch (error) {
+          // keep scanning
+        }
+        return false;
+      }, 0);
+    } catch (error) {
+      // ignore sibling inspection failures
+    }
+
+    return rects;
+  }
+
   function resolveButtonFrame(addon, context) {
     const hostView = getHostView(addon);
     const bounds = hostView && hostView.bounds ? hostView.bounds : null;
     if (!bounds || !context || !context.anchorRect) return null;
-    const maxX = Math.max(0, Number(bounds.width || 0) - BUTTON_SIZE);
-    const maxY = Math.max(0, Number(bounds.height || 0) - BUTTON_SIZE);
+    const maxX = Math.max(0, Number(bounds.width || 0) - BUTTON_WIDTH);
+    const maxY = Math.max(0, Number(bounds.height || 0) - BUTTON_HEIGHT);
     const anchor = context.anchorRect;
+    const occupiedRects = collectMNPinnerFollowButtonRects(hostView);
+    const sibling = occupiedRects[0] || null;
     const rightX = Number(anchor.x || 0) + Number(anchor.width || 0) + BUTTON_GAP;
-    const leftX = Number(anchor.x || 0) - BUTTON_SIZE - BUTTON_GAP;
-    const centerY = Number(anchor.y || 0) + Number(anchor.height || 0) * 0.5 - BUTTON_SIZE * 0.5;
-    const topY = Number(anchor.y || 0) - BUTTON_SIZE - BUTTON_GAP;
+    const leftX = Number(anchor.x || 0) - BUTTON_WIDTH - BUTTON_GAP;
+    const centerY = Number(anchor.y || 0) + Number(anchor.height || 0) * 0.5 - BUTTON_HEIGHT * 0.5;
+    const topY = Number(anchor.y || 0) - BUTTON_HEIGHT - BUTTON_GAP;
     const bottomY = Number(anchor.y || 0) + Number(anchor.height || 0) + BUTTON_GAP;
+    const centerX = Number(anchor.x || 0) + Number(anchor.width || 0) * 0.5 - BUTTON_WIDTH * 0.5;
     const candidates = [
       { x: rightX, y: centerY, score: 0 },
       { x: leftX, y: centerY, score: 20 },
       { x: rightX, y: topY, score: 40 },
       { x: rightX, y: bottomY, score: 50 },
+      { x: centerX, y: topY, score: 65 },
+      { x: centerX, y: bottomY, score: 75 },
     ];
+    if (sibling) {
+      candidates.unshift(
+        { x: Number(sibling.x || 0) + Number(sibling.width || 0) + BUTTON_GAP, y: Number(sibling.y || 0), score: -40 },
+        { x: Number(sibling.x || 0) - BUTTON_WIDTH - BUTTON_GAP, y: Number(sibling.y || 0), score: -20 },
+        { x: Number(sibling.x || 0), y: Number(sibling.y || 0) + Number(sibling.height || 0) + BUTTON_GAP, score: 10 },
+        { x: Number(sibling.x || 0), y: Number(sibling.y || 0) - BUTTON_HEIGHT - BUTTON_GAP, score: 30 },
+      );
+    }
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
     candidates.forEach((candidate) => {
       const x = Math.max(0, Math.min(maxX, Number(candidate.x || 0)));
       const y = Math.max(0, Math.min(maxY, Number(candidate.y || 0)));
-      const score = Number(candidate.score || 0) + Math.abs(x - Number(candidate.x || 0)) * 8 + Math.abs(y - Number(candidate.y || 0)) * 4;
+      const frame = { x, y, width: BUTTON_WIDTH, height: BUTTON_HEIGHT };
+      let score = Number(candidate.score || 0) + Math.abs(x - Number(candidate.x || 0)) * 8 + Math.abs(y - Number(candidate.y || 0)) * 4;
+      occupiedRects.forEach((rect) => {
+        score += rectOverlapArea(frame, rect) * 12;
+      });
+      score += rectOverlapArea(frame, anchor) * 4;
       if (score < bestScore) {
         bestScore = score;
-        best = { x, y, width: BUTTON_SIZE, height: BUTTON_SIZE };
+        best = frame;
       }
     });
     return best;
+  }
+
+  function refreshContextFromSelection(addon, sender, options) {
+    const opts = options && typeof options === "object" ? options : {};
+    const existing = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
+    const sourceSender = sender || (existing && existing.sender) || null;
+    const notes = resolveSelectedNotes(sourceSender);
+    if (notes.length <= 1 && opts.allowExisting !== false && existing && Array.isArray(existing.notes) && existing.notes.length > 1) {
+      return existing;
+    }
+    if (notes.length <= 1) return null;
+    const hostView = getHostView(addon);
+    const context = {
+      token: existing && existing.token ? existing.token : nowToken(),
+      notes,
+      anchorRect: getAnchorRect(sourceSender, hostView),
+      sender: sourceSender,
+    };
+    if (addon) addon.batchCommentContext = context;
+    return context;
+  }
+
+  function keepVisibleIfStillMultipleSelection(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender, { allowExisting: false });
+    if (!context) {
+      hideButton(addon, "selection.closed");
+      return false;
+    }
+    return showForContext(addon, context);
   }
 
   function ensureButton(addon) {
@@ -178,8 +332,8 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     if (!button) {
       button = UIButton.buttonWithType(0);
       button.tag = BUTTON_TAG;
-      button.frame = { x: 0, y: 0, width: BUTTON_SIZE, height: BUTTON_SIZE };
-      button.layer.cornerRadius = BUTTON_SIZE * 0.5;
+      button.frame = { x: 0, y: 0, width: BUTTON_WIDTH, height: BUTTON_HEIGHT };
+      button.layer.cornerRadius = BUTTON_HEIGHT * 0.5;
       button.layer.masksToBounds = false;
       button.layer.shadowOffset = { width: 0, height: 2 };
       button.layer.shadowRadius = 8;
@@ -188,9 +342,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       button.backgroundColor = MNUtil.hexColorAlpha("#ffffff", 0.96);
       button.layer.borderWidth = 1;
       button.layer.borderColor = MNUtil.hexColorAlpha("#d1d5db", 0.95);
-      try { button.setTitleForState("批", 0); } catch (error) {}
+      try { button.setTitleForState("评论", 0); } catch (error) {}
       try { button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1.0), 0); } catch (error) {}
-      try { button.titleLabel.font = UIFont.boldSystemFontOfSize(15); } catch (error) {}
+      try { button.titleLabel.font = UIFont.boldSystemFontOfSize(14); } catch (error) {}
       try { button.accessibilityLabel = "MN Comment Manager 批量处理"; } catch (error) {}
       try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTapped:", 1 << 6); } catch (error) {}
       hostView.addSubview(button);
@@ -266,10 +420,6 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     delay(INITIAL_SHOW_DELAY, function () {
       showForContext(addon, context);
     });
-    delay(STALE_HIDE_DELAY, function () {
-      const latest = addon.batchCommentContext;
-      if (latest && String(latest.token || "") === String(context.token || "")) hideButton(addon, "stale");
-    });
     return true;
   }
 
@@ -284,9 +434,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   }
 
   function openMenu(addon, button) {
-    const context = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
+    const context = refreshContextFromSelection(addon, button && button.sender ? button.sender : null);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
-      MNUtil.showHUD("请先多选至少 2 张卡片");
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
       hideButton(addon, "menu.noSelection");
       return false;
     }
@@ -352,10 +502,10 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return MNUtil.confirm("确认批量处理评论？", message, ["取消", "确认处理"]);
   }
 
-  async function runKeepFirstContent(addon) {
-    const context = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
+  async function runKeepFirstContent(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
-      MNUtil.showHUD("请先多选至少 2 张卡片");
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
       return false;
     }
     const confirmed = await confirmKeepFirstContent(context);
@@ -371,6 +521,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   return {
     handleMultipleSelection,
     hideButton,
+    keepVisibleIfStillMultipleSelection,
     openMenu,
     runKeepFirstContent,
   };

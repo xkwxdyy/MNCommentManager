@@ -70,6 +70,16 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     );
   }
 
+  function editMarkdownLink(context, payload) {
+    return __MN_COMMENT_MUTATIONS__.editMarkdownLink(
+      payload.noteId,
+      payload.commentIndex,
+      payload.linkIndex,
+      payload.displayText,
+      payload.url,
+    );
+  }
+
   function extractCommentsToChildNote(context, payload) {
     return __MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(
       payload.noteId,
@@ -103,6 +113,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     deleteBidirectionalLinks,
     mergeTextComments,
     editCommentText,
+    editMarkdownLink,
     extractCommentsToChildNote,
     copyText,
     copyCommentImage,

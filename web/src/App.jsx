@@ -116,8 +116,47 @@ function sortedSetValues(set) {
   return Array.from(set).sort((a, b) => a - b);
 }
 
+function suppressPressDefaults(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const target = event.currentTarget;
+  if (target?.setPointerCapture && event.pointerId !== undefined) {
+    try {
+      target.setPointerCapture(event.pointerId);
+    } catch (_) {
+      // Some WebViews throw if capture is already released.
+    }
+  }
+  window.getSelection?.()?.removeAllRanges?.();
+}
+
+function releasePressCapture(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const target = event.currentTarget;
+  if (target?.releasePointerCapture && event.pointerId !== undefined) {
+    try {
+      target.releasePointerCapture(event.pointerId);
+    } catch (_) {
+      // Pointer capture may already be released after cancel/leave.
+    }
+  }
+  window.getSelection?.()?.removeAllRanges?.();
+}
+
 function isPureMarginNoteLinkText(text) {
   return /^marginnote\d*(?:app)?:\/\/note\/[^\s]+$/i.test(String(text || "").trim());
+}
+
+function extractMarginNoteUrlNoteId(url) {
+  const source = String(url || "").trim();
+  const withoutQuery = source.split(/[?#]/)[0];
+  const match = withoutQuery.match(/^marginnote\d*(?:app)?:\/\/note\/([0-9A-Fa-f-]{36})(?:\/[^\s]*)?$/i);
+  return match?.[1] ? match[1].toUpperCase() : "";
+}
+
+function getMarkdownLinks(comment) {
+  return Array.isArray(comment?.markdownLinks) ? comment.markdownLinks : [];
 }
 
 function escapeMarkdownLinkText(text) {
@@ -270,9 +309,7 @@ function App() {
   const quickMoveTimers = useRef({});
   const linkFocusTimers = useRef({});
   const linkFocusLongPressFired = useRef({});
-  const selectedLinkFocusTimer = useRef(null);
-  const selectedLinkFocusLongPressFired = useRef(false);
-  const [selectedLinkPressing, setSelectedLinkPressing] = useState(false);
+  const [inlineLinkPressing, setInlineLinkPressing] = useState(null);
 
   const comments = snapshot.comments || [];
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -294,6 +331,10 @@ function App() {
       return counts;
     }, { all: 0, text: 0, image: 0, link: 0, html: 0, audio: 0, other: 0 })
   ), [comments]);
+  const visibleFilters = useMemo(
+    () => FILTERS.filter((item) => item.key === "all" || (filterCounts[item.key] || 0) > 0),
+    [filterCounts],
+  );
   const visibleComments = useMemo(() => (
     comments.filter((comment) => {
       if (filter !== "all" && getTypeMeta(comment).filter !== filter) return false;
@@ -310,7 +351,6 @@ function App() {
   const selectedCanCopyImage = hasOneSelection && canComment(selectedComments[0], "canCopyImage");
   const selectedCanEditText = hasOneSelection && canComment(selectedComments[0], "canEditText");
   const selectedCanMergeText = hasMultiSelection && allSelectedCan(selectedComments, "canMergeText") && allSelectedCan(selectedComments, "canCopyText");
-  const selectedCanFocusLink = hasOneSelection && canComment(selectedComments[0], "canFocusLink");
   const selectedCanBidirectionalDelete = hasSelection && allSelectedCan(selectedComments, "canBidirectionalDelete");
   const selectionIsContinuous = useMemo(() => {
     if (!hasSelection) return false;
@@ -322,6 +362,11 @@ function App() {
     && selectionIsContinuous
     && selectedComments.every(canInlineMergeComment)
     && selectedComments.some((comment) => getInlineMergeLinkUrl(comment));
+  const canMoveSelectionToTop = hasSelection && selectedIndices[0] > 0;
+  const canMoveSelectionUp = selectionIsContinuous && selectedIndices[0] > 0;
+  const canMoveSelectionDown = selectionIsContinuous && selectedIndices[selectedIndices.length - 1] < comments.length - 1;
+  const canMoveSelectionToBottom = hasSelection && selectedIndices[selectedIndices.length - 1] < comments.length - 1;
+  const canPickInsertPosition = hasSelection && comments.length > selectedIndices.length;
 
   const notifyStatus = (message) => {
     setStatus(message);
@@ -373,14 +418,22 @@ function App() {
     return () => {
       clearDeleteTimer();
       clearSingleDeleteTimer();
-      if (selectedLinkFocusTimer.current) {
-        clearTimeout(selectedLinkFocusTimer.current);
-        selectedLinkFocusTimer.current = null;
-      }
       Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
       Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
     };
   }, []);
+
+  useEffect(() => {
+    if (filter !== "all" && (filterCounts[filter] || 0) === 0) {
+      setFilter("all");
+    }
+  }, [filter, filterCounts]);
+
+  useEffect(() => {
+    if (insertMode && !canPickInsertPosition) {
+      setInsertMode(false);
+    }
+  }, [insertMode, canPickInsertPosition]);
 
   useEffect(() => {
     window.__MNCommentManagerNativeSync = (rawPayload) => {
@@ -706,26 +759,29 @@ function App() {
   };
 
   const startInlineLinkFocusPress = (event, comment) => {
-    event.stopPropagation();
+    suppressPressDefaults(event);
     if (loading || !canComment(comment, "canFocusLink")) return;
     const key = comment.index;
     clearTimeout(linkFocusTimers.current[key]);
     linkFocusLongPressFired.current[key] = false;
+    setInlineLinkPressing(key);
     linkFocusTimers.current[key] = setTimeout(() => {
       linkFocusLongPressFired.current[key] = true;
       linkFocusTimers.current[key] = null;
+      setInlineLinkPressing(null);
       execute(() => locateLinkedNote(comment.linkedNoteId, "float"));
     }, LINK_FOCUS_LONG_PRESS_MS);
   };
 
   const finishInlineLinkFocusPress = (event, comment) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     const key = comment.index;
     const timer = linkFocusTimers.current[key];
     if (timer) {
       clearTimeout(timer);
       linkFocusTimers.current[key] = null;
     }
+    setInlineLinkPressing(null);
     if (linkFocusLongPressFired.current[key]) {
       linkFocusLongPressFired.current[key] = false;
       return;
@@ -734,44 +790,11 @@ function App() {
   };
 
   const cancelInlineLinkFocusPress = (event, commentIndex) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     clearTimeout(linkFocusTimers.current[commentIndex]);
     linkFocusTimers.current[commentIndex] = null;
     linkFocusLongPressFired.current[commentIndex] = false;
-  };
-
-  function clearSelectedLinkFocusPress() {
-    if (selectedLinkFocusTimer.current) {
-      clearTimeout(selectedLinkFocusTimer.current);
-      selectedLinkFocusTimer.current = null;
-    }
-    setSelectedLinkPressing(false);
-  }
-
-  const startSelectedLinkFocusPress = () => {
-    if (loading || !selectedCanFocusLink) {
-      notifyStatus("定位链接时只能选择 1 条卡片链接评论");
-      return;
-    }
-    clearSelectedLinkFocusPress();
-    selectedLinkFocusLongPressFired.current = false;
-    setSelectedLinkPressing(true);
-    selectedLinkFocusTimer.current = setTimeout(() => {
-      selectedLinkFocusLongPressFired.current = true;
-      clearSelectedLinkFocusPress();
-      execute(() => focusSelectedLink("float"));
-    }, LINK_FOCUS_LONG_PRESS_MS);
-  };
-
-  const endSelectedLinkFocusPress = () => {
-    const fired = selectedLinkFocusLongPressFired.current;
-    clearSelectedLinkFocusPress();
-    if (!fired) execute(() => focusSelectedLink("mindmap"));
-  };
-
-  const cancelSelectedLinkFocusPress = () => {
-    selectedLinkFocusLongPressFired.current = true;
-    clearSelectedLinkFocusPress();
+    setInlineLinkPressing(null);
   };
 
   const startRangeSelection = () => {
@@ -884,6 +907,39 @@ function App() {
     });
   };
 
+  const openMarkdownLinkEditDialog = (comment, link, linkIndex) => {
+    if (!comment || !link) return;
+    setDialog({
+      kind: "editMarkdownLink",
+      title: `编辑 #${comment.index} 的行内链接`,
+      body: "只替换这一个 Markdown 行内链接，评论里的其他内容保持不变。",
+      commentIndex: comment.index,
+      linkIndex,
+      displayText: link.displayText || "",
+      url: link.url || "",
+      confirmText: "保存链接",
+      onConfirm: async ({ displayText, url }) => {
+        setDialog(null);
+        await runCommand("editMarkdownLink", {
+          noteId: snapshot.noteId,
+          commentIndex: comment.index,
+          linkIndex,
+          displayText,
+          url,
+        }, { message: "行内链接已更新" });
+      },
+    });
+  };
+
+  const locateMarkdownLink = async (link, mode = "mindmap") => {
+    const noteId = extractMarginNoteUrlNoteId(link?.url);
+    if (!noteId) {
+      notifyStatus("这个行内链接不是 MarginNote 卡片链接");
+      return;
+    }
+    await locateLinkedNote(noteId, mode);
+  };
+
   const openExtractDialog = () => {
     if (!requireSelection()) return;
     setDialog({
@@ -933,31 +989,42 @@ function App() {
     }, { message: "图片已复制", keepSelection: true });
   };
 
-  const focusSelectedLink = async (mode = "mindmap") => {
-    if (!hasOneSelection) {
-      notifyStatus("定位链接时只能选择 1 条卡片链接评论");
-      return;
-    }
-    const current = selectedComments[0];
-    if (!canComment(current, "canFocusLink")) {
-      notifyStatus(`#${current?.index ?? ""} 不是可定位的卡片链接`);
-      return;
-    }
-    await locateLinkedNote(current.linkedNoteId, mode);
-  };
+  const moveActions = [
+    { key: "top", label: "移到最上方", visible: canMoveSelectionToTop, onClick: () => moveSelection(0) },
+    { key: "up", label: "上移", visible: canMoveSelectionUp, onClick: () => moveByStep("up") },
+    { key: "down", label: "下移", visible: canMoveSelectionDown, onClick: () => moveByStep("down") },
+    { key: "bottom", label: "移到最下方", visible: canMoveSelectionToBottom, onClick: () => moveSelection(comments.length) },
+  ].filter((action) => action.visible);
+  const hasMoveActions = moveActions.length > 0 || canPickInsertPosition;
+  const processActions = [
+    { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
+    { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
+    { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
+    { key: "merge-text", label: "合并文本", visible: selectedCanMergeText, onClick: openMergeDialog },
+    { key: "inline-merge", label: "生成行内链接", visible: selectedCanInlineMerge, onClick: openInlineMergeDialog },
+    { key: "extract", label: "提取为子卡片", visible: hasSelection, onClick: openExtractDialog },
+  ].filter((action) => action.visible);
 
   const scrollToComment = (index) => {
     document.getElementById(`comment-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const rangeHint = rangePicking
+    ? (rangeAnchor === null ? "先点范围的第一条评论" : `起点 #${rangeAnchor}，再点最后一条`)
+    : "";
+
   return (
     <div className="comment-manager">
       <header className="topbar">
-        <div>
+        <div className="topbar-title">
           <h1>评论管理器</h1>
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
+          <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected(new Set(visibleComments.map((comment) => comment.index)))}>全选</Button>
+          <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected((prev) => new Set(visibleComments.map((comment) => comment.index).filter((index) => !prev.has(index))))}>反选</Button>
+          <Button className="secondary" disabled={!hasSelection} onClick={() => setSelected(new Set())}>清空</Button>
+          <Button className={rangePicking ? "active" : "secondary"} disabled={comments.length === 0} onClick={startRangeSelection}>选范围</Button>
           <Button className="secondary" onClick={loadCurrentNote} disabled={loading}>刷新</Button>
           <Button className="secondary" onClick={() => MNBridge.send("closePanel")}>关闭</Button>
         </div>
@@ -967,8 +1034,26 @@ function App() {
         <span>共 {comments.length} 条</span>
         <span>已选 {selectedIndices.length} 条</span>
         <span>当前显示 {visibleComments.length} 条</span>
-        <span key={statusKey} className="status-message updated">{status}</span>
+        <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
       </div>
+
+      <nav className="quick-nav" aria-label="快速定位">
+        <span className="quick-nav-label">快速定位</span>
+        <div className="quick-nav-track">
+          <Button className="quick-nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[0]?.index ?? 0)}>顶部</Button>
+          {fieldGroups.map((field) => (
+            <Button
+              key={field.id}
+              className="quick-nav-item"
+              onClick={() => scrollToComment(field.anchorIndex)}
+            >
+              <span>{field.name}</span>
+              <b>{field.comments.length}</b>
+            </Button>
+          ))}
+          <Button className="quick-nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[comments.length - 1]?.index ?? 0)}>底部</Button>
+        </div>
+      </nav>
 
       <main className="workspace">
         <aside className="left-pane">
@@ -984,7 +1069,7 @@ function App() {
               />
             </label>
             <div className="segmented">
-              {FILTERS.map((item) => (
+              {visibleFilters.map((item) => (
                 <Button
                   key={item.key}
                   className={filter === item.key ? "active" : ""}
@@ -996,35 +1081,6 @@ function App() {
               ))}
             </div>
           </section>
-
-          <section className="pane-section">
-            <h2>批量选择</h2>
-            <div className="button-grid">
-              <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected(new Set(visibleComments.map((comment) => comment.index)))}>全选</Button>
-              <Button className="secondary" disabled={comments.length === 0} onClick={() => setSelected((prev) => new Set(visibleComments.map((comment) => comment.index).filter((index) => !prev.has(index))))}>反选</Button>
-              <Button className="secondary" disabled={!hasSelection} onClick={() => setSelected(new Set())}>取消选择</Button>
-              <Button className={rangePicking ? "active" : "secondary"} disabled={comments.length === 0} onClick={startRangeSelection}>选范围</Button>
-            </div>
-            <p className="helper-text">
-              {rangePicking ? (rangeAnchor === null ? "先点范围的第一条评论" : `起点 #${rangeAnchor}，再点最后一条`) : "全选和反选只作用于当前显示结果"}
-            </p>
-          </section>
-
-          <section className="pane-section">
-            <h2>快速定位</h2>
-            <Button className="nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[0]?.index ?? 0)}>顶部</Button>
-            {fieldGroups.map((field) => (
-              <Button
-                key={field.id}
-                className="nav-item"
-                onClick={() => scrollToComment(field.anchorIndex)}
-              >
-                <span>{field.name}</span>
-                <b>{field.comments.length}</b>
-              </Button>
-            ))}
-            <Button className="nav-item" disabled={comments.length === 0} onClick={() => scrollToComment(comments[comments.length - 1]?.index ?? 0)}>底部</Button>
-          </section>
         </aside>
 
         <section className="comment-list" aria-label="评论列表">
@@ -1035,6 +1091,7 @@ function App() {
             const selectedNow = selected.has(comment.index);
             const imageSrc = normalizeImageSource(comment);
             const linkedDisplay = getLinkedNoteDisplay(comment);
+            const markdownLinks = getMarkdownLinks(comment);
             const commentPosition = getCommentPosition(comment.index);
             const isFirstComment = commentPosition === 0;
             const isLastComment = commentPosition >= comments.length - 1;
@@ -1080,7 +1137,7 @@ function App() {
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
                       {linkedDisplay ? (
                         <Button
-                          className="quick-action-btn locate-action"
+                          className={inlineLinkPressing === comment.index ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
                           title="点按定位，按住在浮窗定位"
                           onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
                           onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
@@ -1088,6 +1145,7 @@ function App() {
                           onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
                           onClick={(event) => event.stopPropagation()}
                           onContextMenu={(event) => event.preventDefault()}
+                          onSelectStart={(event) => event.preventDefault()}
                           disabled={loading}
                           aria-label={`定位链接卡片：${linkedDisplay.title}`}
                         >
@@ -1151,12 +1209,21 @@ function App() {
                     ) : (
                       <p className="no-text">无文本内容</p>
                     )}
+                    {markdownLinks.length > 0 ? (
+                      <MarkdownLinkList
+                        comment={comment}
+                        links={markdownLinks}
+                        loading={loading}
+                        onLocate={locateMarkdownLink}
+                        onEdit={openMarkdownLinkEditDialog}
+                      />
+                    ) : null}
                   </div>
                 </article>
               </div>
             );
           })}
-          {insertMode && visibleComments.length > 0 ? (
+          {insertMode && canPickInsertPosition && visibleComments.length > 0 ? (
             <Button className="insert-end" disabled={loading || !hasSelection} onClick={() => moveSelection(comments.length)}>移动到最后</Button>
           ) : null}
         </section>
@@ -1167,41 +1234,32 @@ function App() {
             <p>{hasSelection ? `${getSelectionHint(selectedComments)}：${selectedIndices.map((index) => `#${index}`).join(" ")}` : "尚未选择"}</p>
           </section>
 
-          <section className="pane-section move-section">
-            <h2>移动</h2>
-            <div className="button-grid move-controls">
-              <Button onClick={() => moveSelection(0)} disabled={loading || !hasSelection}>移到最上方</Button>
-              <Button onClick={() => moveByStep("up")} disabled={loading || !selectionIsContinuous}>上移</Button>
-              <Button onClick={() => moveByStep("down")} disabled={loading || !selectionIsContinuous}>下移</Button>
-              <Button onClick={() => moveSelection(comments.length)} disabled={loading || !hasSelection}>移到最下方</Button>
-            </div>
-            <Button className={insertMode ? "active wide" : "secondary wide"} disabled={!hasSelection} onClick={() => setInsertMode((value) => !value)}>选择插入位置</Button>
-          </section>
+          {hasMoveActions ? (
+            <section className="pane-section move-section">
+              <h2>移动</h2>
+              {moveActions.length > 0 ? (
+                <div className="button-grid move-controls">
+                  {moveActions.map((action) => (
+                    <Button key={action.key} onClick={action.onClick} disabled={loading}>{action.label}</Button>
+                  ))}
+                </div>
+              ) : null}
+              {canPickInsertPosition ? (
+                <Button className={insertMode ? "active wide" : "secondary wide"} disabled={loading} onClick={() => setInsertMode((value) => !value)}>选择插入位置</Button>
+              ) : null}
+            </section>
+          ) : null}
 
-          <section className="pane-section process-section">
-            <h2>处理</h2>
-            <div className="stack">
-              <Button className="secondary" disabled={loading || !selectedCanCopyText} onClick={copySelectedText}>复制文本</Button>
-              <Button className="secondary" disabled={loading || !selectedCanCopyImage} onClick={copySelectedImage}>复制图片</Button>
-              <Button className="secondary" disabled={loading || !selectedCanEditText} onClick={openEditDialog}>编辑文本</Button>
-              <Button className="secondary" disabled={loading || !selectedCanMergeText} onClick={openMergeDialog}>合并文本</Button>
-              <Button className="secondary" disabled={loading || !selectedCanInlineMerge} onClick={openInlineMergeDialog}>生成行内链接</Button>
-              <button
-                type="button"
-                className={selectedLinkPressing ? "secondary pressing" : "secondary"}
-                disabled={loading || !selectedCanFocusLink}
-                title="点按定位链接卡片，按住在浮窗定位"
-                onPointerDown={startSelectedLinkFocusPress}
-                onPointerUp={endSelectedLinkFocusPress}
-                onPointerLeave={cancelSelectedLinkFocusPress}
-                onPointerCancel={cancelSelectedLinkFocusPress}
-                onContextMenu={(event) => event.preventDefault()}
-              >
-                定位链接卡片
-              </button>
-              <Button className="secondary" disabled={loading || !hasSelection} onClick={openExtractDialog}>提取为子卡片</Button>
-            </div>
-          </section>
+          {processActions.length > 0 ? (
+            <section className="pane-section process-section">
+              <h2>处理</h2>
+              <div className="stack">
+                {processActions.map((action) => (
+                  <Button key={action.key} className="secondary" disabled={loading} onClick={action.onClick}>{action.label}</Button>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="pane-section danger-zone delete-section">
             <h2>删除</h2>
@@ -1233,7 +1291,54 @@ function Dialog({ dialog, loading, onClose }) {
   if (dialog.kind === "inlineMerge") {
     return <InlineMergeDialog dialog={dialog} loading={loading} onClose={onClose} />;
   }
+  if (dialog.kind === "editMarkdownLink") {
+    return <MarkdownLinkEditDialog dialog={dialog} loading={loading} onClose={onClose} />;
+  }
   return <TextDialog dialog={dialog} loading={loading} onClose={onClose} />;
+}
+
+function MarkdownLinkList({ comment, links, loading, onLocate, onEdit }) {
+  return (
+    <div className="markdown-link-list" aria-label={`评论 #${comment.index} 的行内链接`}>
+      {links.map((link, linkIndex) => {
+        const noteId = extractMarginNoteUrlNoteId(link.url);
+        return (
+          <div className="markdown-link-item" key={`${comment.index}-${linkIndex}-${link.startIndex}`}>
+            <div className="markdown-link-text">
+              <span>{link.displayText || "未命名链接"}</span>
+              <small>{link.url}</small>
+            </div>
+            <div className="markdown-link-actions">
+              <Button
+                className="quick-action-btn"
+                disabled={loading || !noteId}
+                title={noteId ? "定位这条行内链接的卡片" : "非 MarginNote 卡片链接不能定位"}
+                aria-label={`定位行内链接：${link.displayText || link.url}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onLocate(link);
+                }}
+              >
+                ⌖
+              </Button>
+              <Button
+                className="quick-action-btn"
+                disabled={loading}
+                title="编辑这条行内链接"
+                aria-label={`编辑行内链接：${link.displayText || link.url}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit(comment, link, linkIndex);
+                }}
+              >
+                ✎
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function TextDialog({ dialog, loading, onClose }) {
@@ -1284,6 +1389,61 @@ function TextDialog({ dialog, loading, onClose }) {
             onClick={() => dialog.onConfirm(value, { checked })}
           >
             {dialog.confirmText || "确认"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MarkdownLinkEditDialog({ dialog, loading, onClose }) {
+  const [displayText, setDisplayText] = useState(dialog.displayText || "");
+  const [url, setUrl] = useState(dialog.url || "");
+  const trimmedDisplayText = displayText.trim();
+  const trimmedUrl = url.trim();
+  const hasChanges = trimmedDisplayText !== String(dialog.displayText || "") ||
+    trimmedUrl !== String(dialog.url || "");
+  const canConfirm = trimmedDisplayText.length > 0 && trimmedUrl.length > 0 && hasChanges && !loading;
+  const preview = `[${trimmedDisplayText || "..."}](${trimmedUrl || "..."})`;
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.key === "Escape") onClose();
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (canConfirm) {
+          Promise.resolve(dialog.onConfirm({ displayText: trimmedDisplayText, url: trimmedUrl })).catch(() => {});
+        }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [canConfirm, dialog, onClose, trimmedDisplayText, trimmedUrl]);
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <section className="dialog markdown-link-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onClick={(event) => event.stopPropagation()}>
+        <h2 id="dialog-title">{dialog.title}</h2>
+        <p>{dialog.body}</p>
+        <div className="markdown-link-edit-grid">
+          <label>
+            <span>链接文本</span>
+            <input value={displayText} onChange={(event) => setDisplayText(event.target.value)} autoFocus />
+          </label>
+          <label>
+            <span>链接地址</span>
+            <input value={url} onChange={(event) => setUrl(event.target.value)} />
+          </label>
+        </div>
+        <div className="markdown-link-preview" aria-label="Markdown 预览">{preview}</div>
+        <div className="dialog-actions">
+          <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
+          <Button
+            className="primary"
+            disabled={!canConfirm}
+            onClick={() => dialog.onConfirm({ displayText: trimmedDisplayText, url: trimmedUrl })}
+          >
+            {dialog.confirmText || "保存"}
           </Button>
         </div>
       </section>

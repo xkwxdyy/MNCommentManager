@@ -98,9 +98,9 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
-    onMindmapViewBottomToolbarClosed: function () {
+    onMindmapViewBottomToolbarClosed: function (sender) {
       try {
-        __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "bottom-toolbar-closed");
+        __MN_BATCH_COMMENT_ACTIONS__.keepVisibleIfStillMultipleSelection(self, sender);
       } catch (error) {
         console.log(`[MN Comment Manager] bottom toolbar close failed: ${error && error.message ? error.message : error}`);
       }
@@ -119,9 +119,9 @@ function createMNCommentManagerAddon(mainPath) {
       return false;
     },
 
-    runBatchKeepFirstContent: async function () {
+    runBatchKeepFirstContent: async function (sender) {
       try {
-        await __MN_BATCH_COMMENT_ACTIONS__.runKeepFirstContent(self);
+        await __MN_BATCH_COMMENT_ACTIONS__.runKeepFirstContent(self, sender);
       } catch (error) {
         MNUtil.showHUD(`批处理失败: ${error && error.message ? error.message : error}`);
         console.log(`[MN Comment Manager] batch keep first content failed: ${error && error.message ? error.message : error}`);

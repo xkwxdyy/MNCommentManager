@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## 0.1.2（2026-06-03）
+
+### 新功能
+
+- **Markdown 行内链接编辑**：评论体下方展示当前评论中所有 Markdown 行内链接（`[text](url)` 格式），每条链接提供「定位」（⌖）和「编辑」（✎）两个快捷操作；编辑弹窗支持独立修改显示文本与链接地址，实时预览最终 Markdown 语法，Cmd+Enter 确认，Esc 取消
+- **快速导航条提升为顶级 bar**：原「快速定位」侧栏区块升级为独立的水平导航条（`quick-nav`），位于状态栏下方，常驻可见；按钮可横向滚动，显示字段分组及条数角标；「批量选择」按钮迁入顶栏 actions 区域，侧栏批量选择区块移除
+
+### 优化
+
+- **批量评论按钮**：
+  - 兼容 Native NSArray 类型的 `selViewLst` 和 `focusNotes`，新增 `toArrayLike()` 统一转换
+  - 按钮尺寸从 36×36 改为 54×36，文字从「批」改为「评论」
+  - 新增 `collectMNPinnerFollowButtonRects()` 自动检测 MNPinner 跟随按钮位置，避让布局冲突
+  - `resolveButtonFrame` 位置打分算法纳入与相邻按钮的重叠面积惩罚，新增更多候选位置
+  - 底部工具栏关闭时不再直接隐藏按钮，改为 `keepVisibleIfStillMultipleSelection` 重新检测多选状态，保持按钮可见
+  - 移除 4 秒自动隐藏逻辑，按钮生命周期完全由多选状态决定
+- **`replaceCommentText` 修复**：针对 `LinkNote` 类型评论使用 `comment.type` 判断而非 `"q_htext" in rawComment`，增加空内容保护
+- **UI 自适应**：过滤器 tab 仅显示计数 > 0 的类型；移动/处理区块无可用操作时自动隐藏；当前 filter 对应类型清空时自动重置为「全部」；insertMode 无可插入位置时自动退出
+- **长按态样式修复**：`comment-inline-actions` 及 `quick-action-btn` 新增 `user-select: none` / `touch-action: none`，阻止长按触发系统文字选择；`.pressing` 类应用到行内定位按钮
+
+### 样式
+
+- `comment-manager` grid 增加一行用于 `quick-nav`
+- 顶栏（`.topbar`）支持 `flex-wrap`，高度改为弹性 `min-height`，适配按钮换行
+- 新增 `.topbar-title`，限制标题区域宽度并隐藏溢出
+- `topbar-actions` 按钮最小尺寸减小（58px/32px），移动端进一步压缩（46px/30px）
+- 新增 `.quick-nav` / `.quick-nav-track` / `.quick-nav-item` 完整样式组，含横向滚动、hover 高亮、条数 pill 角标
+- 新增 `.markdown-link-list` / `.markdown-link-item` / `.markdown-link-text` / `.markdown-link-actions` 行内链接列表样式
+- 新增 `.markdown-link-edit-grid` / `.markdown-link-preview` 编辑弹窗专属样式
+- `.link-focus-action` 补充 `touch-action: none` 和 `-webkit-tap-highlight-color: transparent`
+
 ## 0.1.1（2026-06-03）
 
 ### 新功能
