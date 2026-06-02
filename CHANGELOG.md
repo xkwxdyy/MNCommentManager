@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 0.1.0（2026-06-02）[3]
+
+### 新功能
+
+- **链接评论摘要展示**：链接类型评论的 comment-body 区域现在展示卡片标题和链接 URL，替代原来仅显示原始文本的方式；新增 `getLinkedNoteDisplay()` 函数统一提取展示数据
+- **定位按钮改为符号图标**：行内链接定位按钮从文字「定位」改为符号 `⌖`，并迁移到 `comment-inline-actions` 快捷操作区，新增 `aria-label` 包含目标卡片标题
+
+### 样式
+
+- 按钮默认样式重构：默认按钮改为中性色（`--control-bg` / `--control-text`），原品牌色主色调提取为 `.primary` 类；新增 `--control-bg`、`--control-bg-hover`、`--control-text` CSS 变量并支持暗色模式
+- `.button-grid`、`.stack`、`.nav-item` 等容器内按钮统一高度 38px、字号 14px
+- 移动控制区（`.move-controls`）按钮独立配色，使用中性色方案
+- 禁用按钮样式细化：改用 `--muted` 文字色 + 中性背景，替代简单 `opacity`
+- 对话框确认按钮统一加 `.primary` 类，与取消按钮视觉层次更明确
+- 新增 `.link-summary` 样式：卡片标题 15px 加粗，URL 以等宽小字（11px）展示
+- `.locate-action` 样式重构：品牌色 + 柔色背景，悬停改为内嵌描边效果，移除旧 `.text-action` 类
+- 右侧面板（`.right-pane .pane-section`）底部间距调整为 20px
+- 危险区按钮最小高度增加到 42px
+- 顶栏操作按钮（`.topbar-actions button`）独立规定最小尺寸和字号
+- 插入目标按钮（`.insert-target`）字号缩小为 13px，高度调整为 34px
+
+---
+
 ## 0.1.0（2026-06-02）[2]
 
 ### 新功能

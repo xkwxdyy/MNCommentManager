@@ -148,6 +148,18 @@ function getInlineMergeLinkUrl(comment) {
   return "";
 }
 
+function getLinkedNoteDisplay(comment) {
+  if (!canComment(comment, "canFocusLink")) return null;
+  const rawText = commentText(comment).trim();
+  const url = comment?.linkedNoteUrl || (isPureMarginNoteLinkText(rawText) ? rawText : "");
+  const title = String(comment?.linkedNoteTitle || "").trim();
+  if (!title && !url) return null;
+  return {
+    title: title || "未命名卡片",
+    url,
+  };
+}
+
 function canInlineMergeComment(comment) {
   if (!comment || !canComment(comment, "canCopyText")) return false;
   return INLINE_MERGE_TYPES.has(comment.type);
@@ -1018,6 +1030,7 @@ function App() {
             const meta = getTypeMeta(comment);
             const selectedNow = selected.has(comment.index);
             const imageSrc = normalizeImageSource(comment);
+            const linkedDisplay = getLinkedNoteDisplay(comment);
             const commentPosition = getCommentPosition(comment.index);
             const isFirstComment = commentPosition === 0;
             const isLastComment = commentPosition >= comments.length - 1;
@@ -1060,22 +1073,23 @@ function App() {
                       </span>
                     ) : null}
                     <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
-                    {comment.linkedNoteTitle ? (
-                      <Button
-                        className="text-action link-locate-action"
-                        title="点按定位，按住在浮窗定位"
-                        onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
-                        onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
-                        onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
-                        onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
-                        onClick={(event) => event.stopPropagation()}
-                        onContextMenu={(event) => event.preventDefault()}
-                        disabled={loading}
-                      >
-                        定位
-                      </Button>
-                    ) : null}
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
+                      {linkedDisplay ? (
+                        <Button
+                          className="quick-action-btn locate-action"
+                          title="点按定位，按住在浮窗定位"
+                          onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
+                          onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
+                          onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                          onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                          onClick={(event) => event.stopPropagation()}
+                          onContextMenu={(event) => event.preventDefault()}
+                          disabled={loading}
+                          aria-label={`定位链接卡片：${linkedDisplay.title}`}
+                        >
+                          ⌖
+                        </Button>
+                      ) : null}
                       <button
                         type="button"
                         className="quick-action-btn"
@@ -1119,7 +1133,12 @@ function App() {
                   </div>
                   <div className="comment-body">
                     {imageSrc ? <img src={imageSrc} alt={`评论 #${comment.index}`} loading="lazy" /> : null}
-                    {commentText(comment) ? (
+                    {linkedDisplay ? (
+                      <div className="link-summary">
+                        <p className="link-summary-title">{linkedDisplay.title}</p>
+                        {linkedDisplay.url ? <p className="link-summary-url">{linkedDisplay.url}</p> : null}
+                      </div>
+                    ) : commentText(comment) ? (
                       <pre>{clampText(commentText(comment))}</pre>
                     ) : comment.capabilities?.hasImage ? (
                       <p className="no-text">图片/手写评论</p>
@@ -1128,7 +1147,6 @@ function App() {
                     ) : (
                       <p className="no-text">无文本内容</p>
                     )}
-                    {comment.linkedNoteTitle ? <p className="linked-title">{comment.linkedNoteTitle}</p> : null}
                   </div>
                 </article>
               </div>
@@ -1147,7 +1165,7 @@ function App() {
 
           <section className="pane-section">
             <h2>移动</h2>
-            <div className="button-grid">
+            <div className="button-grid move-controls">
               <Button onClick={() => moveSelection(0)} disabled={loading || !hasSelection}>移到最上方</Button>
               <Button onClick={() => moveByStep("up")} disabled={loading || !selectionIsContinuous}>上移</Button>
               <Button onClick={() => moveByStep("down")} disabled={loading || !selectionIsContinuous}>下移</Button>
@@ -1243,7 +1261,7 @@ function TextDialog({ dialog, loading, onClose }) {
         <div className="dialog-actions">
           <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
           <Button
-            className={dialog.danger ? "danger" : ""}
+            className={dialog.danger ? "danger" : "primary"}
             disabled={loading}
             onClick={() => dialog.onConfirm(value)}
           >
@@ -1402,7 +1420,7 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
 
         <div className="dialog-actions">
           <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
-          <Button disabled={!canConfirm} onClick={() => dialog.onConfirm(cookingText)}>
+          <Button className="primary" disabled={!canConfirm} onClick={() => dialog.onConfirm(cookingText)}>
             {dialog.confirmText || "合并"}
           </Button>
         </div>
