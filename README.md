@@ -1,80 +1,88 @@
-# Web插件开发模板
+# MN Comment Manager
 
-用于MarginNote4的Web插件工程模板。模板内置React+Vite前端与WebView面板桥接。
+MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments on the current note card from a WebView panel.
 
-## 开始开发
+## Features
 
-安装依赖：
+- Load the focused card and list its comments with type, index, lifecycle stage, and link metadata.
+- Filter and search comments by text, image, link, HTML, audio, or other comment types.
+- Select single comments, multi-select comments, or pick a continuous range.
+- Move selected comments up, down, or to an insertion point.
+- Delete selected comments, including long-press bidirectional deletion for pure MarginNote card links.
+- Edit supported text comments.
+- Merge selected text-like comments into one Markdown comment.
+- Extract selected comments into a child note.
+- Copy text, copy images, and focus linked notes when supported.
+
+## Install
+
+Download or build `mn-comment-manager-v0.1.0.mnaddon`, then install it in MarginNote 4.
+
+Minimum MarginNote version:
+
+```text
+4.2.3
+```
+
+Addon id:
+
+```text
+marginnote.extension.mncommentmanager
+```
+
+## Development
+
+Install dependencies:
 
 ```bash
 pnpm install
-# 或(使用npm时)
-npm install
 ```
 
-开发模式：
+Run development mode:
 
 ```bash
 pnpm dev
-# 或(使用npm时)
-npm run dev
 ```
 
-说明：启动Vitedevserver。修改 `web/`下前端代码时由Vite自己reload；修改 `src/`下插件代码时会自动重新部署插件并重启MarginNote。
-
-## 打包发布
-
-执行 `build`会先运行发布态Web构建，把UIWebView兼容的经典离线资源输出到 `src/web-dist`，再打包成 `.mnaddon`：
+Build a release package:
 
 ```bash
 pnpm build
-# 或(使用npm时)
-npm run build
 ```
 
-## 常用命令
+The release build generates WebView assets and packages the addon as:
 
-更新版本号时会同时修改 `package.json`和 `src/mnaddon.json`：
+```text
+mn-comment-manager-v0.1.0.mnaddon
+```
+
+## Project Layout
+
+- `src/`: MarginNote JavaScriptCore addon code.
+- `src/main.js`: addon entry and `JSB.require(...)` imports.
+- `src/MNCommentManagerAddon.js`: lifecycle hooks and toolbar command.
+- `src/WebPanelController.js`: floating WebView panel and bridge URL handling.
+- `src/WebBridgeCommands.js`: native bridge command handlers.
+- `src/CommentData.js`: current-note comment serialization and capability detection.
+- `src/CommentMutations.js`: comment move/delete/edit/merge/extract operations.
+- `web/`: React and Vite source for the panel UI.
+- `.codex/skills/github-issue-tracker/`: project-local GitHub issue tracking skill for this repository.
+
+## GitHub Issues
+
+This repository contains one plugin, so issue titles do not use plugin prefixes.
+
+Use the project-local skill scripts from the repository root:
 
 ```bash
-pnpm version:patch
-pnpm version:minor
-pnpm version:major
+bash .codex/skills/github-issue-tracker/scripts/create_issue.sh "Issue title" "Issue body"
+bash .codex/skills/github-issue-tracker/scripts/update_issue.sh 123 "Progress update"
+bash .codex/skills/github-issue-tracker/scripts/link_commits.sh 123 abc1234
+bash .codex/skills/github-issue-tracker/scripts/close_issue.sh 123 "Resolution summary"
 ```
 
-如果当前目录是干净的git工作区，会自动创建commit并打tag，例如 `v0.2.0`。
+The default issue repository is:
 
-## 桥接协议
-
-Web页面与插件层按以下结构通信：
-
-- `command`：命令名
-- `requestId`：请求ID
-- `payload`：命令参数
-- `error`：错误对象
-
-模板示例使用URL拦截桥接：
-
-- Web调用 `MNBridge.send(command,payload)`
-- 插件侧在 `webView:shouldStartLoadWithRequest:navigationType:`中解析 `mnaddon://bridge?...`
-
-## 面板交互
-
-- 插件面板采用浮动窗口，挂载在 `studyController.view`上
-- 标题栏拖拽可移动窗口
-- 右下角拖拽可缩放窗口
-- 标题栏双击可最大化/还原
-- 右下角双击可居中窗口
-- 窗口位置与大小会保存到项目专属 `NSUserDefaults` 键，生成后形如 `mn_web_template_<class>_frame_config`
-- 最大化状态不会作为普通窗口尺寸保存；MarginNote 窗口变化时会保持用户首选尺寸，并自动限制在当前学习区可见范围内
-
-## 目录说明
-
-- `src/`：插件代码与打包根目录
-- `src/WebPanelController.js`：浮动面板UI、页面加载与URL scheme入口
-- `src/WebBridgeCommands.js`：bridge命令函数定义，命令名必须与前端 `command`字段一致
-- `src/web-dist/`：发布期静态前端产物目录
-- `web/`：React+Vite源码目录
-- `web/src/lib/mnBridge.js`：前端bridge SDK入口，页面和组件直接从这里import
-- `web/vite.config.js`：开发态Vite配置
-- `web/vite.release.config.js`：发布态Vite配置，输出经典单bundle脚本
+```text
+xkwxdyy/MNCommentManager
+```
