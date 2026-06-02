@@ -269,6 +269,10 @@ function makeEmptySnapshot() {
   return { noteId: "", noteTitle: "", comments: [], error: "" };
 }
 
+function getMarkdownLinkPressKey(comment, link, linkIndex) {
+  return `markdown:${comment.index}:${linkIndex}:${link.startIndex ?? ""}`;
+}
+
 function Button({ children, className = "", disabled = false, onClick, title, type = "button", ...props }) {
   const handleClick = (event) => {
     if (disabled || !onClick) return;
@@ -773,6 +777,21 @@ function App() {
     }, LINK_FOCUS_LONG_PRESS_MS);
   };
 
+  const startMarkdownLinkFocusPress = (event, comment, link, linkIndex) => {
+    suppressPressDefaults(event);
+    if (loading || !extractMarginNoteUrlNoteId(link?.url)) return;
+    const key = getMarkdownLinkPressKey(comment, link, linkIndex);
+    clearTimeout(linkFocusTimers.current[key]);
+    linkFocusLongPressFired.current[key] = false;
+    setInlineLinkPressing(key);
+    linkFocusTimers.current[key] = setTimeout(() => {
+      linkFocusLongPressFired.current[key] = true;
+      linkFocusTimers.current[key] = null;
+      setInlineLinkPressing(null);
+      execute(() => locateMarkdownLink(link, "float"));
+    }, LINK_FOCUS_LONG_PRESS_MS);
+  };
+
   const finishInlineLinkFocusPress = (event, comment) => {
     releasePressCapture(event);
     const key = comment.index;
@@ -789,11 +808,36 @@ function App() {
     execute(() => locateLinkedNote(comment.linkedNoteId, "mindmap"));
   };
 
+  const finishMarkdownLinkFocusPress = (event, comment, link, linkIndex) => {
+    releasePressCapture(event);
+    const key = getMarkdownLinkPressKey(comment, link, linkIndex);
+    const timer = linkFocusTimers.current[key];
+    if (timer) {
+      clearTimeout(timer);
+      linkFocusTimers.current[key] = null;
+    }
+    setInlineLinkPressing(null);
+    if (linkFocusLongPressFired.current[key]) {
+      linkFocusLongPressFired.current[key] = false;
+      return;
+    }
+    execute(() => locateMarkdownLink(link, "mindmap"));
+  };
+
   const cancelInlineLinkFocusPress = (event, commentIndex) => {
     releasePressCapture(event);
     clearTimeout(linkFocusTimers.current[commentIndex]);
     linkFocusTimers.current[commentIndex] = null;
     linkFocusLongPressFired.current[commentIndex] = false;
+    setInlineLinkPressing(null);
+  };
+
+  const cancelMarkdownLinkFocusPress = (event, comment, link, linkIndex) => {
+    releasePressCapture(event);
+    const key = getMarkdownLinkPressKey(comment, link, linkIndex);
+    clearTimeout(linkFocusTimers.current[key]);
+    linkFocusTimers.current[key] = null;
+    linkFocusLongPressFired.current[key] = false;
     setInlineLinkPressing(null);
   };
 
@@ -1145,6 +1189,7 @@ function App() {
                           onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
                           onClick={(event) => event.stopPropagation()}
                           onContextMenu={(event) => event.preventDefault()}
+                          onDragStart={(event) => event.preventDefault()}
                           onSelectStart={(event) => event.preventDefault()}
                           disabled={loading}
                           aria-label={`定位链接卡片：${linkedDisplay.title}`}
@@ -1214,7 +1259,10 @@ function App() {
                         comment={comment}
                         links={markdownLinks}
                         loading={loading}
-                        onLocate={locateMarkdownLink}
+                        pressingKey={inlineLinkPressing}
+                        onLocateStart={startMarkdownLinkFocusPress}
+                        onLocateFinish={finishMarkdownLinkFocusPress}
+                        onLocateCancel={cancelMarkdownLinkFocusPress}
                         onEdit={openMarkdownLinkEditDialog}
                       />
                     ) : null}
@@ -1297,11 +1345,12 @@ function Dialog({ dialog, loading, onClose }) {
   return <TextDialog dialog={dialog} loading={loading} onClose={onClose} />;
 }
 
-function MarkdownLinkList({ comment, links, loading, onLocate, onEdit }) {
+function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart, onLocateFinish, onLocateCancel, onEdit }) {
   return (
     <div className="markdown-link-list" aria-label={`评论 #${comment.index} 的行内链接`}>
       {links.map((link, linkIndex) => {
         const noteId = extractMarginNoteUrlNoteId(link.url);
+        const pressKey = getMarkdownLinkPressKey(comment, link, linkIndex);
         return (
           <div className="markdown-link-item" key={`${comment.index}-${linkIndex}-${link.startIndex}`}>
             <div className="markdown-link-text">
@@ -1310,14 +1359,18 @@ function MarkdownLinkList({ comment, links, loading, onLocate, onEdit }) {
             </div>
             <div className="markdown-link-actions">
               <Button
-                className="quick-action-btn"
+                className={pressingKey === pressKey ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
                 disabled={loading || !noteId}
-                title={noteId ? "定位这条行内链接的卡片" : "非 MarginNote 卡片链接不能定位"}
+                title={noteId ? "点按定位这条行内链接的卡片，按住在浮窗定位" : "非 MarginNote 卡片链接不能定位"}
                 aria-label={`定位行内链接：${link.displayText || link.url}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onLocate(link);
-                }}
+                onPointerDown={(event) => onLocateStart(event, comment, link, linkIndex)}
+                onPointerUp={(event) => onLocateFinish(event, comment, link, linkIndex)}
+                onPointerLeave={(event) => onLocateCancel(event, comment, link, linkIndex)}
+                onPointerCancel={(event) => onLocateCancel(event, comment, link, linkIndex)}
+                onClick={(event) => event.stopPropagation()}
+                onContextMenu={(event) => event.preventDefault()}
+                onDragStart={(event) => event.preventDefault()}
+                onSelectStart={(event) => event.preventDefault()}
               >
                 ⌖
               </Button>

@@ -508,6 +508,97 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return stats;
   }
 
+  function normalizeNoteArray(notes) {
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    const seen = new Set();
+    const targetNotes = [];
+
+    sourceNotes.forEach((candidate) => {
+      if (!candidate || !candidate.noteId) return;
+      const noteId = String(candidate.noteId || "").trim();
+      if (!noteId || seen.has(noteId)) return;
+      seen.add(noteId);
+      targetNotes.push(candidate);
+    });
+
+    if (targetNotes.length <= 1) throw new Error("请先多选至少 2 张卡片");
+    return targetNotes;
+  }
+
+  function clearAllCommentsForNotes(notes) {
+    const targetNotes = normalizeNoteArray(notes);
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      noComment: 0,
+      removedComments: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    MNUtil.undoGrouping(() => {
+      targetNotes.forEach((note) => {
+        try {
+          const commentCount = getCommentCount(note);
+          if (commentCount <= 0) {
+            stats.noComment += 1;
+            return;
+          }
+
+          removeCommentsByIndices(note, Array.from({ length: commentCount }, (_, index) => index));
+          refreshNote(note);
+          stats.changed += 1;
+          stats.removedComments += commentCount;
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({
+            noteId: String(note && note.noteId || ""),
+            message: error && error.message ? error.message : String(error),
+          });
+        }
+      });
+    });
+
+    MNUtil.showHUD(`已清空 ${stats.changed}/${stats.total} 张卡片的评论，删除 ${stats.removedComments} 条`);
+    return stats;
+  }
+
+  function clearAllTitlesForNotes(notes) {
+    const targetNotes = normalizeNoteArray(notes);
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      blankTitle: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    MNUtil.undoGrouping(() => {
+      targetNotes.forEach((note) => {
+        try {
+          const currentTitle = String(note.noteTitle || "").trim();
+          if (!currentTitle) {
+            stats.blankTitle += 1;
+            return;
+          }
+
+          note.noteTitle = "";
+          refreshNote(note);
+          stats.changed += 1;
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({
+            noteId: String(note && note.noteId || ""),
+            message: error && error.message ? error.message : String(error),
+          });
+        }
+      });
+    });
+
+    MNUtil.showHUD(`已清空 ${stats.changed}/${stats.total} 张卡片的标题`);
+    return stats;
+  }
+
   return {
     moveComments,
     deleteComments,
@@ -521,5 +612,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     copyCommentImage,
     focusLinkedNote,
     keepFirstContentForNotes,
+    clearAllCommentsForNotes,
+    clearAllTitlesForNotes,
   };
 })();

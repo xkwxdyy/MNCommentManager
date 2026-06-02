@@ -698,6 +698,9 @@ button.pressing {
 
 .quick-action-btn {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 29px;
   height: 29px;
   min-width: 29px;
@@ -710,7 +713,7 @@ button.pressing {
   box-shadow: inset 0 0 0 1px var(--border-light);
   font-size: 14px;
   font-weight: 800;
-  line-height: 1;
+  line-height: 0;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -748,6 +751,7 @@ button.pressing {
 
 .locate-action {
   color: var(--accent-blue);
+  font-size: 15px;
 }
 
 .link-focus-action {
@@ -864,6 +868,9 @@ button.pressing {
 .markdown-link-actions {
   display: inline-flex;
   gap: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .insert-target,

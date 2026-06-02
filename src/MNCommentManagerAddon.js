@@ -127,5 +127,23 @@ function createMNCommentManagerAddon(mainPath) {
         console.log(`[MN Comment Manager] batch keep first content failed: ${error && error.message ? error.message : error}`);
       }
     },
+
+    runBatchClearAllComments: async function (sender) {
+      try {
+        await __MN_BATCH_COMMENT_ACTIONS__.runClearAllComments(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`清空评论失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] batch clear all comments failed: ${error && error.message ? error.message : error}`);
+      }
+    },
+
+    runBatchClearAllTitles: async function (sender) {
+      try {
+        await __MN_BATCH_COMMENT_ACTIONS__.runClearAllTitles(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`清空标题失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] batch clear all titles failed: ${error && error.message ? error.message : error}`);
+      }
+    },
   });
 }

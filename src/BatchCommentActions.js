@@ -443,6 +443,8 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const commandTable = [
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
+      tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
+      tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
     ];
     addon.batchCommentMenuPopoverController = MNUtil.getPopoverAndPresent(
       button || addon.batchCommentButton,
@@ -488,6 +490,42 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return stats;
   }
 
+  function countClearAllCommentsImpact(notes) {
+    const stats = {
+      total: 0,
+      noCommentCards: 0,
+      removableComments: 0,
+    };
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    sourceNotes.forEach((note) => {
+      if (!note || !note.noteId) return;
+      stats.total += 1;
+      const count = Array.isArray(note.comments) ? note.comments.length : 0;
+      if (count <= 0) {
+        stats.noCommentCards += 1;
+        return;
+      }
+      stats.removableComments += count;
+    });
+    return stats;
+  }
+
+  function countClearAllTitlesImpact(notes) {
+    const stats = {
+      total: 0,
+      titledCards: 0,
+      blankTitleCards: 0,
+    };
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    sourceNotes.forEach((note) => {
+      if (!note || !note.noteId) return;
+      stats.total += 1;
+      if (String(note.noteTitle || "").trim()) stats.titledCards += 1;
+      else stats.blankTitleCards += 1;
+    });
+    return stats;
+  }
+
   async function confirmKeepFirstContent(context) {
     const stats = countActionImpact(context && context.notes);
     const message = [
@@ -500,6 +538,30 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       `预计删除 ${stats.removableComments} 条评论。`,
     ].join("\n");
     return MNUtil.confirm("确认批量处理评论？", message, ["取消", "确认处理"]);
+  }
+
+  async function confirmClearAllComments(context) {
+    const stats = countClearAllCommentsImpact(context && context.notes);
+    const message = [
+      `将处理 ${stats.total} 张卡片。`,
+      "",
+      `无评论：${stats.noCommentCards} 张，不变。`,
+      `预计删除 ${stats.removableComments} 条评论。`,
+      "",
+      "这个操作不会清理目标卡片中的反向链接。",
+    ].join("\n");
+    return MNUtil.confirm("确认清空所有评论？", message, ["取消", "确认清空"]);
+  }
+
+  async function confirmClearAllTitles(context) {
+    const stats = countClearAllTitlesImpact(context && context.notes);
+    const message = [
+      `将处理 ${stats.total} 张卡片。`,
+      "",
+      `有标题：${stats.titledCards} 张，将清空标题。`,
+      `无标题：${stats.blankTitleCards} 张，不变。`,
+    ].join("\n");
+    return MNUtil.confirm("确认清空所有标题？", message, ["取消", "确认清空"]);
   }
 
   async function runKeepFirstContent(addon, sender) {
@@ -518,11 +580,45 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
+  async function runClearAllComments(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const confirmed = await confirmClearAllComments(context);
+    if (!confirmed) {
+      MNUtil.showHUD("已取消清空评论");
+      return false;
+    }
+    const result = __MN_COMMENT_MUTATIONS__.clearAllCommentsForNotes(context.notes);
+    hideButton(addon, "action.done");
+    return result;
+  }
+
+  async function runClearAllTitles(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const confirmed = await confirmClearAllTitles(context);
+    if (!confirmed) {
+      MNUtil.showHUD("已取消清空标题");
+      return false;
+    }
+    const result = __MN_COMMENT_MUTATIONS__.clearAllTitlesForNotes(context.notes);
+    hideButton(addon, "action.done");
+    return result;
+  }
+
   return {
     handleMultipleSelection,
     hideButton,
     keepVisibleIfStillMultipleSelection,
     openMenu,
     runKeepFirstContent,
+    runClearAllComments,
+    runClearAllTitles,
   };
 })();
