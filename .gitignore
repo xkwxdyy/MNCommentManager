@@ -3,3 +3,4 @@ dist/
 *.mnaddon
 .DS_Store
 src/web-dist/
+.codex/skills/

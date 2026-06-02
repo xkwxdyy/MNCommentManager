@@ -66,20 +66,10 @@ mn-comment-manager-v0.1.0.mnaddon
 - `src/CommentData.js`: current-note comment serialization and capability detection.
 - `src/CommentMutations.js`: comment move/delete/edit/merge/extract operations.
 - `web/`: React and Vite source for the panel UI.
-- `.codex/skills/github-issue-tracker/`: project-local GitHub issue tracking skill for this repository.
 
 ## GitHub Issues
 
 This repository contains one plugin, so issue titles do not use plugin prefixes.
-
-Use the project-local skill scripts from the repository root:
-
-```bash
-bash .codex/skills/github-issue-tracker/scripts/create_issue.sh "Issue title" "Issue body"
-bash .codex/skills/github-issue-tracker/scripts/update_issue.sh 123 "Progress update"
-bash .codex/skills/github-issue-tracker/scripts/link_commits.sh 123 abc1234
-bash .codex/skills/github-issue-tracker/scripts/close_issue.sh 123 "Resolution summary"
-```
 
 The default issue repository is:
 
