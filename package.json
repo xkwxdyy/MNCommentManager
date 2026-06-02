@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "scripts": {
     "build": "node scripts/build-release.js",
