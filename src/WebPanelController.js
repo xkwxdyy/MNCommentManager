@@ -85,6 +85,35 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     evaluateScript(webView, script);
   }
 
+  function pushCurrentNoteSnapshot(controller, reason) {
+    if (!controller || !controller.webView) return;
+
+    let snapshot = null;
+    try {
+      snapshot = __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
+    } catch (error) {
+      snapshot = {
+        noteId: "",
+        noteTitle: "",
+        comments: [],
+        error: error && error.message ? error.message : String(error),
+      };
+    }
+
+    const payload = {
+      reason: reason || "panel-sync",
+      snapshot,
+    };
+    const script = `window.__MNCommentManagerNativeSync&&window.__MNCommentManagerNativeSync('${encodeBridgeJSON(payload)}')`;
+    evaluateScript(controller.webView, script);
+  }
+
+  function scheduleCurrentNoteSnapshotPush(controller, reason) {
+    NSTimer.scheduledTimerWithTimeInterval(0.05, false, function () {
+      pushCurrentNoteSnapshot(controller, reason);
+    });
+  }
+
   function normalizeBridgeError(error, command) {
     return {
       message: error && error.message ? error.message : String(error),
@@ -550,6 +579,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       self.view.hidden = false;
       self.webView.delegate = self;
       evaluateScript(self.webView, "typeof window.__onPanelShow==='function'&&window.__onPanelShow();");
+      scheduleCurrentNoteSnapshotPush(self, "panel-show");
     },
 
     viewWillDisappear: function () {
@@ -564,6 +594,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
     webViewDidFinishLoad: function () {
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
+      scheduleCurrentNoteSnapshotPush(self, "web-load");
     },
 
     webViewDidFailLoadWithError: function (webView, error) {
@@ -634,6 +665,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     applySavedOrDefaultFrame(controller);
     controller.view.hidden = false;
     NSUserDefaults.standardUserDefaults().setObjectForKey(true, PANEL_ON_KEY);
+    scheduleCurrentNoteSnapshotPush(controller, "show-panel");
   }
 
   function hidePanel(controller) {
@@ -663,5 +695,6 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     hidePanel,
     shouldRestorePanel,
     ensureLayout,
+    syncCurrentNote: scheduleCurrentNoteSnapshotPush,
   };
 })();

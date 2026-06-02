@@ -202,6 +202,7 @@ function App() {
   const deleteTimer = useRef(null);
   const deleteLongPressFired = useRef(false);
   const didInitialLoad = useRef(false);
+  const quickMoveTimers = useRef({});
 
   const comments = snapshot.comments || [];
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -295,6 +296,24 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    window.__MNCommentManagerNativeSync = (rawPayload) => {
+      try {
+        const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+        if (!payload?.snapshot) return;
+        applySnapshot(payload.snapshot, payload.snapshot.error ? payload.snapshot.error : "已识别当前卡片");
+      } catch (error) {
+        setStatus(normalizeError(error));
+      }
+    };
+
+    return () => {
+      if (window.__MNCommentManagerNativeSync) {
+        delete window.__MNCommentManagerNativeSync;
+      }
+    };
+  }, []);
+
   const execute = async (callback) => {
     try {
       await callback();
@@ -351,6 +370,49 @@ function App() {
       indices: selectedIndices,
       targetIndex,
     }, { message: "已移动评论" });
+  };
+
+  const getCommentPosition = (index) => comments.findIndex((comment) => comment.index === index);
+
+  const moveSingleComment = async (commentIndex, direction, toEdge = false) => {
+    const position = getCommentPosition(commentIndex);
+    if (position < 0) {
+      setStatus("未找到目标评论");
+      return;
+    }
+
+    if (direction === "up") {
+      if (position === 0) {
+        setStatus("已经在最顶部");
+        return;
+      }
+      const targetIndex = toEdge ? 0 : comments[position - 1].index;
+      await runCommand("moveComments", {
+        noteId: snapshot.noteId,
+        indices: [commentIndex],
+        targetIndex,
+      }, { message: toEdge ? "已置顶评论" : "已上移评论" });
+      return;
+    }
+
+    if (position >= comments.length - 1) {
+      setStatus("已经在最底部");
+      return;
+    }
+    const afterNext = comments[position + 2];
+    const targetIndex = toEdge || !afterNext ? comments.length : afterNext.index;
+    await runCommand("moveComments", {
+      noteId: snapshot.noteId,
+      indices: [commentIndex],
+      targetIndex,
+    }, { message: toEdge ? "已置底评论" : "已下移评论" });
+  };
+
+  const deleteSingleComment = async (commentIndex) => {
+    await runCommand("deleteComments", {
+      noteId: snapshot.noteId,
+      indices: [commentIndex],
+    }, { message: "已删除评论" });
   };
 
   const moveByStep = async (direction) => {
@@ -451,6 +513,31 @@ function App() {
   const cancelDeletePress = () => {
     deleteLongPressFired.current = true;
     clearDeletePress();
+  };
+
+  const startQuickMovePress = (event, commentIndex, direction) => {
+    event.stopPropagation();
+    if (loading) return;
+    clearTimeout(quickMoveTimers.current[commentIndex]);
+    quickMoveTimers.current[commentIndex] = setTimeout(() => {
+      quickMoveTimers.current[commentIndex] = null;
+      execute(() => moveSingleComment(commentIndex, direction, true));
+    }, 520);
+  };
+
+  const finishQuickMovePress = (event, commentIndex, direction) => {
+    event.stopPropagation();
+    const timer = quickMoveTimers.current[commentIndex];
+    if (!timer) return;
+    clearTimeout(timer);
+    quickMoveTimers.current[commentIndex] = null;
+    execute(() => moveSingleComment(commentIndex, direction, false));
+  };
+
+  const cancelQuickMovePress = (event, commentIndex) => {
+    event.stopPropagation();
+    clearTimeout(quickMoveTimers.current[commentIndex]);
+    quickMoveTimers.current[commentIndex] = null;
   };
 
   const startRangeSelection = () => {
@@ -666,6 +753,9 @@ function App() {
             const meta = getTypeMeta(comment);
             const selectedNow = selected.has(comment.index);
             const imageSrc = normalizeImageSource(comment);
+            const commentPosition = getCommentPosition(comment.index);
+            const isFirstComment = commentPosition === 0;
+            const isLastComment = commentPosition >= comments.length - 1;
             return (
               <div className="comment-row" key={comment.index}>
                 {insertMode && !selectedNow ? (
@@ -717,6 +807,46 @@ function App() {
                         定位
                       </Button>
                     ) : null}
+                    <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
+                      <button
+                        type="button"
+                        className="quick-action-btn"
+                        disabled={loading || isFirstComment}
+                        title="单击上移，长按置顶"
+                        onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}
+                        onPointerUp={(event) => finishQuickMovePress(event, comment.index, "up")}
+                        onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
+                        onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="quick-action-btn"
+                        disabled={loading || isLastComment}
+                        title="单击下移，长按置底"
+                        onPointerDown={(event) => startQuickMovePress(event, comment.index, "down")}
+                        onPointerUp={(event) => finishQuickMovePress(event, comment.index, "down")}
+                        onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
+                        onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="quick-action-btn danger"
+                        disabled={loading}
+                        title="删除这条评论"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          execute(() => deleteSingleComment(comment.index));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                   <div className="comment-body">
                     {imageSrc ? <img src={imageSrc} alt={`评论 #${comment.index}`} /> : null}
