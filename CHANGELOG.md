@@ -4,11 +4,14 @@
 
 ### 新功能
 
+- **在线更新清单**：新增 stable-only 远端更新清单生成流程，支持在上传 `.mnaddon` 到 123 网盘直链根目录后生成 `mncommentmanager.json`，供 MNUtils 插件商店按 manifest 自动读取最新版
+- **商店更新日志 JSON**：新增 `mncommentmanager_changelog.json` fallback，提供结构化双语更新日志，方便 MNUtils 将日志接入历史版本页
 - **批量清空所有评论**：批量菜单新增「清空所有评论」选项，操作前显示受影响卡片数和待删除评论总数，确认后用 `undoGrouping` 批量删除，跳过无评论卡片
 - **批量清空所有标题**：批量菜单新增「清空所有标题」选项，操作前显示有标题/无标题卡片数，确认后批量置空 `noteTitle`，跳过已无标题的卡片
 
 ### 优化
 
+- **MNUtils 交接文档**：补充 123 网盘直链、`manifestUrl`、`changelogUrl` 和历史日志合并规则，移除 GitHub Releases 作为商店更新源的方案
 - **Markdown 行内链接定位支持长按浮窗**：行内链接列表的「⌖ 定位」按钮改为与卡片链接定位一致的长按交互——点按在脑图定位，按住在浮窗定位；新增 `startMarkdownLinkFocusPress` / `finishMarkdownLinkFocusPress` / `cancelMarkdownLinkFocusPress` 三组事件处理，复用 `linkFocusTimers` / `linkFocusLongPressFired` 机制，按键 key 格式为 `markdown:<commentIndex>:<linkIndex>:<startIndex>`
 - `.quick-action-btn` 改用 `inline-flex` 布局，`line-height` 改为 `0`，修复图标垂直居中不准的问题
 - `.locate-action` 字号提升至 15px，图标视觉尺寸更一致

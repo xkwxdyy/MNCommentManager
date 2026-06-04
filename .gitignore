@@ -1,6 +1,13 @@
 node_modules/
 dist/
+debug/
 *.mnaddon
 .DS_Store
 src/web-dist/
 .codex/skills/
+
+.claude/
+
+.codex/
+
+docs/

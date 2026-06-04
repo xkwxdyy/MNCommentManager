@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build-release.js",
     "dev": "node scripts/dev-web.js",
+    "manifest": "node scripts/update-manifest.js",
     "version": "node scripts/bump-version.js",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",

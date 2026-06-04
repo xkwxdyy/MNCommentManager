@@ -1,0 +1,67 @@
+{
+  "id": "mncommentmanager",
+  "title": "MN Comment Manager",
+  "updatedAt": "2026-06-03T00:00:00+08:00",
+  "entries": [
+    {
+      "version": "0.1.3",
+      "channel": "stable",
+      "date": "2026-06-03",
+      "items": [
+        {
+          "zh": "新增 stable-only 在线更新清单，上传安装包到 123 网盘直链目录后可生成 MNUtils 插件商店可读取的 manifest。",
+          "en": "Added a stable-only online update manifest so MNUtils can read the latest package after it is uploaded to a 123pan direct-link directory."
+        },
+        {
+          "zh": "新增结构化双语更新日志 JSON，方便 MNUtils 在历史版本页展示各版本更新内容。",
+          "en": "Added structured bilingual changelog JSON so MNUtils can show version notes in the history page."
+        },
+        {
+          "zh": "批量菜单新增清空所有评论和清空所有标题操作，支持多卡片确认与撤销分组。",
+          "en": "Added batch actions to clear all comments or all titles across selected cards, with confirmation and undo grouping."
+        },
+        {
+          "zh": "Markdown 行内链接定位支持与卡片链接一致的点按/长按行为，并修复长按触发文字选择的问题。",
+          "en": "Markdown inline link locating now supports the same tap and long-press behavior as card links, with text selection suppressed during long press."
+        }
+      ]
+    },
+    {
+      "version": "0.1.2",
+      "channel": "stable",
+      "date": "2026-06-03",
+      "items": [
+        {
+          "zh": "新增 Markdown 行内链接列表与编辑弹窗，支持直接修改显示文本和链接地址。",
+          "en": "Added Markdown inline link listing and editing, including separate display-text and URL fields."
+        },
+        {
+          "zh": "快速导航条提升为顶部常驻横向导航，批量选择入口迁入顶栏。",
+          "en": "Promoted quick navigation to a persistent top rail and moved batch selection into the top bar."
+        }
+      ]
+    },
+    {
+      "version": "0.1.1",
+      "channel": "stable",
+      "date": "2026-06-03",
+      "items": [
+        {
+          "zh": "新增多选卡片批量评论处理入口，支持只保留第一条内容和提取子卡片后删除原评论。",
+          "en": "Added native multi-card batch comment actions, including keep-first-content and remove-original extraction."
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "channel": "stable",
+      "date": "2026-06-02",
+      "items": [
+        {
+          "zh": "首个正式包：支持查看、筛选、移动、删除、编辑和合并当前卡片评论。",
+          "en": "Initial stable package for viewing, filtering, moving, deleting, editing, and merging comments on the current card."
+        }
+      ]
+    }
+  ]
+}

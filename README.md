@@ -16,7 +16,7 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 
 ## Install
 
-Download or build `mn-comment-manager-v0.1.0.mnaddon`, then install it in MarginNote 4.
+Download or build `mn-comment-manager-v0.1.3.mnaddon`, then install it in MarginNote 4.
 
 Minimum MarginNote version:
 
@@ -53,8 +53,30 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.0.mnaddon
+mn-comment-manager-v0.1.3.mnaddon
 ```
+
+Generate a stable update manifest after uploading the package into the 123pan
+MN Comment Manager directory:
+
+```bash
+pnpm manifest -- \
+  --download-url "https://1826456163.v.123pan.cn/1826456163/28490444" \
+  --file-id "28490444"
+```
+
+The manifest schema matches the MN Literature / MN Pinner updater manifests and
+is written to `debug/123pan/mncommentmanager.json`. The bundled fallback lives in
+`src/update-fallback/mncommentmanager.json`. The manifest also includes
+`changelogUrl`, which points to the structured changelog JSON used by MNUtils:
+
+```text
+https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json
+```
+
+Before publishing a package, keep
+`src/update-fallback/mncommentmanager_changelog.json` in sync with the user-facing
+changes for the released version.
 
 ## Project Layout
 
@@ -65,6 +87,7 @@ mn-comment-manager-v0.1.0.mnaddon
 - `src/WebBridgeCommands.js`: native bridge command handlers.
 - `src/CommentData.js`: current-note comment serialization and capability detection.
 - `src/CommentMutations.js`: comment move/delete/edit/merge/extract operations.
+- `src/update-fallback/`: stable update manifest and changelog fallback JSON.
 - `web/`: React and Vite source for the panel UI.
 
 ## GitHub Issues
