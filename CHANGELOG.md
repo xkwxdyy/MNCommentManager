@@ -1,10 +1,15 @@
 # CHANGELOG
 
-## 0.1.3（2026-06-06）
+## 0.1.4（2026-06-06）
 
 ### 新功能
 
 - **HTML 评论转 Markdown**：单卡评论列表新增「转为 Markdown」操作，选中 HTML 评论后可一键将其转换为纯文本 Markdown 评论；批量菜单同步新增「转换 HTML 为 Markdown」，支持多卡片批量处理，转换前显示受影响卡片数和可转换评论数
+
+## 0.1.3（2026-06-03）
+
+### 新功能
+
 - **在线更新清单**：新增 stable-only 远端更新清单生成流程，支持在上传 `.mnaddon` 到 123 网盘直链根目录后生成 `mncommentmanager.json`，供 MNUtils 插件商店按 manifest 自动读取最新版
 - **商店更新日志 JSON**：新增 `mncommentmanager_changelog.json` fallback，提供结构化双语更新日志，方便 MNUtils 将日志接入历史版本页
 - **批量清空所有评论**：批量菜单新增「清空所有评论」选项，操作前显示受影响卡片数和待删除评论总数，确认后用 `undoGrouping` 批量删除，跳过无评论卡片
