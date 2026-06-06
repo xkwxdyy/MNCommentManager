@@ -356,6 +356,11 @@ function App() {
   const selectedCanEditText = hasOneSelection && canComment(selectedComments[0], "canEditText");
   const selectedCanMergeText = hasMultiSelection && allSelectedCan(selectedComments, "canMergeText") && allSelectedCan(selectedComments, "canCopyText");
   const selectedCanBidirectionalDelete = hasSelection && allSelectedCan(selectedComments, "canBidirectionalDelete");
+  const selectedHtmlComments = useMemo(
+    () => selectedComments.filter((comment) => comment?.capabilities?.isHtml),
+    [selectedComments],
+  );
+  const selectedHasHtmlComments = selectedHtmlComments.length > 0;
   const selectionIsContinuous = useMemo(() => {
     if (!hasSelection) return false;
     const first = selectedIndices[0];
@@ -975,6 +980,30 @@ function App() {
     });
   };
 
+  const openConvertHtmlToMarkdownDialog = () => {
+    if (!selectedHasHtmlComments) {
+      notifyStatus("先选择 HTML 评论");
+      return;
+    }
+    const skipped = selectedComments.length - selectedHtmlComments.length;
+    setDialog({
+      title: "转为 Markdown",
+      body: [
+        `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条 HTML 评论。`,
+        skipped > 0 ? `另外 ${skipped} 条非 HTML 评论会跳过。` : "",
+        "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
+      ].filter(Boolean).join("\n"),
+      confirmText: "确认转换",
+      onConfirm: async () => {
+        setDialog(null);
+        await runCommand("convertHtmlCommentsToMarkdown", {
+          noteId: snapshot.noteId,
+          indices: selectedIndices,
+        }, { message: "HTML 评论已转为 Markdown" });
+      },
+    });
+  };
+
   const locateMarkdownLink = async (link, mode = "mindmap") => {
     const noteId = extractMarginNoteUrlNoteId(link?.url);
     if (!noteId) {
@@ -1044,6 +1073,7 @@ function App() {
     { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
+    { key: "html-to-markdown", label: "转为 Markdown", visible: selectedHasHtmlComments, onClick: openConvertHtmlToMarkdownDialog },
     { key: "merge-text", label: "合并文本", visible: selectedCanMergeText, onClick: openMergeDialog },
     { key: "inline-merge", label: "生成行内链接", visible: selectedCanInlineMerge, onClick: openInlineMergeDialog },
     { key: "extract", label: "提取为子卡片", visible: hasSelection, onClick: openExtractDialog },

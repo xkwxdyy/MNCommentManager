@@ -185,6 +185,46 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     moveSingleComment(note, getCommentCount(note) - 1, index);
   }
 
+  function replaceCommentWithMarkdown(note, index, text) {
+    requireComment(note, index);
+    const nextText = String(text || "").trim();
+    if (!nextText) throw new Error(`#${index} 没有可转换的文本`);
+
+    appendMarkdownComment(note, nextText);
+    moveSingleComment(note, getCommentCount(note) - 1, index);
+    removeSingleComment(note, index + 1);
+  }
+
+  function getHtmlCommentIndices(note) {
+    return getSerializedComments(note)
+      .filter((comment) => comment && comment.capabilities && comment.capabilities.isHtml)
+      .map((comment) => comment.index);
+  }
+
+  function convertHtmlCommentIndicesInNote(note, indices, stats) {
+    const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
+    sorted.forEach((index) => {
+      try {
+        const serialized = getSerializedComment(note, index);
+        requireCapability(serialized, "isHtml", `#${index} 不是 HTML 评论`);
+        const text = String(serialized.text || serialized.htmlText || "").trim();
+        if (!text) {
+          stats.skippedEmpty += 1;
+          return;
+        }
+        replaceCommentWithMarkdown(note, index, text);
+        stats.convertedComments += 1;
+      } catch (error) {
+        stats.failed += 1;
+        stats.errors.push({
+          noteId: String(note && note.noteId || ""),
+          index,
+          message: error && error.message ? error.message : String(error),
+        });
+      }
+    });
+  }
+
   function moveComments(noteId, indices, targetIndex) {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
@@ -375,6 +415,43 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
     MNUtil.showHUD("行内链接已更新");
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
+  }
+
+  function convertHtmlCommentsToMarkdown(noteId, indices) {
+    const note = getNoteOrThrow(noteId);
+    const sorted = normalizeIndexArray(indices);
+    if (sorted.length === 0) throw new Error("先选择要转换的 HTML 评论");
+
+    const serializedComments = getSerializedComments(note);
+    const htmlIndices = sorted.filter((index) => {
+      const serialized = serializedComments.find((item) => item.index === index);
+      return serialized && serialized.capabilities && serialized.capabilities.isHtml;
+    });
+    if (htmlIndices.length === 0) throw new Error("所选评论中没有 HTML 评论");
+
+    const stats = {
+      total: 1,
+      changed: 0,
+      convertedComments: 0,
+      skippedNonHtml: sorted.length - htmlIndices.length,
+      skippedEmpty: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    MNUtil.undoGrouping(() => {
+      convertHtmlCommentIndicesInNote(note, htmlIndices, stats);
+      if (stats.convertedComments > 0) {
+        stats.changed = 1;
+        refreshNote(note);
+      }
+    });
+
+    MNUtil.showHUD(`已转换 ${stats.convertedComments} 条 HTML 评论`);
+    return {
+      stats,
+      snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
+    };
   }
 
   function extractCommentsToChildNote(noteId, indices, title, removeOriginal) {
@@ -599,6 +676,46 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return stats;
   }
 
+  function convertHtmlCommentsToMarkdownForNotes(notes) {
+    const targetNotes = normalizeNoteArray(notes);
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      noHtmlComment: 0,
+      convertedComments: 0,
+      skippedEmpty: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    MNUtil.undoGrouping(() => {
+      targetNotes.forEach((note) => {
+        try {
+          const htmlIndices = getHtmlCommentIndices(note);
+          if (htmlIndices.length <= 0) {
+            stats.noHtmlComment += 1;
+            return;
+          }
+          const before = stats.convertedComments;
+          convertHtmlCommentIndicesInNote(note, htmlIndices, stats);
+          if (stats.convertedComments > before) {
+            stats.changed += 1;
+            refreshNote(note);
+          }
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({
+            noteId: String(note && note.noteId || ""),
+            message: error && error.message ? error.message : String(error),
+          });
+        }
+      });
+    });
+
+    MNUtil.showHUD(`已转换 ${stats.changed}/${stats.total} 张卡片的 ${stats.convertedComments} 条 HTML 评论`);
+    return stats;
+  }
+
   return {
     moveComments,
     deleteComments,
@@ -607,6 +724,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     mergeTextComments,
     editCommentText,
     editMarkdownLink,
+    convertHtmlCommentsToMarkdown,
     extractCommentsToChildNote,
     copyText,
     copyCommentImage,
@@ -614,5 +732,6 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     keepFirstContentForNotes,
     clearAllCommentsForNotes,
     clearAllTitlesForNotes,
+    convertHtmlCommentsToMarkdownForNotes,
   };
 })();

@@ -80,6 +80,13 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     );
   }
 
+  function convertHtmlCommentsToMarkdown(context, payload) {
+    return __MN_COMMENT_MUTATIONS__.convertHtmlCommentsToMarkdown(
+      payload.noteId,
+      payload.indices,
+    );
+  }
+
   function extractCommentsToChildNote(context, payload) {
     return __MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(
       payload.noteId,
@@ -114,6 +121,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     mergeTextComments,
     editCommentText,
     editMarkdownLink,
+    convertHtmlCommentsToMarkdown,
     extractCommentsToChildNote,
     copyText,
     copyCommentImage,

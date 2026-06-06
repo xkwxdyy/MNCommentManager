@@ -1,13 +1,17 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-03T00:00:00+08:00",
+  "updatedAt": "2026-06-06T00:00:00+08:00",
   "entries": [
     {
       "version": "0.1.3",
       "channel": "stable",
-      "date": "2026-06-03",
+      "date": "2026-06-06",
       "items": [
+        {
+          "zh": "新增 HTML 评论转 Markdown 功能：单卡评论列表可将选中的 HTML 评论一键转为纯文本 Markdown；批量菜单同步支持多卡片批量转换。",
+          "en": "Added HTML-to-Markdown conversion: selected HTML comments on a card can be converted to plain Markdown in one tap; also available as a batch action across multiple cards."
+        },
         {
           "zh": "新增 stable-only 在线更新清单，上传安装包到 123 网盘直链目录后可生成 MNUtils 插件商店可读取的 manifest。",
           "en": "Added a stable-only online update manifest so MNUtils can read the latest package after it is uploaded to a 123pan direct-link directory."

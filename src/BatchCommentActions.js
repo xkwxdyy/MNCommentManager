@@ -443,6 +443,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const commandTable = [
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
+      tableItem(addon, `  转换 HTML 为 Markdown（${context.notes.length} 张）`, "runBatchConvertHtmlToMarkdown:"),
       tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
       tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
     ];
@@ -526,6 +527,35 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return stats;
   }
 
+  function countHtmlToMarkdownImpact(notes) {
+    const stats = {
+      total: 0,
+      htmlCards: 0,
+      noHtmlCards: 0,
+      convertibleComments: 0,
+      emptyHtmlComments: 0,
+    };
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    sourceNotes.forEach((note) => {
+      if (!note || !note.noteId) return;
+      stats.total += 1;
+      let htmlCount = 0;
+      let nonEmptyHtmlCount = 0;
+      const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+      const comments = snapshot && Array.isArray(snapshot.comments) ? snapshot.comments : [];
+      comments.forEach((comment) => {
+        if (!comment || !comment.capabilities || !comment.capabilities.isHtml) return;
+        htmlCount += 1;
+        if (String(comment.text || comment.htmlText || "").trim()) nonEmptyHtmlCount += 1;
+        else stats.emptyHtmlComments += 1;
+      });
+      if (htmlCount > 0) stats.htmlCards += 1;
+      else stats.noHtmlCards += 1;
+      stats.convertibleComments += nonEmptyHtmlCount;
+    });
+    return stats;
+  }
+
   async function confirmKeepFirstContent(context) {
     const stats = countActionImpact(context && context.notes);
     const message = [
@@ -551,6 +581,21 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       "这个操作不会清理目标卡片中的反向链接。",
     ].join("\n");
     return MNUtil.confirm("确认清空所有评论？", message, ["取消", "确认清空"]);
+  }
+
+  async function confirmHtmlToMarkdown(context) {
+    const stats = countHtmlToMarkdownImpact(context && context.notes);
+    const message = [
+      `将处理 ${stats.total} 张卡片。`,
+      "",
+      `包含 HTML 评论：${stats.htmlCards} 张。`,
+      `无 HTML 评论：${stats.noHtmlCards} 张，不变。`,
+      `预计转换 ${stats.convertibleComments} 条 HTML 评论。`,
+      stats.emptyHtmlComments > 0 ? `空 HTML 评论：${stats.emptyHtmlComments} 条，跳过。` : "",
+      "",
+      "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
+    ].filter((line) => line !== "").join("\n");
+    return MNUtil.confirm("确认转换 HTML 评论？", message, ["取消", "确认转换"]);
   }
 
   async function confirmClearAllTitles(context) {
@@ -596,6 +641,22 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
+  async function runConvertHtmlToMarkdown(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const confirmed = await confirmHtmlToMarkdown(context);
+    if (!confirmed) {
+      MNUtil.showHUD("已取消转换 HTML 评论");
+      return false;
+    }
+    const result = __MN_COMMENT_MUTATIONS__.convertHtmlCommentsToMarkdownForNotes(context.notes);
+    hideButton(addon, "action.done");
+    return result;
+  }
+
   async function runClearAllTitles(addon, sender) {
     const context = refreshContextFromSelection(addon, sender);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
@@ -618,6 +679,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     keepVisibleIfStillMultipleSelection,
     openMenu,
     runKeepFirstContent,
+    runConvertHtmlToMarkdown,
     runClearAllComments,
     runClearAllTitles,
   };

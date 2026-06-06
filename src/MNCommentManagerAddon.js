@@ -137,6 +137,15 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
+    runBatchConvertHtmlToMarkdown: async function (sender) {
+      try {
+        await __MN_BATCH_COMMENT_ACTIONS__.runConvertHtmlToMarkdown(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`转换 HTML 评论失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] batch convert HTML comments failed: ${error && error.message ? error.message : error}`);
+      }
+    },
+
     runBatchClearAllTitles: async function (sender) {
       try {
         await __MN_BATCH_COMMENT_ACTIONS__.runClearAllTitles(self, sender);
