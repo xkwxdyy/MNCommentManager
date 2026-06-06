@@ -15,14 +15,12 @@ function createMNCommentManagerAddon(mainPath) {
         __MN_WEB_API_MNCommentManagerAddon.ensureLayout(self.webController);
       };
 
-      MNUtil.addObserver(self, "onPopupMenuOnNote:", "PopupMenuOnNote");
       MNUtil.addObserver(self, "onMindmapViewOnMultipleSelection:", "mindmapViewOnMultipleSelection");
       MNUtil.addObserver(self, "onMindmapViewBottomToolbarClosed:", "mindmapViewBottomToolbarClosed");
       console.log("[MN Comment Manager] initialized");
     },
 
     sceneDidDisconnect: function () {
-      MNUtil.removeObserver(self, "PopupMenuOnNote");
       MNUtil.removeObserver(self, "mindmapViewOnMultipleSelection");
       MNUtil.removeObserver(self, "mindmapViewBottomToolbarClosed");
 
@@ -60,8 +58,6 @@ function createMNCommentManagerAddon(mainPath) {
         self.webController.view.window
           ? true
           : false;
-
-      syncVisiblePanel(self, "command-status");
 
       return {
         image: "icon.png",

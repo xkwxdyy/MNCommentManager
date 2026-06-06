@@ -4,6 +4,25 @@
   "updatedAt": "2026-06-06T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.5",
+      "channel": "stable",
+      "date": "2026-06-06",
+      "items": [
+        {
+          "zh": "新增 UndoGroupingHelper 模块，所有评论操作均通过带名称的 undo 分组执行，回退历史更清晰。",
+          "en": "Added UndoGroupingHelper module so all comment mutations run inside named undo groups for clearer undo history."
+        },
+        {
+          "zh": "PopupMenuOnNote 观察者改为随评论面板开/关动态注册，面板未打开时不再响应卡片弹窗事件。",
+          "en": "PopupMenuOnNote observer is now registered only while the comment panel is open, preventing unintended sync triggers when the panel is closed."
+        },
+        {
+          "zh": "优化数据库刷新防抖：连续的 refreshAfterDBChanged 请求合并为 trailing debounce，嵌套 undoGrouping 只由最外层触发刷新，减少制卡链路中的重复 DB refresh。",
+          "en": "Optimized DB refresh: consecutive refreshAfterDBChanged calls are merged via trailing debounce, and nested undoGrouping now only triggers a refresh from the outermost call."
+        }
+      ]
+    },
+    {
       "version": "0.1.4",
       "channel": "stable",
       "date": "2026-06-06",

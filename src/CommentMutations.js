@@ -13,6 +13,10 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return note;
   }
 
+  function withUndoGrouping(actionName, options, block) {
+    return __MN_UNDO_GROUPING_MNCommentManagerAddon.run(actionName, options, block);
+  }
+
   function refreshNote(note) {
     try {
       if (note && typeof note.refresh === "function") note.refresh();
@@ -239,7 +243,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       throw new Error("不能把评论移动到所选范围内部");
     }
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("移动评论", { note }, () => {
       const min = sorted[0];
       const max = sorted[sorted.length - 1];
       if (target < min) {
@@ -260,7 +264,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
     if (sorted.length === 0) throw new Error("先选择要删除的评论");
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("删除评论", { note }, () => {
       sorted.forEach((index) => removeSingleComment(note, index));
       refreshNote(note);
     });
@@ -319,7 +323,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       if (reverseIndices.length > 0) reverseTargets.push({ targetNote, reverseIndices });
     });
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("删除双向链接评论", { note }, () => {
       sorted.forEach((index) => removeSingleComment(note, index));
       reverseTargets.forEach((item) => {
         normalizeIndexArray(item.reverseIndices).sort((a, b) => b - a)
@@ -347,7 +351,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       requireCapability(comment, "canCopyText", `#${index} 没有可合并的文本`);
     });
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("合并评论", { note }, () => {
       if (markdown) appendMarkdownComment(note, finalText);
       else appendTextComment(note, finalText);
       const insertedIndex = getCommentCount(note) - 1;
@@ -366,7 +370,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const commentIndex = parseInt(index, 10);
     if (!Number.isFinite(commentIndex) || commentIndex < 0) throw new Error("评论位置无效，请刷新后再试");
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("编辑评论", { note }, () => {
       replaceCommentText(note, commentIndex, text, !!markdown);
       refreshNote(note);
     });
@@ -408,7 +412,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       nextLinkMarkdown +
       originalText.slice(targetLink.endIndex);
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("编辑行内链接", { note }, () => {
       replaceCommentText(note, parsedCommentIndex, nextText, true);
       refreshNote(note);
     });
@@ -439,7 +443,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("转换 HTML 评论", { note }, () => {
       convertHtmlCommentIndicesInNote(note, htmlIndices, stats);
       if (stats.convertedComments > 0) {
         stats.changed = 1;
@@ -463,7 +467,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
     sorted.forEach((index) => requireComment(note, index));
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("提取评论为子卡片", { note }, () => {
       child = cloneNoteOrThrow(note);
       child.title = childTitle;
       removeClonedChildren(child);
@@ -547,7 +551,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("批量保留第一条内容", { notes: targetNotes }, () => {
       targetNotes.forEach((note) => {
         try {
           const commentCount = getCommentCount(note);
@@ -613,7 +617,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("批量清空评论", { notes: targetNotes }, () => {
       targetNotes.forEach((note) => {
         try {
           const commentCount = getCommentCount(note);
@@ -650,7 +654,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("批量清空标题", { notes: targetNotes }, () => {
       targetNotes.forEach((note) => {
         try {
           const currentTitle = String(note.noteTitle || "").trim();
@@ -688,7 +692,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    MNUtil.undoGrouping(() => {
+    withUndoGrouping("批量转换 HTML 评论", { notes: targetNotes }, () => {
       targetNotes.forEach((note) => {
         try {
           const htmlIndices = getHtmlCommentIndices(note);

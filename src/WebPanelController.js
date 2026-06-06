@@ -217,6 +217,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function performCloseWindow(controller) {
     controller.view.hidden = true;
+    unregisterPopupMenuObserver(controller);
     if (controller.view.superview) {
       controller.view.removeFromSuperview();
     }
@@ -227,6 +228,20 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       if (!targetWindow) return;
       Application.sharedInstance().studyController(targetWindow).refreshAddonCommands();
     });
+  }
+
+  function registerPopupMenuObserver(controller) {
+    const addon = controller && controller.addon;
+    if (!addon || controller._popupMenuObserverRegistered) return;
+    MNUtil.addObserver(addon, "onPopupMenuOnNote:", "PopupMenuOnNote");
+    controller._popupMenuObserverRegistered = true;
+  }
+
+  function unregisterPopupMenuObserver(controller) {
+    const addon = controller && controller.addon;
+    if (!addon || !controller._popupMenuObserverRegistered) return;
+    MNUtil.removeObserver(addon, "PopupMenuOnNote");
+    controller._popupMenuObserverRegistered = false;
   }
 
   function getStudyRootBounds(controller) {
@@ -667,6 +682,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     controller._isMaximized = false;
     applySavedOrDefaultFrame(controller);
     controller.view.hidden = false;
+    registerPopupMenuObserver(controller);
     NSUserDefaults.standardUserDefaults().setObjectForKey(true, PANEL_ON_KEY);
     scheduleCurrentNoteSnapshotPush(controller, "show-panel");
   }

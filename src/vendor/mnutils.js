@@ -4407,22 +4407,30 @@ removeFocus()`)
   }
   static _lastRefreshAfterDBChangedTime = 0
   static _needRefreshAfterDBChanged = false//用于处理频繁调用refreshAfterDBChanged的情况
+  static _refreshAfterDBChangedScheduleId = 0
+  static _pendingRefreshAfterDBChangedNotebookId = ""
   static refreshAfterDBChanged(notebookId = this.currentNotebookId) {
-    let now = Date.now();
-    let sinceLastRefresh = now - this._lastRefreshAfterDBChangedTime;
-    if ((sinceLastRefresh) < 100) {
-      this._needRefreshAfterDBChanged = true
-      MNUtil.delay(0.1).then(() => {
-        if (!this._needRefreshAfterDBChanged) {
-          return
-        }
-        this.app.refreshAfterDBChanged(notebookId)
-      })
-      return
-    }
-    this._lastRefreshAfterDBChangedTime = now
-    this._needRefreshAfterDBChanged = false
-    this.app.refreshAfterDBChanged(notebookId)
+    let targetNotebookId = notebookId || this.currentNotebookId
+    this._needRefreshAfterDBChanged = true
+    this._pendingRefreshAfterDBChangedNotebookId = targetNotebookId
+    let now = Date.now()
+    let sinceLastRefresh = now - (this._lastRefreshAfterDBChangedTime || 0)
+    let delaySeconds = sinceLastRefresh < 500 ? 0.5 : 0.05
+    let scheduleId = (this._refreshAfterDBChangedScheduleId || 0) + 1
+    this._refreshAfterDBChangedScheduleId = scheduleId
+    MNUtil.delay(delaySeconds).then(() => {
+      if (this._refreshAfterDBChangedScheduleId !== scheduleId) {
+        return
+      }
+      if (!this._needRefreshAfterDBChanged) {
+        return
+      }
+      let finalNotebookId = this._pendingRefreshAfterDBChangedNotebookId || this.currentNotebookId
+      this._pendingRefreshAfterDBChangedNotebookId = ""
+      this._needRefreshAfterDBChanged = false
+      this._lastRefreshAfterDBChangedTime = Date.now()
+      this.app.refreshAfterDBChanged(finalNotebookId)
+    })
   }
   /**
    * 获取最新的选择
@@ -4728,21 +4736,29 @@ removeFocus()`)
     notebookId = params.notebookId
     trigger = params.trigger
     let groupId = String(Date.now())
+    let isNestedUndoGrouping = (this._undoGroupingDepth || 0) > 0
     if (this.isUndoGroupingTraceEnabled()) {
       this.log({
-        message:"undoGrouping触发并刷新数据库",
+        message:isNestedUndoGrouping?"undoGrouping触发(合并刷新数据库)":"undoGrouping触发并刷新数据库",
         level:"INFO",
         source:"UndoGrouping",
         timestamp:Date.now(),
-        detail:this.getUndoGroupingLogContext(groupId,notebookId,trigger,true)
+        detail:this.getUndoGroupingLogContext(groupId,notebookId,trigger,!isNestedUndoGrouping)
       })
     }
-    UndoManager.sharedInstance().undoGrouping(
-      groupId,
-      notebookId,
-      f
-    )
-    this.refreshAfterDBChanged(notebookId)
+    this._undoGroupingDepth = (this._undoGroupingDepth || 0) + 1
+    try {
+      UndoManager.sharedInstance().undoGrouping(
+        groupId,
+        notebookId,
+        f
+      )
+    } finally {
+      this._undoGroupingDepth = Math.max(0,(this._undoGroupingDepth || 1) - 1)
+    }
+    if (!isNestedUndoGrouping) {
+      this.refreshAfterDBChanged(notebookId)
+    }
   }
   /**
    * Groups the specified function within an undo operation for the given notebook.

@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 0.1.5（2026-06-06）
+
+### 优化
+
+- **UndoGroupingHelper**：新增独立模块，封装带操作名称和 note 上下文的 undo 分组，`CommentMutations` 所有操作均通过此模块执行
+- **PopupMenuOnNote 按需注册**：`PopupMenuOnNote` 观察者改为随评论面板开/关动态注册与注销；面板未打开时不再响应卡片弹窗事件，命令状态查询不再触发面板同步
+- **MNUtils：`refreshAfterDBChanged` trailing debounce**：连续调用改为 trailing debounce + schedule ID 去重，上次刷新 500ms 内的请求延迟 500ms 合并，减少制卡链路中的重复 DB refresh（同步 vendor）
+- **MNUtils：`undoGrouping` 嵌套深度计数**：嵌套调用只由最外层触发 `refreshAfterDBChanged`，避免多层嵌套时多次刷新数据库（同步 vendor）
+
+## 0.1.4（2026-06-06，性能补丁）
+
+### 优化
+
+- 同步 MNUtils vendor 的数据库刷新防抖：连续 `refreshAfterDBChanged` 请求改为 trailing debounce，嵌套 `undoGrouping` 由最外层统一刷新，减少被 KnowledgeBase/Toolbar 制卡链路调用时的重复 DB refresh。
+- 重新生成 `mn-comment-manager-v0.1.4.mnaddon`，包内 `vendor/mnutils.js` 已包含本次防抖修复。
+- `PopupMenuOnNote` 生命周期只在评论管理 HTML 面板打开期间注册；面板未打开时不再监听卡片弹窗，也不会因命令状态查询或普通点卡片触发同步。
+
 ## 0.1.4（2026-06-06）
 
 ### 新功能
