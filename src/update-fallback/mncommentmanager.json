@@ -2,12 +2,19 @@
   "id": "mncommentmanager",
   "addonid": "marginnote.extension.mncommentmanager",
   "title": "MN Comment Manager",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "channel": "stable",
-  "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.4.mnaddon",
-  "filename": "mn-comment-manager-v0.1.4.mnaddon",
-  "updatedAt": "2026-06-06T06:18:11.978Z",
+  "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.5.mnaddon",
+  "filename": "mn-comment-manager-v0.1.5.mnaddon",
+  "updatedAt": "2026-06-06T08:04:16.012Z",
   "history": [
+    {
+      "version": "0.1.5",
+      "channel": "stable",
+      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.5.mnaddon",
+      "filename": "mn-comment-manager-v0.1.5.mnaddon",
+      "updatedAt": "2026-06-06T08:04:16.012Z"
+    },
     {
       "version": "0.1.4",
       "channel": "stable",

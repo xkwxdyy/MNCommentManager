@@ -4,6 +4,17 @@
   "updatedAt": "2026-06-06T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.6",
+      "channel": "stable",
+      "date": "2026-06-07",
+      "items": [
+        {
+          "zh": "提取评论为子卡片时，自动将其他卡片中指向原卡片的链接（LinkNote 评论和 Markdown 行内链接）迁移为指向新子卡片，避免提取后出现失效链接。",
+          "en": "When extracting comments to a child card, links in other cards pointing to the source card (LinkNote comments and Markdown inline links) are automatically migrated to the new child card, preventing broken links after extraction."
+        }
+      ]
+    },
+    {
       "version": "0.1.5",
       "channel": "stable",
       "date": "2026-06-06",

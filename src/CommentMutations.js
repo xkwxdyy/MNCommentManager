@@ -95,6 +95,150 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     sorted.forEach((index) => removeSingleComment(note, index));
   }
 
+  function getRawNote(note) {
+    return note && note.note ? note.note : note;
+  }
+
+  function getNoteId(note) {
+    try {
+      return String(note && note.noteId || "").trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getNoteUrl(note) {
+    if (!note) return "";
+    if (note.noteURL) return String(note.noteURL || "");
+    const noteId = getNoteId(note);
+    if (!noteId) return "";
+    try {
+      if (typeof MNUtil !== "undefined" && MNUtil && MNUtil.version && MNUtil.version.version) {
+        return String(MNUtil.version.version) + "app://note/" + noteId;
+      }
+    } catch (error) {
+      // fall through
+    }
+    return "marginnote4app://note/" + noteId;
+  }
+
+  function extractNoteIdFromLink(text) {
+    const link = __MN_COMMENT_DATA__.extractPureMarginNoteLink(text);
+    return link && link.noteId ? link.noteId : "";
+  }
+
+  function getCommentText(comment) {
+    return String(
+      comment && (comment.text || comment.q_htext) ||
+      "",
+    );
+  }
+
+  function getLinkCommentIndices(note, targetUrl) {
+    const comments = note && Array.isArray(note.comments) ? note.comments : [];
+    const target = String(targetUrl || "").trim();
+    if (!target) return [];
+    const targetId = extractNoteIdFromLink(target);
+    return comments.reduce((indices, comment, index) => {
+      if (!comment || String(comment.type || "") !== "LinkNote") return indices;
+      const text = getCommentText(comment).trim();
+      if (text === target || (targetId && extractNoteIdFromLink(text) === targetId)) {
+        indices.push(index);
+      }
+      return indices;
+    }, []);
+  }
+
+  function replaceLinkCommentWithMarkdown(note, index, targetUrl) {
+    removeSingleComment(note, index);
+    appendMarkdownComment(note, targetUrl);
+    moveSingleComment(note, getCommentCount(note) - 1, index);
+  }
+
+  function updateMarkdownLinksInNote(note, sourceUrl, targetUrl) {
+    const comments = note && Array.isArray(note.comments) ? note.comments : [];
+    comments.forEach((comment) => {
+      if (!comment || String(comment.type || "") !== "TextNote") return;
+      const text = getCommentText(comment);
+      if (!text || text.indexOf(sourceUrl) < 0) return;
+      const nextText = text.split(sourceUrl).join(targetUrl);
+      if (nextText === text) return;
+      try {
+        if ("text" in comment) comment.text = nextText;
+        else if ("q_htext" in comment) comment.q_htext = nextText;
+      } catch (error) {
+        // Link migration is best-effort; merge should still proceed.
+      }
+    });
+  }
+
+  function updateIncomingLinks(sourceNote, targetNote) {
+    const sourceUrl = getNoteUrl(sourceNote);
+    const targetUrl = getNoteUrl(targetNote);
+    if (!sourceUrl || !targetUrl) return;
+    const comments = sourceNote && Array.isArray(sourceNote.comments) ? sourceNote.comments : [];
+    const processed = new Set();
+
+    comments.forEach((comment) => {
+      const commentType = String(comment && comment.type || "");
+      const linkedIds = [];
+      if (commentType === "LinkNote") {
+        const linkedId = extractNoteIdFromLink(getCommentText(comment));
+        if (linkedId) linkedIds.push(linkedId);
+      } else {
+        const text = getCommentText(comment);
+        const re = /\[[^\]]*?\]\(([^)]+?)\)/g;
+        let match;
+        while ((match = re.exec(text)) !== null) {
+          const linkedId = extractNoteIdFromLink(match[1]);
+          if (linkedId) linkedIds.push(linkedId);
+        }
+      }
+
+      linkedIds.forEach((linkedId) => {
+        if (!linkedId || processed.has(linkedId)) return;
+        processed.add(linkedId);
+        const linkedNote = __MN_COMMENT_DATA__.getWrappedNoteById(linkedId);
+        if (!linkedNote) return;
+        getLinkCommentIndices(linkedNote, sourceUrl)
+          .sort((a, b) => b - a)
+          .forEach((index) => replaceLinkCommentWithMarkdown(linkedNote, index, targetUrl));
+        updateMarkdownLinksInNote(linkedNote, sourceUrl, targetUrl);
+        refreshNote(linkedNote);
+      });
+    });
+  }
+
+  function removeTargetLinksToSource(targetNote, sourceNote) {
+    const sourceUrl = getNoteUrl(sourceNote);
+    if (!sourceUrl) return;
+    getLinkCommentIndices(targetNote, sourceUrl)
+      .sort((a, b) => b - a)
+      .forEach((index) => removeSingleComment(targetNote, index));
+    updateMarkdownLinksInNote(targetNote, sourceUrl, "");
+  }
+
+  function mergeIntoWithLinkMigration(sourceNote, targetNote) {
+    if (!sourceNote || !targetNote) throw new Error("无法合并卡片，请刷新后再试");
+
+    const rawSource = getRawNote(sourceNote);
+    const rawTarget = getRawNote(targetNote);
+
+    updateIncomingLinks(sourceNote, targetNote);
+    removeTargetLinksToSource(targetNote, sourceNote);
+
+    if (typeof targetNote.merge === "function") {
+      targetNote.merge(sourceNote);
+      return targetNote;
+    }
+    if (rawTarget && typeof rawTarget.merge === "function") {
+      rawTarget.merge(rawSource);
+      return targetNote;
+    }
+
+    throw new Error("当前版本无法合并卡片，请更新 MarginNote 后再试");
+  }
+
   function noteHasExcerpt(note) {
     try {
       if (!note) return false;
@@ -132,6 +276,67 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     }
     if (!clonedNote) throw new Error("当前版本无法创建子卡片，请更新 MarginNote 后再试");
     return clonedNote;
+  }
+
+  function createBlankChildNoteOrThrow(parentNote, title, colorIndex) {
+    const config = {
+      title,
+      content: "",
+      markdown: true,
+      colorIndex,
+    };
+    let child = null;
+    if (parentNote && typeof parentNote.createChildNote === "function") {
+      child = parentNote.createChildNote(config, false);
+    }
+    if (!child && typeof MNNote !== "undefined" && MNNote && typeof MNNote.new === "function") {
+      child = MNNote.new(config);
+      if (child && parentNote && typeof parentNote.addChild === "function") {
+        parentNote.addChild(child);
+      }
+    }
+    if (!child) throw new Error("当前版本无法创建空白子卡片，请更新 MarginNote 后再试");
+    return child;
+  }
+
+  function removeDetachedNote(note) {
+    try {
+      if (note && typeof note.delete === "function") {
+        note.delete(false, false, false);
+        return;
+      }
+      if (note && typeof note._delete === "function") {
+        note._delete(false);
+        return;
+      }
+      if (note && typeof note.removeFromParent === "function") note.removeFromParent();
+    } catch (error) {
+      // ignore cleanup failure
+    }
+  }
+
+  function convertCloneToCommentOnlyChild(sourceNote, sortedIndices, childTitle) {
+    const clone = cloneNoteOrThrow(sourceNote);
+    const sourceHadExcerpt = noteHasExcerpt(clone);
+    let target = null;
+    try {
+      clone.title = childTitle;
+      removeClonedChildren(clone);
+      target = createBlankChildNoteOrThrow(sourceNote, childTitle, sourceNote.colorIndex);
+      mergeIntoWithLinkMigration(clone, target);
+      if (sourceHadExcerpt && getCommentCount(target) > 0) removeSingleComment(target, 0);
+      removeCommentsByIndices(target, getInverseCommentIndices(target, sortedIndices));
+      target.title = childTitle;
+      removeClonedChildren(target);
+      removeDetachedNote(clone);
+      return target;
+    } catch (error) {
+      if (target && typeof target.removeFromParent === "function") {
+        try { target.removeFromParent(); } catch (_) {}
+      }
+      removeDetachedNote(clone);
+      throw error;
+    }
   }
 
   function appendTextComment(note, text) {
@@ -468,11 +673,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     sorted.forEach((index) => requireComment(note, index));
 
     withUndoGrouping("提取评论为子卡片", { note }, () => {
-      child = cloneNoteOrThrow(note);
-      child.title = childTitle;
-      removeClonedChildren(child);
-      removeCommentsByIndices(child, getInverseCommentIndices(child, sorted));
-      note.addChild(child);
+      child = convertCloneToCommentOnlyChild(note, sorted, childTitle);
       refreshNote(child);
       if (removeOriginal === true) {
         removeCommentsByIndices(note, sorted);
