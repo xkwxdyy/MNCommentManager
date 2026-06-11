@@ -679,7 +679,8 @@ function App() {
     setSingleDeletePressing(null);
   }
 
-  const startDeletePress = () => {
+  const startDeletePress = (event) => {
+    suppressPressDefaults(event);
     if (loading || !hasSelection) {
       notifyStatus("先选择要删除的评论");
       return;
@@ -694,19 +695,21 @@ function App() {
     }, 560);
   };
 
-  const endDeletePress = () => {
+  const endDeletePress = (event) => {
+    releasePressCapture(event);
     const fired = deleteLongPressFired.current;
     clearDeletePress();
     if (!fired) execute(deleteSelection);
   };
 
-  const cancelDeletePress = () => {
+  const cancelDeletePress = (event) => {
+    releasePressCapture(event);
     deleteLongPressFired.current = true;
     clearDeletePress();
   };
 
   const startSingleDeletePress = (event, commentIndex) => {
-    event.stopPropagation();
+    suppressPressDefaults(event);
     if (loading) return;
     clearSingleDeletePress();
     singleDeleteLongPressFired.current = false;
@@ -719,20 +722,20 @@ function App() {
   };
 
   const endSingleDeletePress = (event, commentIndex) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     const fired = singleDeleteLongPressFired.current;
     clearSingleDeletePress();
     if (!fired) execute(() => deleteSingleComment(commentIndex));
   };
 
   const cancelSingleDeletePress = (event) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     singleDeleteLongPressFired.current = true;
     clearSingleDeletePress();
   };
 
   const startQuickMovePress = (event, commentIndex, direction) => {
-    event.stopPropagation();
+    suppressPressDefaults(event);
     if (loading) return;
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = setTimeout(() => {
@@ -742,7 +745,7 @@ function App() {
   };
 
   const finishQuickMovePress = (event, commentIndex, direction) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     const timer = quickMoveTimers.current[commentIndex];
     if (!timer) return;
     clearTimeout(timer);
@@ -751,7 +754,7 @@ function App() {
   };
 
   const cancelQuickMovePress = (event, commentIndex) => {
-    event.stopPropagation();
+    releasePressCapture(event);
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = null;
   };
@@ -1237,6 +1240,9 @@ function App() {
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
                         onClick={(event) => event.stopPropagation()}
+                        onContextMenu={(event) => event.preventDefault()}
+                        onDragStart={(event) => event.preventDefault()}
+                        onSelectStart={(event) => event.preventDefault()}
                       >
                         ↑
                       </button>
@@ -1250,6 +1256,9 @@ function App() {
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
                         onClick={(event) => event.stopPropagation()}
+                        onContextMenu={(event) => event.preventDefault()}
+                        onDragStart={(event) => event.preventDefault()}
+                        onSelectStart={(event) => event.preventDefault()}
                       >
                         ↓
                       </button>
@@ -1263,6 +1272,9 @@ function App() {
                         onPointerLeave={cancelSingleDeletePress}
                         onPointerCancel={cancelSingleDeletePress}
                         onClick={(event) => event.stopPropagation()}
+                        onContextMenu={(event) => event.preventDefault()}
+                        onDragStart={(event) => event.preventDefault()}
+                        onSelectStart={(event) => event.preventDefault()}
                       >
                         ×
                       </button>
@@ -1348,6 +1360,9 @@ function App() {
               onPointerUp={endDeletePress}
               onPointerLeave={cancelDeletePress}
               onPointerCancel={cancelDeletePress}
+              onContextMenu={(event) => event.preventDefault()}
+              onDragStart={(event) => event.preventDefault()}
+              onSelectStart={(event) => event.preventDefault()}
               disabled={loading || !hasSelection}
               title="点按只删除当前卡片评论；按住可同时清理反向链接"
             >

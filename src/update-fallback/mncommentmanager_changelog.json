@@ -1,8 +1,19 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-06T00:00:00+08:00",
+  "updatedAt": "2026-06-11T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.7",
+      "channel": "stable",
+      "date": "2026-06-11",
+      "items": [
+        {
+          "zh": "优化触摸交互：删除/移动按钮的长按事件处理改用统一的 suppressPressDefaults / releasePressCapture 模式，防止长按触发文字选择、拖拽和右键菜单。",
+          "en": "Optimized touch interaction: delete/move button long-press handlers now use unified suppressPressDefaults / releasePressCapture pattern, preventing text selection, drag, and context menu during long press."
+        }
+      ]
+    },
     {
       "version": "0.1.6",
       "channel": "stable",

@@ -16,7 +16,7 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 
 ## Install
 
-Download or build `mn-comment-manager-v0.1.3.mnaddon`, then install it in MarginNote 4.
+Download or build `mn-comment-manager-v0.1.7.mnaddon`, then install it in MarginNote 4.
 
 Minimum MarginNote version:
 
@@ -53,7 +53,7 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.3.mnaddon
+mn-comment-manager-v0.1.7.mnaddon
 ```
 
 Generate a stable update manifest after uploading the package into the 123pan

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.1.7（2026-06-11）
+
+### 优化
+
+- **触摸交互优化**：删除/移动按钮的长按事件处理改用统一的 `suppressPressDefaults` / `releasePressCapture` 模式，防止长按触发文字选择、拖拽和右键菜单；新增 `onContextMenu` / `onDragStart` / `onSelectStart` 阻止默认行为
+
 ## 0.1.6（2026-06-07）
 
 ### 优化
