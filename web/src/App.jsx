@@ -208,6 +208,9 @@ function buildInlineMergeMaterial(comment, order) {
   const text = commentText(comment);
   const linkUrl = getInlineMergeLinkUrl(comment);
   const isLink = !!linkUrl && (comment.type === "linkComment" || comment.type === "summaryComment");
+  const linkedTitle = isLink ? String(comment?.linkedNoteTitle || "").trim() : "";
+  const title = isLink ? (linkedTitle || linkUrl || text || "未命名卡片") : "";
+  const content = isLink ? (linkUrl && title !== linkUrl ? linkUrl : "") : text;
   return {
     index: comment.index,
     order,
@@ -215,6 +218,8 @@ function buildInlineMergeMaterial(comment, order) {
     label: isLink ? "链接" : getTypeMeta(comment).label,
     text,
     linkUrl: linkUrl || text,
+    title,
+    content,
     defaultText: isLink ? (linkUrl || text) : text,
   };
 }
@@ -1663,7 +1668,10 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
                 onDoubleClick={() => appendMaterial(material)}
               >
                 <span className="merge-material-meta">#{material.index} · {material.label}</span>
-                <span className="merge-material-content">{material.kind === "link" ? material.linkUrl : material.text}</span>
+                {material.title ? <span className="merge-material-title">{material.title}</span> : null}
+                {material.content && material.content !== material.title ? (
+                  <span className="merge-material-content">{material.content}</span>
+                ) : null}
               </button>
             ))}
           </div>

@@ -9,6 +9,10 @@
       "date": "2026-06-12",
       "items": [
         {
+          "zh": "行内合并对话框：链接材料现在分层显示为「标题 + 链接」两行结构，优先使用卡片标题，避免在材料列表中看到大段重复的 URL。",
+          "en": "Inline merge dialog: link materials now display as a two-line structure (title + URL), prioritizing card title to avoid repetitive long URLs in the material list."
+        },
+        {
           "zh": "提取评论对话框增强：标题输入框旁新增「清空标题」按钮，快速清空预填充文本。",
           "en": "Enhanced extract dialog: added 'Clear Title' button next to the title input for quickly clearing pre-filled text."
         },

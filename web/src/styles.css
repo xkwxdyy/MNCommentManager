@@ -1159,12 +1159,23 @@ button.pressing {
   font-weight: 700;
 }
 
-.merge-material-content {
+.merge-material-title {
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary);
   font-size: 13px;
-  line-height: 1.4;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merge-material-content {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
