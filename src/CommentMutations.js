@@ -299,6 +299,20 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return child;
   }
 
+  function setNoteTitle(note, title) {
+    const normalizedTitle = String(title || "");
+    if (!note) return;
+    try {
+      note.title = normalizedTitle;
+    } catch (error) {}
+    try {
+      note.noteTitle = normalizedTitle;
+    } catch (error) {}
+    try {
+      if (note.note) note.note.noteTitle = normalizedTitle;
+    } catch (error) {}
+  }
+
   function removeDetachedNote(note) {
     try {
       if (note && typeof note.delete === "function") {
@@ -320,13 +334,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const sourceHadExcerpt = noteHasExcerpt(clone);
     let target = null;
     try {
-      clone.title = childTitle;
+      setNoteTitle(clone, childTitle);
       removeClonedChildren(clone);
       target = createBlankChildNoteOrThrow(sourceNote, childTitle, sourceNote.colorIndex);
       mergeIntoWithLinkMigration(clone, target);
       if (sourceHadExcerpt && getCommentCount(target) > 0) removeSingleComment(target, 0);
       removeCommentsByIndices(target, getInverseCommentIndices(target, sortedIndices));
-      target.title = childTitle;
+      setNoteTitle(target, childTitle);
       removeClonedChildren(target);
       removeDetachedNote(clone);
       return target;

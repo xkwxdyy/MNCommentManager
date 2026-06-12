@@ -133,6 +133,19 @@ button.danger {
   color: var(--accent-red);
 }
 
+button.ghost {
+  color: var(--text-secondary);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+button.compact {
+  min-height: 28px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
 button.danger:hover:not(:disabled),
 button.danger.pressing {
   color: #ffffff;
@@ -1002,6 +1015,18 @@ button.pressing {
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 650;
+}
+
+.dialog-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dialog-input-header > span:first-child {
+  min-width: 0;
 }
 
 .dialog textarea,

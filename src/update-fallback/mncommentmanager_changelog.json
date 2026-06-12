@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-11T00:00:00+08:00",
+  "updatedAt": "2026-06-12T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.8",
+      "channel": "stable",
+      "date": "2026-06-12",
+      "items": [
+        {
+          "zh": "提取评论对话框增强：标题输入框旁新增「清空标题」按钮，快速清空预填充文本。",
+          "en": "Enhanced extract dialog: added 'Clear Title' button next to the title input for quickly clearing pre-filled text."
+        },
+        {
+          "zh": "卡片标题设置容错：setNoteTitle 函数增强，尝试多个属性路径提升跨版本兼容性。",
+          "en": "Improved note title setting: setNoteTitle function now tries multiple property paths for better cross-version compatibility."
+        }
+      ]
+    },
     {
       "version": "0.1.7",
       "channel": "stable",

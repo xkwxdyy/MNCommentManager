@@ -1,12 +1,12 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "scripts": {
     "build": "node scripts/build-release.js",
     "dev": "node scripts/dev-web.js",
     "manifest": "node scripts/update-manifest.js",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major"
