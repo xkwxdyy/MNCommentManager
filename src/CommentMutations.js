@@ -681,7 +681,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const note = getNoteOrThrow(noteId);
     const sorted = normalizeIndexArray(indices);
     if (sorted.length === 0) throw new Error("先选择要提取的评论");
-    const childTitle = String(title || "").trim() || `提取自 ${note.noteTitle || "当前卡片"}`;
+    const childTitle = String(title || "").trim();
     let child = null;
 
     sorted.forEach((index) => requireComment(note, index));

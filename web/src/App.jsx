@@ -1027,7 +1027,7 @@ function App() {
       title: "提取为子卡片",
       body: "将创建一个子卡片，只保留所选评论。图片、手写、音频等内容会尽量保留。",
       inputLabel: "新卡片标题",
-      inputValue: `提取自 ${snapshot.noteTitle || "当前卡片"}`,
+      inputValue: "",
       clearInputText: "清空标题",
       checkboxLabel: "同时删除原卡片中的所选评论",
       checkboxDescription: "只删除当前卡片里的这些评论，不清理目标卡片中的反向链接。",

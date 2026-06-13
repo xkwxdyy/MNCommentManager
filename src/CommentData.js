@@ -152,11 +152,14 @@ var __MN_COMMENT_DATA__ = (function () {
     const detailedType = toStringValue((detailedComment && detailedComment.type) || getMNCommentType(rawComment));
     const text = getCommentText(rawComment, detailedComment);
 
-    if (detailedType && !["TextNote", "HtmlNote", "LinkNote", "PaintNote", "AudioNote"].includes(detailedType)) {
-      return detailedType;
-    }
     if (rawType === "HtmlNote") return "HtmlComment";
-    if (rawType === "PaintNote") return detailedType || "imageComment";
+    if (rawType === "PaintNote") {
+      const hasPaint = !!(rawComment && rawComment.paint);
+      const hasDrawing = !!(rawComment && rawComment.drawing);
+      if (hasDrawing && hasPaint) return "imageCommentWithDrawing";
+      if (hasDrawing) return "drawingComment";
+      return "imageComment";
+    }
     if (rawType === "AudioNote") return "audioComment";
     if (rawType === "LinkNote") {
       if (rawComment && rawComment.q_hblank) return text ? "blankTextComment" : "blankImageComment";
@@ -165,6 +168,9 @@ var __MN_COMMENT_DATA__ = (function () {
         return rawComment.q_hpic.drawing ? "mergedImageCommentWithDrawing" : "mergedImageComment";
       }
       return text ? "mergedTextComment" : "mergedTextComment";
+    }
+    if (detailedType && !["TextNote", "HtmlNote", "LinkNote", "PaintNote", "AudioNote"].includes(detailedType)) {
+      return detailedType;
     }
     return classifyTextComment(text, detailedType);
   }

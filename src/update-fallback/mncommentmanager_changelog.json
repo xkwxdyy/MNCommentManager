@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-12T00:00:00+08:00",
+  "updatedAt": "2026-06-13T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.9",
+      "channel": "stable",
+      "date": "2026-06-13",
+      "items": [
+        {
+          "zh": "图片评论类型精细化：PaintNote 现在能准确区分纯图片、纯手写、图片+手写三种情况，便于后续针对不同类型做差异化处理。",
+          "en": "Refined image comment types: PaintNote now accurately distinguishes between pure image, pure drawing, and image+drawing, enabling differentiated handling in the future."
+        },
+        {
+          "zh": "提取子卡片标题优化：移除「提取自 xxx」的默认标题预填充，改为空字符串，让用户根据实际内容自行命名。",
+          "en": "Extract child card title optimization: removed the default 'Extracted from xxx' pre-filled title, now using an empty string to let users name cards based on actual content."
+        }
+      ]
+    },
     {
       "version": "0.1.8",
       "channel": "stable",
