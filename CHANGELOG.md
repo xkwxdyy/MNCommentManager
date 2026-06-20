@@ -7,6 +7,10 @@
 - **图片评论类型精细化**：`PaintNote` 现在能准确区分纯图片（`imageComment`）、纯手写（`drawingComment`）、图片+手写（`imageCommentWithDrawing`）三种情况，便于后续针对不同类型做差异化处理
 - **提取子卡片标题优化**：移除"提取自 xxx"的默认标题预填充，改为空字符串，让用户根据实际内容自行命名
 
+### 修复
+
+- **面板位置存储兼容性**：保存时改为 `JSON.stringify` 序列化后再写入 NSUserDefaults，读取时新增 `parseSavedPanelFrame` 兼容处理字符串和对象两种格式，修复跨版本升级后面板位置丢失或异常的问题
+
 ## 0.1.8（2026-06-12）
 
 ### 优化

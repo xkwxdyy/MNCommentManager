@@ -15,6 +15,10 @@
         {
           "zh": "提取子卡片标题优化：移除「提取自 xxx」的默认标题预填充，改为空字符串，让用户根据实际内容自行命名。",
           "en": "Extract child card title optimization: removed the default 'Extracted from xxx' pre-filled title, now using an empty string to let users name cards based on actual content."
+        },
+        {
+          "zh": "修复面板位置存储兼容性：保存时序列化为 JSON 字符串，读取时兼容处理字符串和对象两种格式，避免升级后面板位置丢失或异常。",
+          "en": "Fixed panel position storage compatibility: serializes to JSON string on save and handles both string and object formats on load, preventing panel position loss or abnormalities after upgrades."
         }
       ]
     },

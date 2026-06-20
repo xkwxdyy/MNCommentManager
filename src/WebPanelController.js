@@ -137,7 +137,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       width: frame.width,
       height: frame.height,
     };
-    NSUserDefaults.standardUserDefaults().setObjectForKey(config, FRAME_CONFIG_KEY);
+    NSUserDefaults.standardUserDefaults().setObjectForKey(JSON.stringify(config), FRAME_CONFIG_KEY);
   }
 
   function numberOr(value, fallback) {
@@ -152,6 +152,19 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       width: Math.max(0, numberOr(bounds && bounds.width, 0)),
       height: Math.max(0, numberOr(bounds && bounds.height, 0)),
     };
+  }
+
+  function parseSavedPanelFrame(rawValue) {
+    if (!rawValue) return null;
+    if (typeof rawValue === "string") {
+      try {
+        const parsed = JSON.parse(rawValue);
+        return parsed && typeof parsed === "object" ? parsed : null;
+      } catch (error) {
+        return null;
+      }
+    }
+    return typeof rawValue === "object" ? rawValue : null;
   }
 
   function createDefaultFrame(bounds) {
@@ -260,7 +273,9 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function applySavedOrDefaultFrame(controller) {
     const bounds = getStudyRootBounds(controller);
-    const saved = NSUserDefaults.standardUserDefaults().objectForKey(FRAME_CONFIG_KEY);
+    const saved = parseSavedPanelFrame(
+      NSUserDefaults.standardUserDefaults().objectForKey(FRAME_CONFIG_KEY),
+    );
 
     if (!saved || isFullscreenLike(saved, bounds)) {
       applyDefaultFrame(controller);

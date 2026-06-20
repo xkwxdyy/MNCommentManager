@@ -2,12 +2,33 @@
   "id": "mncommentmanager",
   "addonid": "marginnote.extension.mncommentmanager",
   "title": "MN Comment Manager",
-  "version": "0.1.5",
+  "version": "0.1.9",
   "channel": "stable",
-  "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.5.mnaddon",
-  "filename": "mn-comment-manager-v0.1.5.mnaddon",
-  "updatedAt": "2026-06-06T08:04:16.012Z",
+  "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.9.mnaddon",
+  "filename": "mn-comment-manager-v0.1.9.mnaddon",
+  "updatedAt": "2026-06-13T13:11:13.560Z",
   "history": [
+    {
+      "version": "0.1.9",
+      "channel": "stable",
+      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.9.mnaddon",
+      "filename": "mn-comment-manager-v0.1.9.mnaddon",
+      "updatedAt": "2026-06-13T13:11:13.560Z"
+    },
+    {
+      "version": "0.1.8",
+      "channel": "stable",
+      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.8.mnaddon",
+      "filename": "mn-comment-manager-v0.1.8.mnaddon",
+      "updatedAt": "2026-06-12T11:54:32.644Z"
+    },
+    {
+      "version": "0.1.6",
+      "channel": "stable",
+      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.6.mnaddon",
+      "filename": "mn-comment-manager-v0.1.6.mnaddon",
+      "updatedAt": "2026-06-07T11:18:27.037Z"
+    },
     {
       "version": "0.1.5",
       "channel": "stable",
