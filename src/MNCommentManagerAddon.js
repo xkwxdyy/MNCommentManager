@@ -1,4 +1,88 @@
 function createMNCommentManagerAddon(mainPath) {
+  function boolValue(value) {
+    if (value === true || value === false) return value;
+    if (value === undefined || value === null) return false;
+    if (typeof value.boolValue === "function") return !!value.boolValue();
+    if ("boolValue" in Object(value)) return !!value.boolValue;
+    return !!value;
+  }
+
+  function readExtendValue(obj, keys) {
+    if (!obj) return undefined;
+    const candidates = Array.isArray(keys) ? keys : [keys];
+    for (let i = 0; i < candidates.length; i += 1) {
+      const key = candidates[i];
+      try {
+        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+      } catch (_) {}
+      try {
+        if (typeof obj[key] === "function") {
+          const value = obj[key]();
+          if (value !== undefined && value !== null) return value;
+        }
+      } catch (_) {}
+      try {
+        if (typeof obj.objectForKey === "function") {
+          const value = obj.objectForKey(key);
+          if (value !== undefined && value !== null) return value;
+        }
+      } catch (_) {}
+      try {
+        if (typeof obj.valueForKey === "function") {
+          const value = obj.valueForKey(key);
+          if (value !== undefined && value !== null) return value;
+        }
+      } catch (_) {}
+    }
+    return undefined;
+  }
+
+  function hasExtendValue(value) {
+    if (value === undefined || value === null || value === "" || value === false) return false;
+    try {
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value.count === "function") return value.count() > 0;
+      if ("length" in Object(value) && typeof value !== "number" && typeof value !== "boolean") return value.length > 0;
+    } catch (_) {}
+    return true;
+  }
+
+  function hasBlankHighlight(note) {
+    const direct = readExtendValue(note, "blankHighlight");
+    const options = readExtendValue(note, "options");
+    const blankHighlight = direct || (options ? readExtendValue(options, "blankHighlight") : null);
+    if (!blankHighlight) return false;
+    return hasExtendValue(readExtendValue(blankHighlight, "blankPageNo")) ||
+      hasExtendValue(readExtendValue(blankHighlight, "blankSelList"));
+  }
+
+  function resolveExtendNote(target) {
+    if (!target) return null;
+    if (target.note) return target.note;
+    if (target.q_hblank && target.noteid) {
+      return MNUtil.getNoteById(target.noteid, false);
+    }
+    if (typeof target === "string") {
+      const note = MNNote.new(target, false);
+      return note ? note.note : null;
+    }
+    return target;
+  }
+
+  function isExtendNote(target) {
+    try {
+      const note = resolveExtendNote(target);
+      return !!(note && ((("blank" in Object(note)) && boolValue(note.blank)) || hasBlankHighlight(note)));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function isPopupMenuExtendNote(sender) {
+    const info = sender && sender.userInfo ? sender.userInfo : {};
+    return isExtendNote(info.note || info.noteid);
+  }
+
   function syncVisiblePanel(addon, reason) {
     if (!addon || !addon.webController) return;
     const view = addon.webController.view;
@@ -82,7 +166,8 @@ function createMNCommentManagerAddon(mainPath) {
       Application.sharedInstance().studyController(self.window).refreshAddonCommands();
     },
 
-    onPopupMenuOnNote: function () {
+    onPopupMenuOnNote: function (sender) {
+      if (isPopupMenuExtendNote(sender)) return;
       syncVisiblePanel(self, "popup-menu-note");
     },
 

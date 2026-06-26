@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.1.10（2026-06-26）
+
+### 修复
+
+- **扩展卡片弹出菜单屏蔽**：`onPopupMenuOnNote` 新增 `isPopupMenuExtendNote` 判断，当弹出菜单来自 blank/blankHighlight 类型的扩展卡片时提前返回，避免错误触发面板同步显示
+
 ## 0.1.9（2026-06-13）
 
 ### 优化

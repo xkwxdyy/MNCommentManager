@@ -1,8 +1,19 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-13T00:00:00+08:00",
+  "updatedAt": "2026-06-26T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.10",
+      "channel": "stable",
+      "date": "2026-06-26",
+      "items": [
+        {
+          "zh": "修复扩展卡片弹出菜单屏蔽：在 blank/blankHighlight 类型的扩展卡片上触发弹出菜单时，不再错误地同步面板显示。",
+          "en": "Fixed popup menu on extend notes: panel sync is no longer triggered when the popup menu appears on blank/blankHighlight type extend notes."
+        }
+      ]
+    },
     {
       "version": "0.1.9",
       "channel": "stable",
