@@ -444,6 +444,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
       tableItem(addon, `  转换 HTML 为 Markdown（${context.notes.length} 张）`, "runBatchConvertHtmlToMarkdown:"),
+      tableItem(addon, `  去掉所有链接（${context.notes.length} 张）`, "runBatchRemoveAllLinks:"),
       tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
       tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
     ];
@@ -556,6 +557,29 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return stats;
   }
 
+  function countRemoveAllLinksImpact(notes) {
+    const stats = {
+      total: 0,
+      linkCards: 0,
+      noLinkCards: 0,
+      removableLinks: 0,
+    };
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    sourceNotes.forEach((note) => {
+      if (!note || !note.noteId) return;
+      stats.total += 1;
+      const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+      const comments = snapshot && Array.isArray(snapshot.comments) ? snapshot.comments : [];
+      const linkCount = comments.filter((comment) => (
+        comment && (comment.type === "linkComment" || comment.type === "summaryComment")
+      )).length;
+      if (linkCount > 0) stats.linkCards += 1;
+      else stats.noLinkCards += 1;
+      stats.removableLinks += linkCount;
+    });
+    return stats;
+  }
+
   async function confirmKeepFirstContent(context) {
     const stats = countActionImpact(context && context.notes);
     const message = [
@@ -596,6 +620,20 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
     ].filter((line) => line !== "").join("\n");
     return MNUtil.confirm("确认转换 HTML 评论？", message, ["取消", "确认转换"]);
+  }
+
+  async function confirmRemoveAllLinks(context) {
+    const stats = countRemoveAllLinksImpact(context && context.notes);
+    const message = [
+      `将处理 ${stats.total} 张卡片。`,
+      "",
+      `包含链接评论：${stats.linkCards} 张。`,
+      `无链接评论：${stats.noLinkCards} 张，不变。`,
+      `预计去掉 ${stats.removableLinks} 条链接。`,
+      "",
+      "只删除纯卡片链接评论，不处理 Markdown 行内链接，也不清理目标卡片中的反向链接。",
+    ].join("\n");
+    return MNUtil.confirm("确认去掉所有链接？", message, ["取消", "确认去掉"]);
   }
 
   async function confirmClearAllTitles(context) {
@@ -657,6 +695,22 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
+  async function runRemoveAllLinks(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const confirmed = await confirmRemoveAllLinks(context);
+    if (!confirmed) {
+      MNUtil.showHUD("已取消去掉链接");
+      return false;
+    }
+    const result = __MN_COMMENT_MUTATIONS__.removeAllLinkCommentsForNotes(context.notes);
+    hideButton(addon, "action.done");
+    return result;
+  }
+
   async function runClearAllTitles(addon, sender) {
     const context = refreshContextFromSelection(addon, sender);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
@@ -680,6 +734,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     openMenu,
     runKeepFirstContent,
     runConvertHtmlToMarkdown,
+    runRemoveAllLinks,
     runClearAllComments,
     runClearAllTitles,
   };

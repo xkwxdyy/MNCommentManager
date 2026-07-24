@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-06-26T00:00:00+08:00",
+  "updatedAt": "2026-07-24T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.11",
+      "channel": "stable",
+      "date": "2026-07-24",
+      "items": [
+        {
+          "zh": "新增批量「去掉所有链接」操作：一次性移除多选卡片中的纯卡片链接评论，操作前提示受影响卡片数和链接条数。",
+          "en": "Added a batch \"Remove all links\" action: removes plain link comments from multiple selected cards at once, with a preview of affected cards and link count before confirming."
+        },
+        {
+          "zh": "优化运行时依赖隔离，避免与其他已加载 MNUtils 的插件重复注册产生冲突；修复区域检测在遇到反爬虫响应时误报连接错误的问题。",
+          "en": "Improved runtime dependency isolation to avoid conflicts with other add-ons that already load MNUtils; fixed a false connection-error report when region detection hits an anti-bot response."
+        }
+      ]
+    },
     {
       "version": "0.1.10",
       "channel": "stable",

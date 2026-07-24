@@ -9375,8 +9375,9 @@ class MNConnection {
         this._onCheckIP = false
         return this.IPCache
       }
-      // console.log(res.text())
-      this.addErrorLog(res.text(), "fetchIPInfo.ipapi")
+      // ipapi.co may return an HTML anti-bot challenge to MarginNote's native
+      // request. Region detection is best-effort, so do not surface the full
+      // response as a user-facing connection error.
       this._onCheckIP = false
       return undefined
     } catch (error) {

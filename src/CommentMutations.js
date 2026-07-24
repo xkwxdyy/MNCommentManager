@@ -424,6 +424,12 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       .map((comment) => comment.index);
   }
 
+  function getPureLinkCommentIndices(note) {
+    return getSerializedComments(note)
+      .filter((comment) => comment && (comment.type === "linkComment" || comment.type === "summaryComment"))
+      .map((comment) => comment.index);
+  }
+
   function convertHtmlCommentIndicesInNote(note, indices, stats) {
     const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
     sorted.forEach((index) => {
@@ -935,6 +941,44 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return stats;
   }
 
+  function removeAllLinkCommentsForNotes(notes) {
+    const targetNotes = normalizeNoteArray(notes);
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      noLinkComment: 0,
+      removedLinks: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    withUndoGrouping("批量去掉所有链接", { notes: targetNotes }, () => {
+      targetNotes.forEach((note) => {
+        try {
+          const linkIndices = getPureLinkCommentIndices(note);
+          if (linkIndices.length <= 0) {
+            stats.noLinkComment += 1;
+            return;
+          }
+
+          removeCommentsByIndices(note, linkIndices);
+          refreshNote(note);
+          stats.changed += 1;
+          stats.removedLinks += linkIndices.length;
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({
+            noteId: String(note && note.noteId || ""),
+            message: error && error.message ? error.message : String(error),
+          });
+        }
+      });
+    });
+
+    MNUtil.showHUD(`已处理 ${stats.changed}/${stats.total} 张卡片，去掉 ${stats.removedLinks} 条链接`);
+    return stats;
+  }
+
   return {
     moveComments,
     deleteComments,
@@ -952,5 +996,6 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     clearAllCommentsForNotes,
     clearAllTitlesForNotes,
     convertHtmlCommentsToMarkdownForNotes,
+    removeAllLinkCommentsForNotes,
   };
 })();

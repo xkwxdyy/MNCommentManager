@@ -227,6 +227,15 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
+    runBatchRemoveAllLinks: async function (sender) {
+      try {
+        await __MN_BATCH_COMMENT_ACTIONS__.runRemoveAllLinks(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`去掉链接失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] batch remove all links failed: ${error && error.message ? error.message : error}`);
+      }
+    },
+
     runBatchClearAllTitles: async function (sender) {
       try {
         await __MN_BATCH_COMMENT_ACTIONS__.runClearAllTitles(self, sender);
