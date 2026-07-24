@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 0.1.12（2026-07-24）
+
+### 修复
+
+- **移除重复 MNUtils 运行时**：删除内置 `vendor/mnutils.js` 与 `vendor/mnnote.js`，MN Comment Manager 现在明确依赖已安装并启用的 MN Utils，不再因插件加载顺序向共享全局环境注入旧版 `MNUtil`/`MNNote`
+- **缺失依赖提示**：MN Utils 运行时不可用时不再尝试备用加载，而是停用插件功能并显示明确安装提示
+- **构建回归门禁**：构建与测试会拒绝重新引入 vendored MNUtils/MNNote，并核验安装包不包含相关副本
+
 ## 0.1.11（2026-07-24）
 
 ### 新增

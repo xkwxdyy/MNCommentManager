@@ -1,4 +1,49 @@
 function createMNCommentManagerAddon(mainPath) {
+  const missingMNUtilsMessage = "MN Comment Manager 需要先安装并启用 MN Utils";
+
+  function hasMNUtilsRuntime() {
+    return typeof MNUtil !== "undefined" &&
+      !!MNUtil &&
+      typeof MNUtil.addObserver === "function" &&
+      typeof MNUtil.removeObserver === "function" &&
+      typeof MNNote !== "undefined" &&
+      !!MNNote &&
+      typeof MNNote.new === "function";
+  }
+
+  function showMissingMNUtilsDependency(addon) {
+    console.log(`[MN Comment Manager] ${missingMNUtilsMessage}`);
+    try {
+      const app = Application.sharedInstance();
+      const targetWindow = addon && addon.window ? addon.window : app.focusWindow;
+      if (app && typeof app.showHUD === "function") {
+        app.showHUD(missingMNUtilsMessage, targetWindow, 4);
+      }
+    } catch (_) {}
+  }
+
+  function initializeAddon(addon, notifyIfMissing) {
+    if (addon && addon.mnCommentManagerInitialized) return true;
+    if (!hasMNUtilsRuntime()) {
+      if (addon) addon.mnCommentManagerRuntimeReady = false;
+      if (notifyIfMissing) showMissingMNUtilsDependency(addon);
+      return false;
+    }
+
+    addon.mnCommentManagerRuntimeReady = true;
+    addon.mainPath = mainPath;
+    addon.webController = __MN_WEB_API_MNCommentManagerAddon.createController(mainPath, addon);
+    addon.layoutViewController = function () {
+      __MN_WEB_API_MNCommentManagerAddon.ensureLayout(addon.webController);
+    };
+
+    MNUtil.addObserver(addon, "onMindmapViewOnMultipleSelection:", "mindmapViewOnMultipleSelection");
+    MNUtil.addObserver(addon, "onMindmapViewBottomToolbarClosed:", "mindmapViewBottomToolbarClosed");
+    addon.mnCommentManagerInitialized = true;
+    console.log("[MN Comment Manager] initialized with MN Utils runtime");
+    return true;
+  }
+
   function boolValue(value) {
     if (value === true || value === false) return value;
     if (value === undefined || value === null) return false;
@@ -92,19 +137,15 @@ function createMNCommentManagerAddon(mainPath) {
 
   return JSB.defineClass("MNCommentManagerAddon : JSExtension", {
     sceneWillConnect: function () {
-      self.mainPath = mainPath;
-      self.webController = __MN_WEB_API_MNCommentManagerAddon.createController(mainPath, self);
-
-      self.layoutViewController = function () {
-        __MN_WEB_API_MNCommentManagerAddon.ensureLayout(self.webController);
-      };
-
-      MNUtil.addObserver(self, "onMindmapViewOnMultipleSelection:", "mindmapViewOnMultipleSelection");
-      MNUtil.addObserver(self, "onMindmapViewBottomToolbarClosed:", "mindmapViewBottomToolbarClosed");
-      console.log("[MN Comment Manager] initialized");
+      initializeAddon(self, true);
     },
 
     sceneDidDisconnect: function () {
+      if (!self.mnCommentManagerInitialized || !hasMNUtilsRuntime()) {
+        self.mnCommentManagerInitialized = false;
+        self.mnCommentManagerRuntimeReady = false;
+        return;
+      }
       MNUtil.removeObserver(self, "mindmapViewOnMultipleSelection");
       MNUtil.removeObserver(self, "mindmapViewBottomToolbarClosed");
 
@@ -112,10 +153,13 @@ function createMNCommentManagerAddon(mainPath) {
         self.webController.view.removeFromSuperview();
       }
       self.webController = null;
+      self.mnCommentManagerInitialized = false;
+      self.mnCommentManagerRuntimeReady = false;
       console.log("[MN Comment Manager] disconnected");
     },
 
     notebookWillOpen: function () {
+      if (!initializeAddon(self, true)) return;
       if (!self.webController) {
         throw new Error("webController not initialized");
       }
@@ -130,12 +174,21 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     controllerWillLayoutSubviews: function (controller) {
+      if (!self.mnCommentManagerInitialized) return;
       if (controller === Application.sharedInstance().studyController(self.window)) {
         self.layoutViewController();
       }
     },
 
     queryAddonCommandStatus: function () {
+      if (!initializeAddon(self, false)) {
+        return {
+          image: "icon.png",
+          object: self,
+          selector: "showMissingMNUtilsDependency:",
+          checked: false,
+        };
+      }
       const checked =
         self.webController &&
         self.webController.view &&
@@ -152,6 +205,10 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     toggleWebPanel: function () {
+      if (!initializeAddon(self, false)) {
+        showMissingMNUtilsDependency(self);
+        return;
+      }
       if (!self.webController) {
         throw new Error("webController not initialized");
       }
@@ -164,6 +221,10 @@ function createMNCommentManagerAddon(mainPath) {
       }
 
       Application.sharedInstance().studyController(self.window).refreshAddonCommands();
+    },
+
+    showMissingMNUtilsDependency: function () {
+      showMissingMNUtilsDependency(self);
     },
 
     onPopupMenuOnNote: function (sender) {

@@ -4,6 +4,21 @@
   "updatedAt": "2026-07-24T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.12",
+      "channel": "stable",
+      "date": "2026-07-24",
+      "items": [
+        {
+          "zh": "移除内置的 MNUtils/MNNote 副本，改为明确依赖已安装并启用的 MN Utils；缺失依赖时停用插件并给出提示。",
+          "en": "Removed bundled MNUtils/MNNote copies and made the installed MN Utils runtime an explicit dependency; the addon now disables itself with a clear message when the dependency is unavailable."
+        },
+        {
+          "zh": "新增构建与回归门禁，防止源码和安装包重新携带 vendored MNUtils/MNNote。",
+          "en": "Added build and regression guards that prevent vendored MNUtils/MNNote files from returning to source or release packages."
+        }
+      ]
+    },
+    {
       "version": "0.1.11",
       "channel": "stable",
       "date": "2026-07-24",

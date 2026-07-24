@@ -95,6 +95,23 @@ function buildWebAssets(rootDir) {
   }
 }
 
+function assertNoVendoredMNUtils(rootDir) {
+  const forbiddenPaths = [
+    path.join(rootDir, "src", "vendor", "mnutils.js"),
+    path.join(rootDir, "src", "vendor", "mnnote.js"),
+  ];
+  forbiddenPaths.forEach((filePath) => {
+    if (fs.existsSync(filePath)) {
+      throw new Error(`Vendored MN Utils runtime is forbidden: ${filePath}`);
+    }
+  });
+
+  const mainSource = fs.readFileSync(path.join(rootDir, "src", "main.js"), "utf8");
+  if (/vendor\/(?:mnutils|mnnote)/.test(mainSource)) {
+    throw new Error("src/main.js must depend on MN Utils instead of loading a vendored runtime");
+  }
+}
+
 function build() {
   const rootDir = path.join(__dirname, "..");
   const pkg = JSON.parse(
@@ -109,6 +126,7 @@ function build() {
   const outputName = `${addonName}-v${pkg.version}.mnaddon`;
   const outputPath = path.join(rootDir, outputName);
 
+  assertNoVendoredMNUtils(rootDir);
   buildWebAssets(rootDir);
 
   if (fs.existsSync(distDir)) {
