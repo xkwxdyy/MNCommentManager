@@ -5,6 +5,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   const BUTTON_HEIGHT = 36;
   const BUTTON_GAP = 10;
   const INITIAL_SHOW_DELAY = 0.02;
+  const SELECTION_CLOSE_HIDE_DELAY = 0.18;
 
   function nowToken() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -316,13 +317,19 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return context;
   }
 
-  function keepVisibleIfStillMultipleSelection(addon, sender) {
-    const context = refreshContextFromSelection(addon, sender, { allowExisting: false });
-    if (!context) {
-      hideButton(addon, "selection.closed");
+  function handleMultipleSelectionClosed(addon) {
+    const context = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
+    const token = String(context && context.token || "");
+    if (!token) {
+      hideButton(addon, "selection.closed.noContext");
       return false;
     }
-    return showForContext(addon, context);
+    delay(SELECTION_CLOSE_HIDE_DELAY, function () {
+      const latest = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
+      if (!latest || String(latest.token || "") !== token) return;
+      hideButton(addon, "selection.closed");
+    });
+    return true;
   }
 
   function ensureButton(addon) {
@@ -395,6 +402,10 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
   function handleMultipleSelection(addon, sender) {
     if (!addon || addon.window !== MNUtil.currentWindow) return false;
+    if (!__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) {
+      hideButton(addon, "disabled");
+      return false;
+    }
     const notes = resolveSelectedNotes(sender);
     if (notes.length <= 1) {
       hideButton(addon, "selection.tooSmall");
@@ -444,6 +455,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
       tableItem(addon, `  转换 HTML 为 Markdown（${context.notes.length} 张）`, "runBatchConvertHtmlToMarkdown:"),
+      tableItem(addon, `  转为非摘录模式（${context.notes.length} 张）`, "runBatchConvertToNoExcerpt:"),
       tableItem(addon, `  去掉所有链接（${context.notes.length} 张）`, "runBatchRemoveAllLinks:"),
       tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
       tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
@@ -557,6 +569,34 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return stats;
   }
 
+  function countConvertToNoExcerptImpact(notes) {
+    const stats = {
+      total: 0,
+      convertible: 0,
+      imageExcerpt: 0,
+      textExcerpt: 0,
+      noExcerpt: 0,
+      noParent: 0,
+      unsupportedMedia: 0,
+    };
+    const sourceNotes = Array.isArray(notes) ? notes : [];
+    sourceNotes.forEach((note) => {
+      if (!note || !note.noteId) return;
+      stats.total += 1;
+      const state = __MN_COMMENT_MUTATIONS__.getNoExcerptConversionState(note, true);
+      if (state.eligible) {
+        stats.convertible += 1;
+        if (state.excerptType === "image") stats.imageExcerpt += 1;
+        else if (state.excerptType === "text") stats.textExcerpt += 1;
+        return;
+      }
+      if (state.reason === "noParent") stats.noParent += 1;
+      else if (state.reason === "unsupportedMedia") stats.unsupportedMedia += 1;
+      else stats.noExcerpt += 1;
+    });
+    return stats;
+  }
+
   function countRemoveAllLinksImpact(notes) {
     const stats = {
       total: 0,
@@ -636,6 +676,24 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return MNUtil.confirm("确认去掉所有链接？", message, ["取消", "确认去掉"]);
   }
 
+  async function confirmConvertToNoExcerpt(context) {
+    const stats = countConvertToNoExcerptImpact(context && context.notes);
+    const message = [
+      `将处理 ${stats.total} 张卡片。`,
+      "",
+      `可转换：${stats.convertible} 张（图片摘录 ${stats.imageExcerpt} 张，文本摘录 ${stats.textExcerpt} 张）。`,
+      `已是非摘录或没有有效摘录：${stats.noExcerpt} 张，不变。`,
+      stats.noParent > 0 ? `没有父卡片：${stats.noParent} 张，跳过。` : "",
+      stats.unsupportedMedia > 0 ? `音频/视频摘录：${stats.unsupportedMedia} 张，跳过。` : "",
+      "",
+      "转换会新建同级卡片并合并原摘录，卡片 ID 会变化；卡片链接、反向链接和 Markdown 行内链接会迁移到新卡片。",
+    ].filter((line) => line !== "").join("\n");
+    return {
+      confirmed: stats.convertible > 0 && await MNUtil.confirm("确认转为非摘录模式？", message, ["取消", "确认转换"]),
+      stats,
+    };
+  }
+
   async function confirmClearAllTitles(context) {
     const stats = countClearAllTitlesImpact(context && context.notes);
     const message = [
@@ -711,6 +769,25 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
+  async function runConvertToNoExcerpt(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const confirmation = await confirmConvertToNoExcerpt(context);
+    if (confirmation.stats.convertible <= 0) {
+      MNUtil.showHUD("所选卡片中没有可转换的图片或文本摘录");
+      return false;
+    }
+    if (!confirmation.confirmed) {
+      return false;
+    }
+    const result = __MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptForNotes(context.notes);
+    hideButton(addon, "action.done");
+    return result;
+  }
+
   async function runClearAllTitles(addon, sender) {
     const context = refreshContextFromSelection(addon, sender);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
@@ -730,10 +807,11 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   return {
     handleMultipleSelection,
     hideButton,
-    keepVisibleIfStillMultipleSelection,
+    handleMultipleSelectionClosed,
     openMenu,
     runKeepFirstContent,
     runConvertHtmlToMarkdown,
+    runConvertToNoExcerpt,
     runRemoveAllLinks,
     runClearAllComments,
     runClearAllTitles,

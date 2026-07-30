@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
+const prepareKatexCss = require("./prepare-katex-css");
 
 function getLocalBin(rootDir, name) {
   const ext = process.platform === "win32" ? ".cmd" : "";
@@ -36,6 +37,7 @@ function main() {
   const devConfigPath = path.join(rootDir, "src", "WebDevServerConfig.js");
   const fnName = readDevServerFunctionName(devConfigPath);
 
+  prepareKatexCss(rootDir);
   writeDevServerConfig(devConfigPath, fnName, devServerURL);
   console.log(`Web dev server URL injected: ${devServerURL}`);
 

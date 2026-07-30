@@ -12,7 +12,7 @@ module.exports = defineConfig({
     outDir: path.resolve(__dirname, "../src/web-dist/assets"),
     emptyOutDir: false,
     sourcemap: false,
-    target: "es2018",
+    target: "safari11",
     cssCodeSplit: false,
     lib: {
       entry: path.resolve(__dirname, "src/main.jsx"),

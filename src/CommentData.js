@@ -86,6 +86,135 @@ var __MN_COMMENT_DATA__ = (function () {
     }
   }
 
+  function getRawNote(note) {
+    return note && note.note ? note.note : note;
+  }
+
+  function getExcerptText(note) {
+    const rawNote = getRawNote(note);
+    try {
+      return toStringValue(
+        (note && (note.mainExcerptText || note.excerptText)) ||
+        (rawNote && rawNote.excerptText),
+      );
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getExcerptType(note) {
+    const rawNote = getRawNote(note);
+    try {
+      const directType = toStringValue(note && note.excerptType).trim().toLowerCase();
+      if (directType) return directType;
+      const excerpt = note && note.excerpt;
+      const aggregateType = toStringValue(excerpt && excerpt.type).trim().toLowerCase();
+      if (aggregateType) return aggregateType;
+      const excerptPic = note && note.excerptPic || rawNote && rawNote.excerptPic;
+      if (excerptPic) {
+        if ("video" in Object(excerptPic)) {
+          return toStringValue(excerptPic.video_ext).toLowerCase() === "mp3" ? "audio" : "video";
+        }
+        return !!(note && note.textFirst || rawNote && rawNote.textFirst) ? "text" : "image";
+      }
+      return getExcerptText(note).trim() ? "text" : "none";
+    } catch (error) {
+      return "unknown";
+    }
+  }
+
+  function getExcerptMediaHash(note, type) {
+    try {
+      const excerpt = note && note.excerpt;
+      if (!excerpt) return "";
+      if (type === "image") return toStringValue(excerpt.imageHash);
+      if (type === "audio") return toStringValue(excerpt.audioHash);
+      if (type === "video") return toStringValue(excerpt.videoHash);
+    } catch (error) {
+      return "";
+    }
+    return "";
+  }
+
+  function getExcerptMediaData(note, type) {
+    try {
+      if (type === "image" && note && note.excerptPicData) return note.excerptPicData;
+      if (type === "audio" && note && note.excerptAudioData) return note.excerptAudioData;
+      if (type === "video" && note && note.excerptVideoData) return note.excerptVideoData;
+    } catch (error) {
+      // Fall back to the aggregate media hash.
+    }
+    const mediaHash = getExcerptMediaHash(note, type);
+    if (!mediaHash) return null;
+    try {
+      return MNUtil.getMediaByHash(mediaHash) || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getExcerptState(note) {
+    if (!note) {
+      return {
+        present: false,
+        type: "none",
+        text: "",
+        imageBase64: "",
+        imageMimeType: "",
+        conversion: { eligible: false, reason: "noExcerpt" },
+        capabilities: {
+          canCopyText: false,
+          canCopyImage: false,
+          canMergeText: false,
+          canExtract: false,
+        },
+      };
+    }
+
+    const rawNote = getRawNote(note);
+    const type = getExcerptType(note);
+    const text = getExcerptText(note);
+    const excerptPic = note && note.excerptPic || rawNote && rawNote.excerptPic;
+    const mediaHash = getExcerptMediaHash(note, type);
+    const mediaData = getExcerptMediaData(note, type);
+    const imageBase64 = type === "image" ? normalizeMediaBase64(mediaData) : "";
+    const present = !!(
+      text.trim() ||
+      excerptPic ||
+      mediaHash ||
+      mediaData
+    );
+    let conversionReason = "noExcerpt";
+    let conversionEligible = false;
+    if (present && !note.parentNote) {
+      conversionReason = "noParent";
+    } else if (present && (type === "text" || type === "image")) {
+      conversionEligible = true;
+      conversionReason = type;
+    } else if (present) {
+      conversionReason = "unsupportedMedia";
+    }
+
+    return {
+      present,
+      type: present ? type : "none",
+      text,
+      textMarkdown: !!(note && note.excerptTextMarkdown || rawNote && rawNote.excerptTextMarkdown),
+      imageBase64,
+      imageMimeType: imageBase64 ? "image/jpeg" : "",
+      conversion: {
+        eligible: conversionEligible,
+        reason: conversionReason,
+      },
+      capabilities: {
+        canCopyText: present && type === "text" && !!text.trim(),
+        canCopyImage: present && type === "image" && !!(mediaData || excerptPic || mediaHash),
+        canMergeText: present && type === "text" && !!text.trim(),
+        canExtract: present && (type === "text" || type === "image"),
+      },
+    };
+  }
+
   function normalizeMarkdownLinks(text) {
     const links = [];
     const source = toStringValue(text);
@@ -296,6 +425,7 @@ var __MN_COMMENT_DATA__ = (function () {
       return {
         noteId: "",
         noteTitle: "",
+        excerpt: getExcerptState(null),
         comments: [],
         error: "没有读取到当前卡片，请先选中一张卡片",
       };
@@ -310,6 +440,7 @@ var __MN_COMMENT_DATA__ = (function () {
     return {
       noteId: toStringValue(note.noteId),
       noteTitle: toStringValue(note.noteTitle || "未命名卡片"),
+      excerpt: getExcerptState(note),
       comments,
       error: "",
     };
@@ -324,6 +455,10 @@ var __MN_COMMENT_DATA__ = (function () {
     getWrappedNoteById,
     getCurrentNoteSnapshot,
     getNoteSnapshot,
+    getExcerptState,
+    getExcerptType,
+    getExcerptText,
+    getExcerptMediaData,
     extractPureMarginNoteLink,
     normalizeNoteId,
   };

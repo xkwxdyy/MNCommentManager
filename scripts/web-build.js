@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const prepareKatexCss = require("./prepare-katex-css");
 
 function getLocalBin(rootDir, name) {
   const ext = process.platform === "win32" ? ".cmd" : "";
@@ -19,6 +20,20 @@ function resolveSingleBundle(distAssetsDirPath) {
   return path.join(distAssetsDirPath, jsFiles[0]);
 }
 
+function assertLegacyWebViewCompatibility(bundlePath) {
+  const source = fs.readFileSync(bundlePath, "utf8");
+  const forbidden = [
+    { pattern: /\.replaceAll\s*\(/, label: "String.prototype.replaceAll" },
+    { pattern: /\.at\s*\(/, label: "Array.prototype.at" },
+    { pattern: /\(\?<[^=!]/, label: "named regular-expression capture" },
+    { pattern: /\\k</, label: "named regular-expression backreference" },
+  ];
+  const found = forbidden.filter((item) => item.pattern.test(source)).map((item) => item.label);
+  if (found.length > 0) {
+    throw new Error(`Web bundle is incompatible with the legacy MarginNote WebView: ${found.join(", ")}`);
+  }
+}
+
 function main() {
   const rootDir = path.join(__dirname, "..");
   const viteConfigPath = path.join(rootDir, "web", "vite.release.config.js");
@@ -30,6 +45,7 @@ function main() {
 
   fs.rmSync(distDirPath, { recursive: true, force: true });
   fs.mkdirSync(distAssetsDirPath, { recursive: true });
+  prepareKatexCss(rootDir);
 
   execFileSync(viteBin, ["build", "--config", viteConfigPath], {
     cwd: rootDir,
@@ -45,6 +61,7 @@ function main() {
   if (builtJsPath !== distJsPath) {
     fs.renameSync(builtJsPath, distJsPath);
   }
+  assertLegacyWebViewCompatibility(distJsPath);
 
   const html = `<!doctype html>
 <html lang="en">

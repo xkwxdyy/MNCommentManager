@@ -4,6 +4,25 @@
   "updatedAt": "2026-07-24T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.14",
+      "channel": "stable",
+      "date": "2026-07-30",
+      "items": [
+        {
+          "zh": "面板新增原生摘录显示与操作：可选择卡片摘录并对其执行移动、删除、合并、提取为子卡片、复制等操作；涉及摘录的操作会自动完成「转为非摘录模式」转换。",
+          "en": "The panel now shows the card's native excerpt, which can be selected and used in move, delete, merge, extract-to-child, and copy operations; operations involving the excerpt automatically perform a no-excerpt conversion first."
+        },
+        {
+          "zh": "新增「转为非摘录模式」操作，批量多选菜单和单卡操作菜单均支持，将有摘录的卡片转换为纯评论卡片。",
+          "en": "Added a \"Convert to comment-only\" action available in both the batch menu and the single-card action menu, converting excerpt cards into comment-only cards while preserving all content."
+        },
+        {
+          "zh": "Markdown 评论现支持格式化渲染预览，含数学公式（KaTeX）；单卡弹出菜单时显示「评」浮动按钮，点按打开评论面板，长按打开单选处理菜单；面板新增「设置」可控制两个操作按钮的开关。",
+          "en": "Markdown comments now render with formatting preview including math formulas (KaTeX); a floating 「评」 button appears on single-card popups — tap to open the panel, long-press for a single-card action menu; a new Settings page controls both action buttons."
+        }
+      ]
+    },
+    {
       "version": "0.1.12",
       "channel": "stable",
       "date": "2026-07-24",
