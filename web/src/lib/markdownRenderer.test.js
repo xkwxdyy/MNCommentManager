@@ -98,6 +98,16 @@ describe("renderMarkdownToHtml", () => {
     expect(span.style.backgroundImage).toBe("");
   });
 
+  it("preserves MarginNote card URLs for in-panel locating", () => {
+    const noteId = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";
+    const html = renderMarkdownToHtml(`[目标卡片](marginnote4app://note/${noteId})`);
+    const container = document.createElement("div");
+    container.innerHTML = html;
+
+    expect(container.querySelector("a")?.getAttribute("href"))
+      .toBe(`marginnote4app://note/${noteId}`);
+  });
+
   it("falls back to readable output for malformed formulas", () => {
     const source = String.raw`未闭合公式 \(x^2 + 1`;
     expect(() => renderMarkdownToHtml(source)).not.toThrow();

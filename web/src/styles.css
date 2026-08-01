@@ -802,6 +802,11 @@ button.pressing {
   font-size: 15px;
 }
 
+.update-link-action {
+  color: var(--accent-green);
+  font-size: 17px;
+}
+
 .link-focus-action {
   touch-action: none;
   -webkit-touch-callout: none;
@@ -928,6 +933,10 @@ button.pressing {
   color: var(--accent-blue);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.markdown-content a[href^="marginnote"] {
+  cursor: pointer;
 }
 
 .markdown-content .katex-display {

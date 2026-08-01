@@ -444,10 +444,10 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   function getConversionErrorMessage(reason) {
-    if (reason === "noParent") return "当前摘录卡没有父卡片，无法转为非摘录模式";
-    if (reason === "unsupportedMedia") return "当前音频或视频摘录暂不支持转为非摘录模式";
+    if (reason === "noParent") return "当前摘录卡没有父卡片，无法转为非摘录版";
+    if (reason === "unsupportedMedia") return "当前音频或视频摘录暂不支持转为非摘录版";
     if (reason === "noExcerpt") return "当前卡片没有可转换的文本或图片摘录";
-    return "当前卡片无法转为非摘录模式";
+    return "当前卡片无法转为非摘录版";
   }
 
   function makeSelectionActionResult(note, options) {
@@ -543,7 +543,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         actionCompleted: false,
         mappedIndices: [],
         selectedIndices: [],
-        statusMessage: `卡片已转为非摘录模式，但后续操作已停止：${partialError}`,
+        statusMessage: `卡片已转为非摘录版，但后续操作已停止：${partialError}`,
         error: partialError,
       });
     }
@@ -1185,7 +1185,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     }
     const selectedCount = normalizedSelection.commentIndices.length + (normalizedSelection.excerptSelected ? 1 : 0);
     const statusMessage = partialError
-      ? `子卡片已创建，源卡片也已转为非摘录模式，但删除已停止：${partialError}`
+      ? `子卡片已创建，源卡片也已转为非摘录版，但删除已停止：${partialError}`
       : (removeOriginal === true
         ? `已用 ${selectedCount} 项内容创建子卡片，并删除源内容`
         : `已用 ${selectedCount} 项内容创建子卡片`);
@@ -1290,14 +1290,97 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return { copiedExcerpt: true, statusMessage: "摘录图片已复制" };
   }
 
-  function focusLinkedNote(noteId, mode) {
+  function getStudyController(window) {
+    try {
+      const app = Application.sharedInstance();
+      return app && typeof app.studyController === "function"
+        ? app.studyController(window)
+        : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function focusLinkedNote(noteId, mode, window) {
     if (!noteId) throw new Error("没有找到目标卡片");
+    const studyController = getStudyController(window);
     if (mode === "float") {
-      MNUtil.focusNoteInFloatMindMapById(String(noteId), 0.2);
+      if (studyController && typeof studyController.focusNoteInFloatMindMapById === "function") {
+        studyController.focusNoteInFloatMindMapById(String(noteId));
+      } else {
+        MNUtil.focusNoteInFloatMindMapById(String(noteId), 0.2);
+      }
     } else {
-      MNUtil.focusNoteInMindMapById(String(noteId), 0.2);
+      if (!studyController || typeof studyController.focusNoteInMindMapById !== "function") {
+        throw new Error("当前窗口无法执行 Focus in Mind Map");
+      }
+      studyController.focusNoteInMindMapById(String(noteId));
     }
     return true;
+  }
+
+  function appendNoteLink(note, targetNote) {
+    if (note && typeof note.appendNoteLink === "function") {
+      note.appendNoteLink(targetNote);
+      return;
+    }
+    const rawNote = getRawNote(note);
+    const rawTarget = getRawNote(targetNote);
+    if (rawNote && typeof rawNote.appendNoteLink === "function") {
+      rawNote.appendNoteLink(rawTarget);
+      return;
+    }
+    throw new Error("当前版本无法新增卡片链接，请更新 MarginNote 后再试");
+  }
+
+  function getReverseLinkIndices(note, sourceNoteId) {
+    const sourceId = String(sourceNoteId || "").toUpperCase();
+    if (!note || !sourceId || !Array.isArray(note.comments)) return [];
+    const indices = [];
+    note.comments.forEach((comment, index) => {
+      const link = __MN_COMMENT_DATA__.extractPureMarginNoteLink(comment && comment.text);
+      if (link && link.noteId === sourceId) indices.push(index);
+    });
+    return indices;
+  }
+
+  function updateLinkCommentFromClipboard(noteId, index) {
+    const note = getNoteOrThrow(noteId);
+    const commentIndex = parseInt(index, 10);
+    if (!Number.isFinite(commentIndex) || commentIndex < 0) {
+      throw new Error("评论位置无效，请刷新后再试");
+    }
+
+    const serialized = getSerializedComment(note, commentIndex);
+    requireCapability(serialized, "canUpdateLink", `#${commentIndex} 不是可更新的卡片链接`);
+    const clipboardUrl = String(MNUtil.clipboardText || "").trim();
+    const nextLink = __MN_COMMENT_DATA__.extractPureMarginNoteLink(clipboardUrl);
+    if (!nextLink) throw new Error("剪贴板中没有有效的 MarginNote 卡片链接");
+    if (String(serialized.linkedNoteId || "") === nextLink.noteId) throw new Error("链接未修改");
+
+    const rawComment = requireComment(note, commentIndex);
+    const oldTarget = __MN_COMMENT_DATA__.getWrappedNoteById(serialized.linkedNoteId);
+    const newTarget = __MN_COMMENT_DATA__.getWrappedNoteById(nextLink.noteId);
+    if (!newTarget) throw new Error("剪贴板链接对应的卡片不存在");
+
+    const reverseIndices = serialized.type === "linkComment"
+      ? getReverseLinkIndices(oldTarget, noteId)
+      : [];
+    const shouldPreserveReverseLink = reverseIndices.length > 0;
+
+    withUndoGrouping("更新链接", { notes: [note, oldTarget, newTarget].filter(Boolean) }, () => {
+      rawComment.text = clipboardUrl;
+      if (shouldPreserveReverseLink) {
+        removeCommentsByIndices(oldTarget, reverseIndices);
+        if (getReverseLinkIndices(newTarget, noteId).length === 0) appendNoteLink(newTarget, note);
+        refreshNote(oldTarget);
+        refreshNote(newTarget);
+      }
+      refreshNote(note);
+    });
+
+    MNUtil.showHUD(shouldPreserveReverseLink ? "链接及反向链接已更新" : "链接已更新");
+    return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
 
   function keepFirstContentForNotes(notes, options) {
@@ -1548,7 +1631,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       errors: [],
     };
 
-    withUndoGrouping("批量转为非摘录模式", { notes: targetNotes }, () => {
+    withUndoGrouping("批量转为非摘录版", { notes: targetNotes }, () => {
       targetNotes.forEach((note) => {
         try {
           const result = convertNoteToNoExcerpt(note, { allowTextExcerpt: true });
@@ -1574,7 +1657,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     });
 
     if (stats.failed > 0) {
-      MNUtil.showHUD(`转为非摘录模式失败 ${stats.failed} 张，已完成 ${stats.changed}/${stats.total} 张`);
+      MNUtil.showHUD(`转为非摘录版失败 ${stats.failed} 张，已完成 ${stats.changed}/${stats.total} 张`);
     }
     return stats;
   }
@@ -1598,6 +1681,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     copyCommentImage,
     copyContentImage,
     focusLinkedNote,
+    updateLinkCommentFromClipboard,
     keepFirstContentForNotes,
     clearAllCommentsForNotes,
     clearAllTitlesForNotes,

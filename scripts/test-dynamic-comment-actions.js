@@ -116,6 +116,11 @@ assert.deepStrictEqual(
     "runSingleClearAllTitles:",
   ],
 );
+assert.deepStrictEqual(
+  Array.from(addon.dynamicCommentMenuPopoverController.commandTable.slice(3), (item) => String(item.title).trim()),
+  ["转为非摘录版", "去掉链接评论", "清空评论", "清空标题"],
+  "single-card menu labels must use single-card semantics",
+);
 assert.strictEqual(addon.dynamicCommentMenuPopoverController.delegate, addon);
 const conversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "runSingleConvertToNoExcerpt:");
 assert(conversionItem);

@@ -63,17 +63,6 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
     return current ? [current] : [];
   }
 
-  function refreshNotebookIds(ids) {
-    const targets = ids && ids.length > 0 ? ids : [];
-    targets.forEach((notebookId) => {
-      try {
-        Application.sharedInstance().refreshAfterDBChanged(notebookId);
-      } catch (error) {
-        console.log(`[MN Comment Manager] refreshAfterDBChanged failed: ${error && error.message ? error.message : error}`);
-      }
-    });
-  }
-
   function run(actionName, options, block) {
     let opts = options;
     let fn = block;
@@ -94,9 +83,22 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
     ids.forEach(pushNotebookId);
     depth += 1;
     let result;
+    let undoMode = "direct";
+    const startedAt = Date.now();
     try {
       const primaryNotebookId = pendingNotebookIds[0] || getCurrentNotebookId();
-      if (primaryNotebookId && typeof UndoManager !== "undefined" && UndoManager) {
+      if (primaryNotebookId && typeof MNUtil !== "undefined" && MNUtil &&
+        typeof MNUtil.undoGroupingNotRefresh === "function") {
+        undoMode = "no-global-refresh";
+        MNUtil.undoGroupingNotRefresh(
+          function () {
+            result = fn();
+          },
+          primaryNotebookId,
+          { feature: `mncommentmanager.${String(actionName || "mutation")}.noGlobalDBRefresh` },
+        );
+      } else if (primaryNotebookId && typeof UndoManager !== "undefined" && UndoManager) {
+        undoMode = "undo-manager";
         UndoManager.sharedInstance().undoGrouping(
           actionName || "MN Comment Manager",
           primaryNotebookId,
@@ -109,9 +111,8 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
       }
     } finally {
       depth = Math.max(0, depth - 1);
-      const refreshIds = pendingNotebookIds.slice();
       pendingNotebookIds = startedIds;
-      refreshNotebookIds(refreshIds);
+      console.log(`[MN Comment Manager] ${actionName || "mutation"} completed (${Date.now() - startedAt}ms, ${undoMode})`);
     }
     return result;
   }

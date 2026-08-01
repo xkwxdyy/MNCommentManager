@@ -323,10 +323,10 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       item("── 单选处理 ──", "noopBatchCommentAction:"),
       item("  只保留第一条内容", "runSingleKeepFirstContent:"),
       item("  转换 HTML 为 Markdown", "runSingleConvertHtmlToMarkdown:"),
-      item("  转为非摘录模式", "runSingleConvertToNoExcerpt:"),
-      item("  去掉所有链接", "runSingleRemoveAllLinks:"),
-      item("  清空所有评论", "runSingleClearAllComments:"),
-      item("  清空所有标题", "runSingleClearAllTitles:"),
+      item("  转为非摘录版", "runSingleConvertToNoExcerpt:"),
+      item("  去掉链接评论", "runSingleRemoveAllLinks:"),
+      item("  清空评论", "runSingleClearAllComments:"),
+      item("  清空标题", "runSingleClearAllTitles:"),
     ], 280, 0);
     if (!popover) { hideButton(addon, "menu.presentFailed"); return false; }
     popover.delegate = addon;

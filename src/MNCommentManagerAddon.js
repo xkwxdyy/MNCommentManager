@@ -376,7 +376,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runSingleKeepFirstContent: async function (sender) { await runSingleMenuAction(self, sender, "runKeepFirstContent", "单选处理失败"); },
     runSingleConvertHtmlToMarkdown: async function (sender) { await runSingleMenuAction(self, sender, "runConvertHtmlToMarkdown", "转换 HTML 评论失败"); },
-    runSingleConvertToNoExcerpt: async function (sender) { await runSingleMenuAction(self, sender, "runConvertToNoExcerpt", "转为非摘录模式失败"); },
+    runSingleConvertToNoExcerpt: async function (sender) { await runSingleMenuAction(self, sender, "runConvertToNoExcerpt", "转为非摘录版失败"); },
     runSingleRemoveAllLinks: async function (sender) { await runSingleMenuAction(self, sender, "runRemoveAllLinks", "去掉链接失败"); },
     runSingleClearAllComments: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllComments", "清空评论失败"); },
     runSingleClearAllTitles: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllTitles", "清空标题失败"); },
@@ -416,7 +416,7 @@ function createMNCommentManagerAddon(mainPath) {
       try {
         await __MN_BATCH_COMMENT_ACTIONS__.runConvertToNoExcerpt(self, sender);
       } catch (error) {
-        MNUtil.showHUD(`转为非摘录模式失败: ${error && error.message ? error.message : error}`);
+        MNUtil.showHUD(`转为非摘录版失败: ${error && error.message ? error.message : error}`);
         console.log(`[MN Comment Manager] batch convert to no-excerpt failed: ${error && error.message ? error.message : error}`);
       }
     },

@@ -455,7 +455,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
       tableItem(addon, `  转换 HTML 为 Markdown（${context.notes.length} 张）`, "runBatchConvertHtmlToMarkdown:"),
-      tableItem(addon, `  转为非摘录模式（${context.notes.length} 张）`, "runBatchConvertToNoExcerpt:"),
+      tableItem(addon, `  转为非摘录版（${context.notes.length} 张）`, "runBatchConvertToNoExcerpt:"),
       tableItem(addon, `  去掉所有链接（${context.notes.length} 张）`, "runBatchRemoveAllLinks:"),
       tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
       tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
@@ -689,7 +689,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       "转换会新建同级卡片并合并原摘录，卡片 ID 会变化；卡片链接、反向链接和 Markdown 行内链接会迁移到新卡片。",
     ].filter((line) => line !== "").join("\n");
     return {
-      confirmed: stats.convertible > 0 && await MNUtil.confirm("确认转为非摘录模式？", message, ["取消", "确认转换"]),
+      confirmed: stats.convertible > 0 && await MNUtil.confirm("确认转为非摘录版？", message, ["取消", "确认转换"]),
       stats,
     };
   }

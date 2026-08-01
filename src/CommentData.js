@@ -359,6 +359,7 @@ var __MN_COMMENT_DATA__ = (function () {
       canCopyImage: IMAGE_TYPES.indexOf(type) >= 0 && hasImage,
       canCopyAudio: false,
       canFocusLink: !!linked && (type === "linkComment" || type === "summaryComment"),
+      canUpdateLink: !!linked && (type === "linkComment" || type === "summaryComment"),
       canBidirectionalDelete: !!linked && type === "linkComment",
       canExtractText: hasText,
       canDelete: true,

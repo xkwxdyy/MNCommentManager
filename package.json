@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "private": true,
   "scripts": {
     "build": "node scripts/build-release.js",
@@ -13,7 +13,7 @@
     "test:markdown": "vitest run web/src/lib/markdownRenderer.test.js",
     "test:no-excerpt": "node scripts/test-batch-no-excerpt-conversion.js",
     "test:runtime-isolation": "node scripts/test-runtime-dependency-isolation.js",
-    "version": "0.1.14",
+    "version": "0.1.15",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major"

@@ -9,6 +9,8 @@ const mutationsSource = fs.readFileSync(path.join(rootDir, "src/CommentMutations
 const batchActionsSource = fs.readFileSync(path.join(rootDir, "src/BatchCommentActions.js"), "utf8");
 const dynamicActionsSource = fs.readFileSync(path.join(rootDir, "src/DynamicCommentActions.js"), "utf8");
 const addonSource = fs.readFileSync(path.join(rootDir, "src/MNCommentManagerAddon.js"), "utf8");
+const bridgeSource = fs.readFileSync(path.join(rootDir, "src/WebBridgeCommands.js"), "utf8");
+const webAppSource = fs.readFileSync(path.join(rootDir, "web/src/App.jsx"), "utf8");
 
 const ids = {
   source: "11111111-1111-1111-1111-111111111111",
@@ -36,6 +38,9 @@ function addNoteMethods(note) {
   };
   note.appendMarkdownComment = function (text) {
     this.comments.push({ type: "TextNote", text, markdown: true });
+  };
+  note.appendNoteLink = function (targetNote) {
+    this.comments.push({ type: "TextNote", text: targetNote.noteURL });
   };
   note.moveComment = function (fromIndex, toIndex) {
     const item = this.comments.splice(fromIndex, 1)[0];
@@ -66,6 +71,8 @@ const hudMessages = [];
 const pinUpdates = [];
 const copiedTexts = [];
 const copiedImages = [];
+const mindMapFocusCalls = [];
+const floatMindMapFocusCalls = [];
 let targetSequence = 0;
 let cloneSequence = 0;
 let targetMergeHook = null;
@@ -164,11 +171,25 @@ Object.defineProperty(textSource, "indexInBrotherNotes", {
 
 const context = {
   console,
+  Application: {
+    sharedInstance() {
+      return {
+        studyController(window) {
+          assert.strictEqual(window, addonWindow);
+          return {
+            focusNoteInMindMapById(noteId) { mindMapFocusCalls.push(String(noteId)); },
+            focusNoteInFloatMindMapById(noteId) { floatMindMapFocusCalls.push(String(noteId)); },
+          };
+        },
+      };
+    },
+  },
   MNUtil: {
     getMediaByHash(hash) { return hash ? { mediaHash: hash } : null; },
     copy(text) { copiedTexts.push(String(text)); },
     copyImage(data) { copiedImages.push(data); },
     focusNoteInMindMapById() {},
+    focusNoteInFloatMindMapById() {},
     showHUD(message) { hudMessages.push(String(message)); },
     version: { version: "marginnote4" },
   },
@@ -190,6 +211,7 @@ const context = {
     run(_actionName, _options, block) { return block(); },
   },
 };
+const addonWindow = { id: "addon-window" };
 
 vm.createContext(context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
@@ -587,6 +609,34 @@ const linkedText = linked.comments.map((comment) => String(comment.text || "")).
 assert(!linkedText.includes(noteUrl(ids.source)));
 assert(linkedText.includes(noteUrl(imageTarget.noteId)));
 
+const updateSource = addNoteMethods({
+  noteId: "AAAAAAAA-0000-0000-0000-000000000001",
+  noteTitle: "Update source",
+  comments: [{ type: "TextNote", text: "marginnote4app://note/AAAAAAAA-0000-0000-0000-000000000002" }],
+});
+const oldLinkTarget = addNoteMethods({
+  noteId: "AAAAAAAA-0000-0000-0000-000000000002",
+  noteTitle: "Old target",
+  comments: [{ type: "TextNote", text: noteUrl(updateSource.noteId) }],
+});
+const newLinkTarget = addNoteMethods({
+  noteId: "AAAAAAAA-0000-0000-0000-000000000003",
+  noteTitle: "New target",
+  comments: [],
+});
+[updateSource, oldLinkTarget, newLinkTarget].forEach((note) => registry.set(note.noteId, note));
+context.MNUtil.clipboardText = noteUrl(newLinkTarget.noteId);
+const updateLinkSnapshot = context.__MN_COMMENT_MUTATIONS__.updateLinkCommentFromClipboard(updateSource.noteId, 0);
+assert.strictEqual(updateLinkSnapshot.comments[0].linkedNoteId, newLinkTarget.noteId);
+assert.strictEqual(oldLinkTarget.comments.length, 0, "old reverse link must be removed");
+assert.strictEqual(newLinkTarget.comments.length, 1, "new reverse link must be created");
+assert.strictEqual(newLinkTarget.comments[0].text, noteUrl(updateSource.noteId));
+
+context.__MN_COMMENT_MUTATIONS__.focusLinkedNote(newLinkTarget.noteId, "mindmap", addonWindow);
+context.__MN_COMMENT_MUTATIONS__.focusLinkedNote(newLinkTarget.noteId, "float", addonWindow);
+assert.deepStrictEqual(mindMapFocusCalls, [newLinkTarget.noteId]);
+assert.deepStrictEqual(floatMindMapFocusCalls, [newLinkTarget.noteId]);
+
 const failingSource = addNoteMethods({
   noteId: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
   noteTitle: "Failing excerpt",
@@ -608,5 +658,8 @@ assert(batchActionsSource.includes('"runBatchConvertToNoExcerpt:"'));
 assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));
 assert(dynamicActionsSource.includes('"runSingleConvertToNoExcerpt:"'));
 assert(addonSource.includes("runSingleConvertToNoExcerpt: async function"));
+assert(bridgeSource.includes("updateLinkCommentFromClipboard"));
+assert(webAppSource.includes('onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}'));
+assert(webAppSource.includes('runCommand("updateLinkCommentFromClipboard"'));
 
 console.log("batch no-excerpt conversion tests passed");

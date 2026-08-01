@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-07-24T00:00:00+08:00",
+  "updatedAt": "2026-08-02T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.15",
+      "channel": "stable",
+      "date": "2026-08-02",
+      "items": [
+        {
+          "zh": "链接评论新增「更新链接」按钮，可用剪贴板中的卡片链接直接替换目标，并自动迁移反向链接。",
+          "en": "Added an \"Update link\" button on link comments that replaces the target using the clipboard's MarginNote card link and migrates any reverse link automatically."
+        },
+        {
+          "zh": "Markdown 评论正文中的卡片链接现在可以直接点击定位，无需先转成链接评论。",
+          "en": "MarginNote card links inside Markdown comment text can now be tapped directly to locate the card, without converting them into a link comment first."
+        }
+      ]
+    },
     {
       "version": "0.1.14",
       "channel": "stable",

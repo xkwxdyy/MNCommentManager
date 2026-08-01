@@ -91,8 +91,8 @@ function getExcerptTypeLabel(excerpt) {
 
 function getExcerptConversionError(excerpt) {
   const reason = excerpt?.conversion?.reason;
-  if (reason === "noParent") return "当前摘录卡没有父卡片，无法转为非摘录模式";
-  if (reason === "unsupportedMedia") return "当前音频或视频摘录暂不支持转为非摘录模式";
+  if (reason === "noParent") return "当前摘录卡没有父卡片，无法转为非摘录版";
+  if (reason === "unsupportedMedia") return "当前音频或视频摘录暂不支持转为非摘录版";
   return "当前卡片没有可转换的文本或图片摘录";
 }
 
@@ -628,7 +628,7 @@ function App() {
     }
     setDialog({
       title: "移动摘录前需转换卡片",
-      body: "这是卡片自身的摘录，不是普通评论。继续后会先把当前卡片转为非摘录模式，再按当前完整选区自动完成移动。",
+      body: "这是卡片自身的摘录，不是普通评论。继续后会先把当前卡片转为非摘录版，再按当前完整选区自动完成移动。",
       confirmText: "转换并移动",
       onConfirm: async () => {
         setDialog(null);
@@ -723,7 +723,7 @@ function App() {
     }
     setDialog({
       title: "删除原生摘录",
-      body: "删除所选原生摘录需要先把当前卡片转为非摘录模式。转换并验证内容映射后，系统会删除完整选区。",
+      body: "删除所选原生摘录需要先把当前卡片转为非摘录版。转换并验证内容映射后，系统会删除完整选区。",
       confirmText: "转换并删除",
       danger: true,
       onConfirm: async () => {
@@ -1146,7 +1146,7 @@ function App() {
       body: [
         `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条 HTML 评论。`,
         skipped > 0 ? `另外 ${skipped} 条非 HTML 评论会跳过。` : "",
-        excerptSelected ? "所选原生摘录保持不变，卡片不会转为非摘录模式。" : "",
+        excerptSelected ? "所选原生摘录保持不变，卡片不会转为非摘录版。" : "",
         "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
       ].filter(Boolean).join("\n"),
       confirmText: "确认转换",
@@ -1169,6 +1169,14 @@ function App() {
     await locateLinkedNote(noteId, mode);
   };
 
+  const updateLinkCommentFromClipboard = async (comment) => {
+    if (!comment || !canComment(comment, "canUpdateLink")) return;
+    await runCommand("updateLinkCommentFromClipboard", {
+      noteId: snapshot.noteId,
+      commentIndex: comment.index,
+    }, { message: "链接已更新", keepSelection: true });
+  };
+
   const openExtractDialog = () => {
     if (!requireSelection()) return;
     setDialog({
@@ -1181,7 +1189,7 @@ function App() {
       clearInputText: "清空标题",
       checkboxLabel: "同时删除原卡片中的所选内容",
       checkboxDescription: excerptSelected
-        ? "源卡片会先转为非摘录模式，再删除完整映射选区。"
+        ? "源卡片会先转为非摘录版，再删除完整映射选区。"
         : "只删除当前卡片里的这些评论，不清理目标卡片中的反向链接。",
       checkboxDefault: false,
       confirmText: "创建子卡片",
@@ -1466,22 +1474,36 @@ function App() {
                     <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
                       {linkedDisplay ? (
-                        <Button
-                          className={inlineLinkPressing === comment.index ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
-                          title="点按定位，按住在浮窗定位"
-                          onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
-                          onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
-                          onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
-                          onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
-                          onClick={(event) => event.stopPropagation()}
-                          onContextMenu={(event) => event.preventDefault()}
-                          onDragStart={(event) => event.preventDefault()}
-                          onSelectStart={(event) => event.preventDefault()}
-                          disabled={loading}
-                          aria-label={`定位链接卡片：${linkedDisplay.title}`}
-                        >
-                          ⌖
-                        </Button>
+                        <>
+                          <Button
+                            className={inlineLinkPressing === comment.index ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
+                            title="点按定位，按住在浮窗定位"
+                            onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
+                            onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
+                            onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                            onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
+                            onClick={(event) => event.stopPropagation()}
+                            onContextMenu={(event) => event.preventDefault()}
+                            onDragStart={(event) => event.preventDefault()}
+                            onSelectStart={(event) => event.preventDefault()}
+                            disabled={loading}
+                            aria-label={`定位链接卡片：${linkedDisplay.title}`}
+                          >
+                            ⌖
+                          </Button>
+                          <Button
+                            className="quick-action-btn update-link-action"
+                            title="用剪贴板中的卡片链接更新"
+                            disabled={loading || !canComment(comment, "canUpdateLink")}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              updateLinkCommentFromClipboard(comment);
+                            }}
+                            aria-label={`更新链接：${linkedDisplay.title}`}
+                          >
+                            ↻
+                          </Button>
+                        </>
                       ) : null}
                       <button
                         type="button"
@@ -1541,7 +1563,10 @@ function App() {
                         {linkedDisplay.url ? <p className="link-summary-url">{linkedDisplay.url}</p> : null}
                       </div>
                     ) : commentText(comment) && comment.capabilities?.isMarkdown ? (
-                      <MarkdownCommentBody source={commentText(comment)} />
+                      <MarkdownCommentBody
+                        source={commentText(comment)}
+                        onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}
+                      />
                     ) : commentText(comment) ? (
                       <pre>{clampText(commentText(comment))}</pre>
                     ) : comment.capabilities?.hasImage ? (
@@ -1742,14 +1767,16 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
   );
 }
 
-const MarkdownCommentBody = memo(function MarkdownCommentBody({ source }) {
+const MarkdownCommentBody = memo(function MarkdownCommentBody({ source, onLocateLink }) {
   const html = useMemo(() => renderMarkdownToHtml(source), [source]);
 
   const preventEmbeddedNavigation = (event) => {
-    if (event.target.closest?.("a")) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+    const anchor = event.target.closest?.("a");
+    if (!anchor) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const href = anchor.getAttribute("href") || "";
+    if (extractMarginNoteUrlNoteId(href)) onLocateLink?.(href);
   };
 
   return (

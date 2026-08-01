@@ -144,7 +144,18 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function focusLinkedNote(context, payload) {
-    return __MN_COMMENT_MUTATIONS__.focusLinkedNote(payload.noteId, payload.mode);
+    return __MN_COMMENT_MUTATIONS__.focusLinkedNote(
+      payload.noteId,
+      payload.mode,
+      context && context.addon ? context.addon.window : null,
+    );
+  }
+
+  function updateLinkCommentFromClipboard(context, payload) {
+    return __MN_COMMENT_MUTATIONS__.updateLinkCommentFromClipboard(
+      payload.noteId,
+      payload.commentIndex,
+    );
   }
 
   function getActionButtonSettings() {
@@ -182,6 +193,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     copyCommentImage,
     copyContentImage,
     focusLinkedNote,
+    updateLinkCommentFromClipboard,
     getActionButtonSettings,
     updateActionButtonSettings,
   };

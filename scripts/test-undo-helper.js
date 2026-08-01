@@ -5,10 +5,17 @@ const vm = require("vm");
 
 function loadHelper() {
   const groups = [];
+  const noRefreshGroups = [];
   const refreshes = [];
   const context = {
     console,
-    MNUtil: { currentNotebookId: "current-topic" },
+    MNUtil: {
+      currentNotebookId: "current-topic",
+      undoGroupingNotRefresh(block, notebookId, trigger) {
+        noRefreshGroups.push({ notebookId, trigger: JSON.parse(JSON.stringify(trigger)) });
+        block();
+      },
+    },
     Application: {
       sharedInstance() {
         return {
@@ -35,12 +42,13 @@ function loadHelper() {
   return {
     helper: context.__MN_UNDO_GROUPING_MNCommentManagerAddon,
     groups,
+    noRefreshGroups,
     refreshes,
   };
 }
 
 {
-  const { helper, groups, refreshes } = loadHelper();
+  const { helper, groups, noRefreshGroups, refreshes } = loadHelper();
   const noteA = { notebookId: "topic-a" };
   const noteB = { notebookId: "topic-b" };
   const events = [];
@@ -53,20 +61,28 @@ function loadHelper() {
   });
 
   assert.deepStrictEqual(events, ["outer", "inner"]);
-  assert.deepStrictEqual(groups, [{ actionName: "outer", notebookId: "topic-a" }]);
-  assert.deepStrictEqual(refreshes, ["topic-a", "topic-b"]);
+  assert.deepStrictEqual(groups, []);
+  assert.deepStrictEqual(noRefreshGroups, [{
+    notebookId: "topic-a",
+    trigger: { feature: "mncommentmanager.outer.noGlobalDBRefresh" },
+  }]);
+  assert.deepStrictEqual(refreshes, []);
 }
 
 {
-  const { helper, groups, refreshes } = loadHelper();
+  const { helper, groups, noRefreshGroups, refreshes } = loadHelper();
   assert.throws(() => {
     helper.run("broken", { notes: [{ notebookId: "topic-a" }, { notebookId: "topic-a" }] }, () => {
       throw new Error("boom");
     });
   }, /boom/);
 
-  assert.deepStrictEqual(groups, [{ actionName: "broken", notebookId: "topic-a" }]);
-  assert.deepStrictEqual(refreshes, ["topic-a"]);
+  assert.deepStrictEqual(groups, []);
+  assert.deepStrictEqual(noRefreshGroups, [{
+    notebookId: "topic-a",
+    trigger: { feature: "mncommentmanager.broken.noGlobalDBRefresh" },
+  }]);
+  assert.deepStrictEqual(refreshes, []);
 }
 
 console.log("undo helper tests passed");
