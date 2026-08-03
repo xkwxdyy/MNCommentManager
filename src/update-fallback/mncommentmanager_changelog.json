@@ -4,6 +4,17 @@
   "updatedAt": "2026-08-03T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.17",
+      "channel": "stable",
+      "date": "2026-08-03",
+      "items": [
+        {
+          "zh": "手写评论转换未完成时，列表会显示明确的转换中状态并自动重试刷新，转换完成后自动更新，不再误显示为加载失败或空白占位。",
+          "en": "While a handwriting comment is still converting, the list now shows a clear in-progress status and automatically retries until it refreshes, instead of showing a false failure or blank placeholder."
+        }
+      ]
+    },
+    {
       "version": "0.1.16",
       "channel": "stable",
       "date": "2026-08-03",

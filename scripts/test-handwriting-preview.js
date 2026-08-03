@@ -8,6 +8,7 @@ const previewSource = fs.readFileSync(path.join(rootDir, "src/HandwritingPreview
 const commentDataSource = fs.readFileSync(path.join(rootDir, "src/CommentData.js"), "utf8");
 const appSource = fs.readFileSync(path.join(rootDir, "web/src/App.jsx"), "utf8");
 const cssSource = fs.readFileSync(path.join(rootDir, "web/src/styles.css"), "utf8");
+const panelSource = fs.readFileSync(path.join(rootDir, "src/WebPanelController.js"), "utf8");
 
 function encodeVarint(value) {
   const bytes = [];
@@ -64,6 +65,7 @@ const mediaByHash = {
   invalidDrawing: { base64Encoding: () => "bm90LWFuLWluay1hcmNoaXZl" },
   paint: { base64Encoding: () => "cGFpbnQ=" },
 };
+let delayedDrawingReads = 0;
 const context = vm.createContext({
   console,
   Uint8Array,
@@ -82,6 +84,10 @@ const context = vm.createContext({
   RegExp,
   MNUtil: {
     getMediaByHash(hash) {
+      if (hash === "delayedDrawing") {
+        delayedDrawingReads += 1;
+        return delayedDrawingReads > 1 ? mediaByHash.drawing : null;
+      }
       return mediaByHash[hash] || null;
     },
   },
@@ -123,6 +129,7 @@ const snapshot = context.__MN_COMMENT_DATA__.getNoteSnapshot({
     { type: "PaintNote", paint: "paint", drawing: "drawing" },
     { type: "LinkNote", q_hpic: { paint: "paint", drawing: "drawing" } },
     { type: "PaintNote", drawing: "invalidDrawing" },
+    { type: "PaintNote", drawing: "delayedDrawing" },
   ],
 });
 
@@ -142,10 +149,83 @@ assert.match(snapshot.comments[2].drawingPreviewDataURI, /^data:image\/svg\+xml;
 
 assert.strictEqual(snapshot.comments[3].drawingPreviewDataURI, "");
 assert.match(snapshot.comments[3].drawingPreviewError, /无法识别|不完整/);
+assert.strictEqual(snapshot.comments[3].drawingPreviewPending, false);
+assert.strictEqual(snapshot.comments[4].drawingPreviewPending, true);
+assert.strictEqual(snapshot.handwritingPendingCount, 1);
+
+const refreshedSnapshot = context.__MN_COMMENT_DATA__.getNoteSnapshot({
+  noteId: "11111111-1111-1111-1111-111111111111",
+  noteTitle: "Handwriting",
+  MNComments: [],
+  comments: [{ type: "PaintNote", drawing: "delayedDrawing" }],
+});
+assert.match(refreshedSnapshot.comments[0].drawingPreviewDataURI, /^data:image\/svg\+xml;base64,/);
+assert.strictEqual(refreshedSnapshot.comments[0].drawingPreviewPending, false);
+assert.strictEqual(refreshedSnapshot.handwritingPendingCount, 0);
 
 assert.match(appSource, /function getCommentMediaSources/);
 assert.match(appSource, /drawingPreviewDataURI/);
+assert.match(appSource, /手写内容正在转换，完成后将自动刷新/);
 assert.match(appSource, /comment-media-previews/);
 assert.match(cssSource, /\.comment-media-previews/);
+assert.match(panelSource, /coordinateHandwritingPreviewRefresh/);
+assert.match(panelSource, /handwriting-preview-retry/);
+assert.match(panelSource, /手写内容转换完成，当前页面已自动刷新/);
+
+const retrySourceStart = panelSource.indexOf("  const HANDWRITING_RETRY_INTERVAL");
+const retrySourceEnd = panelSource.indexOf("  function encodeBridgeJSON", retrySourceStart);
+assert.notStrictEqual(retrySourceStart, -1);
+assert.notStrictEqual(retrySourceEnd, -1);
+const retryTimers = [];
+const retryHUD = [];
+const retryPushes = [];
+const retryContext = vm.createContext({
+  Application: { sharedInstance() { return { showHUD() {} }; } },
+  MNUtil: { showHUD(message) { retryHUD.push(String(message)); } },
+  NSTimer: {
+    scheduledTimerWithTimeInterval(seconds, repeats, callback) {
+      retryTimers.push({ seconds, repeats, callback });
+    },
+  },
+  pushCurrentNoteSnapshot(controller, reason) {
+    retryPushes.push({ controller, reason });
+  },
+});
+vm.runInContext(
+  `${panelSource.slice(retrySourceStart, retrySourceEnd)}\nthis.coordinateRetry = coordinateHandwritingPreviewRefresh;`,
+  retryContext,
+);
+const retryController = { view: {} };
+retryContext.coordinateRetry(retryController, {
+  noteId: "NOTE-1",
+  handwritingPendingCount: 1,
+  comments: [],
+});
+assert.deepStrictEqual(retryHUD, ["手写内容正在转换，请稍候"]);
+assert.strictEqual(retryTimers.length, 1);
+assert.strictEqual(retryTimers[0].seconds, 1);
+retryTimers[0].callback();
+assert.strictEqual(retryPushes.length, 1);
+assert.strictEqual(retryPushes[0].reason, "handwriting-preview-retry");
+retryContext.coordinateRetry(retryController, {
+  noteId: "NOTE-1",
+  handwritingPendingCount: 0,
+  comments: [],
+});
+assert.strictEqual(retryController._handwritingPreviewRetry, null);
+assert.strictEqual(retryHUD[1], "手写内容转换完成，当前页面已自动刷新");
+retryContext.coordinateRetry(retryController, {
+  noteId: "NOTE-1",
+  handwritingPendingCount: 1,
+  comments: [],
+});
+const staleRetryTimer = retryTimers[1];
+retryContext.coordinateRetry(retryController, {
+  noteId: "NOTE-2",
+  handwritingPendingCount: 0,
+  comments: [],
+});
+staleRetryTimer.callback();
+assert.strictEqual(retryPushes.length, 1, "switching cards must cancel the previous handwriting retry");
 
 console.log("handwriting preview regression ok");

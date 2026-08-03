@@ -334,6 +334,7 @@ function makeEmptySnapshot() {
       capabilities: {},
     },
     comments: [],
+    handwritingPendingCount: 0,
     error: "",
   };
 }
@@ -541,7 +542,14 @@ function App() {
       try {
         const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
         if (!payload?.snapshot) return;
-        applySnapshot(payload.snapshot, payload.snapshot.error ? payload.snapshot.error : "已切换到当前卡片");
+        const syncMessage = payload.snapshot.error
+          ? payload.snapshot.error
+          : payload.snapshot.handwritingPendingCount > 0
+            ? "手写内容正在转换，完成后将自动刷新"
+            : payload.reason === "handwriting-preview-retry"
+              ? "手写内容转换完成，页面已自动刷新"
+              : "已切换到当前卡片";
+        applySnapshot(payload.snapshot, syncMessage);
       } catch (error) {
         notifyStatus(normalizeError(error));
       }
@@ -1574,6 +1582,11 @@ function App() {
                         ))}
                       </div>
                     ) : null}
+                    {comment.drawingPreviewPending === true ? (
+                      <p className="media-converting" role="status">手写内容正在转换，完成后将自动刷新</p>
+                    ) : comment.drawingPreviewError && mediaSources.length === 0 ? (
+                      <p className="media-error">手写内容加载失败：{comment.drawingPreviewError}</p>
+                    ) : null}
                     {linkedDisplay ? (
                       <div className="link-summary">
                         <p className="link-summary-title">{linkedDisplay.title}</p>
@@ -1586,7 +1599,7 @@ function App() {
                       />
                     ) : commentText(comment) ? (
                       <pre>{clampText(commentText(comment))}</pre>
-                    ) : comment.capabilities?.hasImage && mediaSources.length === 0 ? (
+                    ) : comment.capabilities?.hasImage && mediaSources.length === 0 && !comment.drawingPreviewPending && !comment.drawingPreviewError ? (
                       <p className="no-text">图片/手写评论</p>
                     ) : mediaSources.length > 0 ? null : comment.capabilities?.hasAudio ? (
                       <p className="no-text">音频评论</p>

@@ -339,27 +339,32 @@ var __MN_COMMENT_DATA__ = (function () {
 
   function extractDrawingPreview(rawComment, detailedComment) {
     const drawingHash = extractDrawingHash(rawComment, detailedComment);
-    if (!drawingHash) return { drawingHash: "", dataURI: "", error: "" };
+    if (!drawingHash) return { drawingHash: "", dataURI: "", error: "", pending: false };
     try {
       const preview = __MN_HANDWRITING_PREVIEW_MNCommentManagerAddon.renderMediaDataURI(drawingHash);
       return {
         drawingHash,
         dataURI: preview && preview.dataURI ? String(preview.dataURI) : "",
         error: "",
+        pending: false,
       };
     } catch (error) {
       const message = error && error.message ? String(error.message) : String(error || "unknown");
+      const code = error && error.code ? String(error.code) : "";
+      const pending = code === "drawing-media-missing" || code === "drawing-base64-missing";
       try {
         console.log(`[MN Comment Manager] handwriting preview failed: ${JSON.stringify({
           drawingHash,
-          code: error && error.code ? String(error.code) : "",
+          code,
           message,
+          pending,
         })}`);
       } catch (_) {}
       return {
         drawingHash,
         dataURI: "",
-        error: message,
+        error: pending ? "" : message,
+        pending,
       };
     }
   }
@@ -460,6 +465,7 @@ var __MN_COMMENT_DATA__ = (function () {
       drawingHash: drawingPreview.drawingHash,
       drawingPreviewDataURI: drawingPreview.dataURI,
       drawingPreviewError: drawingPreview.error,
+      drawingPreviewPending: drawingPreview.pending === true,
       mediaKind: capabilities.hasImage ? "image" : (capabilities.hasAudio ? "audio" : ""),
       audioHash,
       linkedNoteId: linked ? linked.noteId : "",
@@ -488,12 +494,14 @@ var __MN_COMMENT_DATA__ = (function () {
     const comments = rawComments.map((comment, index) => (
       serializeComment(note, comment, detailedComments[index] || null, index)
     ));
+    const handwritingPendingCount = comments.filter((comment) => comment.drawingPreviewPending === true).length;
 
     return {
       noteId: toStringValue(note.noteId),
       noteTitle: toStringValue(note.noteTitle || "未命名卡片"),
       excerpt: getExcerptState(note),
       comments,
+      handwritingPendingCount,
       error: "",
     };
   }

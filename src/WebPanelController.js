@@ -11,9 +11,70 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   const DEFAULT_HEIGHT = 640;
   const PANEL_MARGIN = 16;
   const TITLE_HEIGHT = 32;
+  const HANDWRITING_RETRY_INTERVAL = 1;
+  const HANDWRITING_RETRY_LIMIT = 60;
 
   function evaluateScript(webView, script) {
     webView.evaluateJavaScript(script, function () {});
+  }
+
+  function showHandwritingHUD(controller, message) {
+    try {
+      if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
+        MNUtil.showHUD(message, 3, controller && controller.view ? controller.view : undefined);
+        return;
+      }
+      const app = Application.sharedInstance();
+      const targetWindow = controller && controller.addon ? controller.addon.window : app.focusWindow;
+      app.showHUD(message, targetWindow, 3);
+    } catch (_) {}
+  }
+
+  function getSnapshotFromResult(result) {
+    if (!result || typeof result !== "object") return null;
+    if (Array.isArray(result.comments)) return result;
+    return result.snapshot && Array.isArray(result.snapshot.comments) ? result.snapshot : null;
+  }
+
+  function coordinateHandwritingPreviewRefresh(controller, snapshot) {
+    if (!controller || !snapshot) return;
+    const noteId = String(snapshot.noteId || "").trim();
+    const pendingCount = Number(snapshot.handwritingPendingCount || 0);
+    let current = controller._handwritingPreviewRetry;
+    if (current && current.noteId !== noteId) {
+      controller._handwritingPreviewRetry = null;
+      current = null;
+    }
+
+    if (pendingCount <= 0) {
+      if (current && current.noteId === noteId) {
+        controller._handwritingPreviewRetry = null;
+        showHandwritingHUD(controller, "手写内容转换完成，当前页面已自动刷新");
+      }
+      return;
+    }
+    if (!noteId) return;
+
+    let retry = current;
+    if (!retry || retry.noteId !== noteId) {
+      retry = { noteId, attempts: 0, scheduled: false };
+      controller._handwritingPreviewRetry = retry;
+      showHandwritingHUD(controller, "手写内容正在转换，请稍候");
+    }
+    if (retry.scheduled) return;
+    if (retry.attempts >= HANDWRITING_RETRY_LIMIT) {
+      controller._handwritingPreviewRetry = null;
+      showHandwritingHUD(controller, "手写内容仍在转换，请稍后点击刷新");
+      return;
+    }
+
+    retry.scheduled = true;
+    NSTimer.scheduledTimerWithTimeInterval(HANDWRITING_RETRY_INTERVAL, false, function () {
+      if (controller._handwritingPreviewRetry !== retry) return;
+      retry.scheduled = false;
+      retry.attempts += 1;
+      pushCurrentNoteSnapshot(controller, "handwriting-preview-retry");
+    });
   }
 
   function encodeBridgeJSON(value) {
@@ -106,6 +167,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     };
     const script = `window.__MNCommentManagerNativeSync&&window.__MNCommentManagerNativeSync('${encodeBridgeJSON(payload)}')`;
     evaluateScript(controller.webView, script);
+    coordinateHandwritingPreviewRefresh(controller, snapshot);
   }
 
   function scheduleCurrentNoteSnapshotPush(controller, reason) {
@@ -479,7 +541,11 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       closePanel: performCloseWindow,
     };
 
-    return handler(context, message.payload);
+    const result = handler(context, message.payload);
+    if (!isPromiseLike(result)) {
+      coordinateHandwritingPreviewRefresh(controller, getSnapshotFromResult(result));
+    }
+    return result;
   }
 
   function loadInitialWebPage(controller) {
@@ -601,6 +667,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     },
 
     viewWillDisappear: function () {
+      self._handwritingPreviewRetry = null;
       self.webView.stopLoading();
       self.webView.delegate = null;
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
