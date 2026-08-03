@@ -962,6 +962,31 @@ button.pressing {
   background: #ffffff;
 }
 
+.comment-media-previews {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 650px;
+  margin: 0 0 10px;
+}
+
+.comment-media-previews.media-count-1 {
+  grid-template-columns: minmax(0, 320px);
+}
+
+.comment-media-previews img {
+  width: 100%;
+  height: min(210px, 34vw);
+  min-height: 96px;
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .comment-media-previews {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .link-summary {
   display: grid;
   gap: 6px;

@@ -327,6 +327,43 @@ var __MN_COMMENT_DATA__ = (function () {
     return "";
   }
 
+  function extractDrawingHash(rawComment, detailedComment) {
+    const candidates = [
+      rawComment && rawComment.drawing,
+      rawComment && rawComment.q_hpic && rawComment.q_hpic.drawing,
+      detailedComment && detailedComment.detail && detailedComment.detail.drawing,
+      detailedComment && detailedComment.detail && detailedComment.detail.q_hpic && detailedComment.detail.q_hpic.drawing,
+    ].filter(Boolean);
+    return candidates.length > 0 ? String(candidates[0]) : "";
+  }
+
+  function extractDrawingPreview(rawComment, detailedComment) {
+    const drawingHash = extractDrawingHash(rawComment, detailedComment);
+    if (!drawingHash) return { drawingHash: "", dataURI: "", error: "" };
+    try {
+      const preview = __MN_HANDWRITING_PREVIEW_MNCommentManagerAddon.renderMediaDataURI(drawingHash);
+      return {
+        drawingHash,
+        dataURI: preview && preview.dataURI ? String(preview.dataURI) : "",
+        error: "",
+      };
+    } catch (error) {
+      const message = error && error.message ? String(error.message) : String(error || "unknown");
+      try {
+        console.log(`[MN Comment Manager] handwriting preview failed: ${JSON.stringify({
+          drawingHash,
+          code: error && error.code ? String(error.code) : "",
+          message,
+        })}`);
+      } catch (_) {}
+      return {
+        drawingHash,
+        dataURI: "",
+        error: message,
+      };
+    }
+  }
+
   function extractAudioHash(rawComment, detailedComment) {
     if (rawComment && rawComment.audio) return rawComment.audio;
     if (detailedComment && detailedComment.audioId) return detailedComment.audioId;
@@ -344,10 +381,10 @@ var __MN_COMMENT_DATA__ = (function () {
     }, 0);
   }
 
-  function buildCapabilities(type, rawComment, text, imageBase64, imageHash, audioHash, linked, markdownLinks) {
+  function buildCapabilities(type, rawComment, text, imageBase64, imageHash, drawingPreview, audioHash, linked, markdownLinks) {
     const originalType = toStringValue(rawComment && rawComment.type);
     const hasText = !!toStringValue(text).trim();
-    const hasImage = !!(imageBase64 || imageHash);
+    const hasImage = !!(imageBase64 || imageHash || drawingPreview);
     const hasAudio = !!audioHash;
     return {
       hasText,
@@ -356,7 +393,7 @@ var __MN_COMMENT_DATA__ = (function () {
       canEditText: TEXT_EDITABLE_TYPES.indexOf(type) >= 0,
       canMergeText: TEXT_MERGEABLE_TYPES.indexOf(type) >= 0,
       canCopyText: hasText,
-      canCopyImage: IMAGE_TYPES.indexOf(type) >= 0 && hasImage,
+      canCopyImage: IMAGE_TYPES.indexOf(type) >= 0 && !!(imageBase64 || imageHash),
       canCopyAudio: false,
       canFocusLink: !!linked && (type === "linkComment" || type === "summaryComment"),
       canUpdateLink: !!linked && (type === "linkComment" || type === "summaryComment"),
@@ -392,10 +429,21 @@ var __MN_COMMENT_DATA__ = (function () {
     const markdownLinks = normalizeMarkdownLinks(text);
     const imageBase64 = extractImageData(rawComment, detailedComment);
     const imageHash = extractImageHash(rawComment, detailedComment);
+    const drawingPreview = extractDrawingPreview(rawComment, detailedComment);
     const audioHash = extractAudioHash(rawComment, detailedComment);
     const linked = extractPureMarginNoteLink(text);
     const reverseCount = linked && type === "linkComment" ? countReverseLinks(note && note.noteId, linked.noteId) : 0;
-    const capabilities = buildCapabilities(type, rawComment, text, imageBase64, imageHash, audioHash, linked, markdownLinks);
+    const capabilities = buildCapabilities(
+      type,
+      rawComment,
+      text,
+      imageBase64,
+      imageHash,
+      drawingPreview.dataURI,
+      audioHash,
+      linked,
+      markdownLinks,
+    );
 
     return {
       index,
@@ -409,6 +457,9 @@ var __MN_COMMENT_DATA__ = (function () {
       imageBase64,
       imageHash,
       imageMimeType: imageBase64 ? "image/jpeg" : "",
+      drawingHash: drawingPreview.drawingHash,
+      drawingPreviewDataURI: drawingPreview.dataURI,
+      drawingPreviewError: drawingPreview.error,
       mediaKind: capabilities.hasImage ? "image" : (capabilities.hasAudio ? "audio" : ""),
       audioHash,
       linkedNoteId: linked ? linked.noteId : "",

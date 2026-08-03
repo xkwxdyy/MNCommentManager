@@ -81,6 +81,17 @@ function normalizeImageSource(comment) {
   return `data:${comment.imageMimeType || "image/jpeg"};base64,${comment.imageBase64}`;
 }
 
+function getCommentMediaSources(comment) {
+  const sources = [];
+  const imageSource = normalizeImageSource(comment);
+  const drawingSource = String(comment?.drawingPreviewDataURI || "").trim();
+  if (imageSource) sources.push({ key: "image", src: imageSource, alt: `评论 #${comment.index}` });
+  if (drawingSource && drawingSource !== imageSource) {
+    sources.push({ key: "drawing", src: drawingSource, alt: `评论 #${comment.index} 的手写预览` });
+  }
+  return sources;
+}
+
 function getExcerptTypeLabel(excerpt) {
   if (excerpt?.type === "text") return "文本摘录";
   if (excerpt?.type === "image") return "图片摘录";
@@ -1421,7 +1432,7 @@ function App() {
           ) : visibleComments.map((comment, visiblePosition) => {
             const meta = getTypeMeta(comment);
             const selectedNow = selected.has(comment.index);
-            const imageSrc = normalizeImageSource(comment);
+            const mediaSources = getCommentMediaSources(comment);
             const linkedDisplay = getLinkedNoteDisplay(comment);
             const markdownLinks = getMarkdownLinks(comment);
             const commentPosition = getCommentPosition(comment.index);
@@ -1556,7 +1567,13 @@ function App() {
                     </div>
                   </div>
                   <div className="comment-body">
-                    {imageSrc ? <img src={imageSrc} alt={`评论 #${comment.index}`} loading="lazy" /> : null}
+                    {mediaSources.length > 0 ? (
+                      <div className={`comment-media-previews media-count-${mediaSources.length}`}>
+                        {mediaSources.map((media) => (
+                          <img key={media.key} src={media.src} alt={media.alt} loading="lazy" />
+                        ))}
+                      </div>
+                    ) : null}
                     {linkedDisplay ? (
                       <div className="link-summary">
                         <p className="link-summary-title">{linkedDisplay.title}</p>
@@ -1569,9 +1586,9 @@ function App() {
                       />
                     ) : commentText(comment) ? (
                       <pre>{clampText(commentText(comment))}</pre>
-                    ) : comment.capabilities?.hasImage ? (
+                    ) : comment.capabilities?.hasImage && mediaSources.length === 0 ? (
                       <p className="no-text">图片/手写评论</p>
-                    ) : comment.capabilities?.hasAudio ? (
+                    ) : mediaSources.length > 0 ? null : comment.capabilities?.hasAudio ? (
                       <p className="no-text">音频评论</p>
                     ) : (
                       <p className="no-text">无文本内容</p>

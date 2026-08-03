@@ -205,6 +205,7 @@ function loadAddon({
   const result = loadMain();
   assert.deepStrictEqual(result.required, [
     "WebDevServerConfig",
+    "HandwritingPreview",
     "CommentData",
     "UndoGroupingHelper",
     "CommentMutations",

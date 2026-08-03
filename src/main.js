@@ -1,4 +1,5 @@
 JSB.require("WebDevServerConfig");
+JSB.require("HandwritingPreview");
 JSB.require("CommentData");
 JSB.require("UndoGroupingHelper");
 JSB.require("CommentMutations");

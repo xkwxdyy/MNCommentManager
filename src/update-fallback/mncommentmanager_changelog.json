@@ -1,8 +1,19 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-08-02T00:00:00+08:00",
+  "updatedAt": "2026-08-03T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.16",
+      "channel": "stable",
+      "date": "2026-08-03",
+      "items": [
+        {
+          "zh": "手写评论现在会在列表中直接渲染预览图，无需打开原生界面即可看到笔画内容。",
+          "en": "Handwriting comments now render a preview image directly in the list, without needing to open the native view to see the strokes."
+        }
+      ]
+    },
     {
       "version": "0.1.15",
       "channel": "stable",

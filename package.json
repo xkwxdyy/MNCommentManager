@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "private": true,
   "scripts": {
     "build": "node scripts/build-release.js",
@@ -10,10 +10,11 @@
     "test:comment-action-settings": "node scripts/test-comment-action-settings.js",
     "test:content-selection": "vitest run web/src/lib/contentSelection.test.js",
     "test:dynamic-comment-actions": "node scripts/test-dynamic-comment-actions.js",
+    "test:handwriting-preview": "node scripts/test-handwriting-preview.js",
     "test:markdown": "vitest run web/src/lib/markdownRenderer.test.js",
     "test:no-excerpt": "node scripts/test-batch-no-excerpt-conversion.js",
     "test:runtime-isolation": "node scripts/test-runtime-dependency-isolation.js",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major"
