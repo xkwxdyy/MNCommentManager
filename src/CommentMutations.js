@@ -35,6 +35,36 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     }
   }
 
+  function refreshNotebookAfterCommentEdit(note) {
+    let notebookId = "";
+    try {
+      const rawNote = note && note.note ? note.note : note;
+      notebookId = String(
+        note && (note.notebookId || note.topicId || note.topicid) ||
+        rawNote && (rawNote.notebookId || rawNote.topicId || rawNote.topicid) ||
+        typeof MNUtil !== "undefined" && MNUtil && MNUtil.currentNotebookId ||
+        "",
+      ).trim();
+
+      if (typeof MNUtil === "undefined" || !MNUtil) return false;
+      if (typeof MNUtil.xdyyRefreshAfterDBChangedNow === "function") {
+        MNUtil.xdyyRefreshAfterDBChangedNow(notebookId);
+        return true;
+      }
+      if (MNUtil.app && typeof MNUtil.app.refreshAfterDBChanged === "function") {
+        MNUtil.app.refreshAfterDBChanged(notebookId);
+        return true;
+      }
+      if (typeof MNUtil.refreshAfterDBChanged === "function") {
+        MNUtil.refreshAfterDBChanged(notebookId);
+        return true;
+      }
+    } catch (error) {
+      console.log(`[MN Comment Manager] 编辑评论后刷新失败: ${error && error.message ? error.message : String(error)}`);
+    }
+    return false;
+  }
+
   function getCommentCount(note) {
     return note && Array.isArray(note.comments) ? note.comments.length : 0;
   }
@@ -1045,6 +1075,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       replaceCommentText(note, commentIndex, text, !!markdown);
       refreshNote(note);
     });
+    refreshNotebookAfterCommentEdit(note);
 
     MNUtil.showHUD("评论已更新");
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);

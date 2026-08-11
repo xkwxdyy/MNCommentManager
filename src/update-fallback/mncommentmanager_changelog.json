@@ -4,6 +4,17 @@
   "updatedAt": "2026-08-03T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.18",
+      "channel": "stable",
+      "date": "2026-08-11",
+      "items": [
+        {
+          "zh": "修复 Markdown 评论编辑后需要拖拽卡片才能刷新的问题，保存后立即重绘卡片。",
+          "en": "Fixed Markdown comments requiring a card drag to refresh after editing; the card now redraws immediately after saving."
+        }
+      ]
+    },
+    {
       "version": "0.1.17",
       "channel": "stable",
       "date": "2026-08-03",
