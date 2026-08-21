@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-08-03T00:00:00+08:00",
+  "updatedAt": "2026-08-21T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.19",
+      "channel": "stable",
+      "date": "2026-08-21",
+      "items": [
+        {
+          "zh": "合并摘录中的 Markdown 正文现在会被识别为独立的「合并 Markdown」类型，可正常渲染、编辑和参与链接迁移。",
+          "en": "Markdown text inside a merged excerpt is now recognized as its own \"merged Markdown\" type, and renders, edits, and follows link migration correctly."
+        },
+        {
+          "zh": "修复移动、删除、批量清空、转为非摘录版等操作后卡片不会立即刷新，需手动拖拽才能看到变化的问题；转为非摘录版生成的子卡片现在会保留原文档定位。",
+          "en": "Fixed cards not refreshing immediately after move, delete, bulk clear, or convert-to-plain operations (a manual drag was needed); the blank card created by convert-to-plain now keeps the original document location."
+        }
+      ]
+    },
     {
       "version": "0.1.18",
       "channel": "stable",

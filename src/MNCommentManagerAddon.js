@@ -169,6 +169,14 @@ function createMNCommentManagerAddon(mainPath) {
 
   function isExtendNote(target) {
     try {
+      // MNUtils owns the canonical Extend Note contract. Fall back to the
+      // legacy bridge-field inspection when running with an older MNUtils or
+      // while the bridge is still bootstrapping.
+      if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.isExtendNote === "function") {
+        try {
+          return !!MNUtil.isExtendNote(target);
+        } catch (_) {}
+      }
       const note = resolveExtendNote(target);
       return !!(note && ((("blank" in Object(note)) && boolValue(note.blank)) || hasBlankHighlight(note)));
     } catch (_) {

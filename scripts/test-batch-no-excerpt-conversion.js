@@ -76,9 +76,13 @@ const floatMindMapFocusCalls = [];
 let targetSequence = 0;
 let cloneSequence = 0;
 let targetMergeHook = null;
+const targetCreateConfigs = [];
 
 const parent = addNoteMethods({ noteId: ids.parent, noteTitle: "Parent", childNotes: [] });
+parent.docMd5 = "DOC-MD5";
+parent.startPage = 17;
 parent.createChildNote = function (config) {
+  targetCreateConfigs.push({ ...config });
   targetSequence += 1;
   const noteId = `99999999-9999-9999-9999-${String(targetSequence).padStart(12, "0")}`;
   const target = addNoteMethods({
@@ -119,6 +123,8 @@ const source = addNoteMethods({
   parentNote: parent,
   comments: [{ type: "TextNote", text: noteUrl(ids.linked) }],
 });
+source.docMd5 = "SOURCE-DOC";
+source.startPage = 23;
 const textSource = addNoteMethods({
   noteId: ids.text,
   noteTitle: "Text excerpt",
@@ -261,6 +267,12 @@ assert.strictEqual(stats.unsupportedMedia, 1);
 assert.strictEqual(stats.failed, 0);
 assert.strictEqual(hudMessages.length, 0, "successful conversion must stay silent");
 assert.strictEqual(pinUpdates.length, 2);
+assert(targetCreateConfigs.some((config) => (
+  config.docId === source.docMd5 && config.pageNumber === source.startPage
+)), "blank conversion child must prefer source document metadata");
+assert(targetCreateConfigs.some((config) => (
+  config.docId === parent.docMd5 && config.pageNumber === parent.startPage
+)), "blank conversion child must retain parent metadata fallback");
 
 const imageTarget = registry.get(stats.convertedNoteIds[0]);
 assert(imageTarget, "image conversion target should exist");
@@ -653,6 +665,32 @@ const failureStats = context.__MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptFor
 ]);
 assert.strictEqual(failureStats.failed, 1);
 assert(hudMessages.some((message) => message.includes("失败 1 张")), "failed conversion must show a HUD");
+
+let unidentifiedChild = null;
+const unidentifiedParent = addNoteMethods({
+  noteId: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+  childNotes: [],
+});
+unidentifiedParent.createChildNote = function (config) {
+  unidentifiedChild = addNoteMethods({
+    noteTitle: config.title,
+    parentNote: this,
+  });
+  this.childNotes.push(unidentifiedChild);
+  return unidentifiedChild;
+};
+const unidentifiedSource = addNoteMethods({
+  noteId: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
+  noteTitle: "Unidentified excerpt",
+  excerptType: "image",
+  excerptPic: { selLst: [] },
+  parentNote: unidentifiedParent,
+});
+const unidentifiedStats = context.__MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptForNotes([
+  unidentifiedSource,
+], { allowSingle: true });
+assert.strictEqual(unidentifiedStats.failed, 1, "conversion must fail when child creation returns no noteId");
+assert.strictEqual(unidentifiedChild.parentNote, null, "unidentified child must be detached before failure returns");
 
 assert(batchActionsSource.includes('"runBatchConvertToNoExcerpt:"'));
 assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));

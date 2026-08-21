@@ -23,6 +23,7 @@ const TYPE_META = {
   mergedImageCommentWithDrawing: { label: "合并摘录+手写", filter: "image" },
   mergedChildMapComment: { label: "子脑图", filter: "other" },
   mergedTextComment: { label: "合并文本", filter: "text" },
+  mergedMarkdownComment: { label: "合并 Markdown", filter: "text" },
   blankTextComment: { label: "空文本", filter: "text" },
   blankImageComment: { label: "空图片", filter: "image" },
   audioComment: { label: "音频", filter: "audio" },
@@ -52,6 +53,7 @@ const INLINE_MERGE_TYPES = new Set([
   "linkComment",
   "summaryComment",
   "mergedTextComment",
+  "mergedMarkdownComment",
 ]);
 
 const LINK_FOCUS_LONG_PRESS_MS = 520;

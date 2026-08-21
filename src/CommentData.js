@@ -10,6 +10,7 @@ var __MN_COMMENT_DATA__ = (function () {
     "summaryComment",
     "blankTextComment",
     "mergedTextComment",
+    "mergedMarkdownComment",
     "mergedImageComment",
   ];
   const TEXT_MERGEABLE_TYPES = [
@@ -22,6 +23,7 @@ var __MN_COMMENT_DATA__ = (function () {
     "HtmlComment",
     "blankTextComment",
     "mergedTextComment",
+    "mergedMarkdownComment",
   ];
   const IMAGE_TYPES = [
     "imageComment",
@@ -263,7 +265,7 @@ var __MN_COMMENT_DATA__ = (function () {
     return linkedNote && linkedNote.noteTitle ? String(linkedNote.noteTitle) : "";
   }
 
-  function classifyTextComment(text, detailedType) {
+  function classifyTextComment(text, detailedType, markdownFlag) {
     const source = toStringValue(text);
     const trimmed = source.trim();
     if (!trimmed) return "blankTextComment";
@@ -273,6 +275,7 @@ var __MN_COMMENT_DATA__ = (function () {
     }
     if (normalizeMarkdownLinks(source).length > 0) return "markdownComment";
     if (detailedType === "markdownComment" || detailedType === "markdownLinkComment") return detailedType;
+    if (markdownFlag) return "markdownComment";
     return "textComment";
   }
 
@@ -296,12 +299,19 @@ var __MN_COMMENT_DATA__ = (function () {
       if (rawComment && rawComment.q_hpic) {
         return rawComment.q_hpic.drawing ? "mergedImageCommentWithDrawing" : "mergedImageComment";
       }
-      return text ? "mergedTextComment" : "mergedTextComment";
+      // MNUtils is authoritative for LinkNote subtypes.  In particular,
+      // LinkNote + markdown=true is a mergedMarkdownComment rather than a
+      // plain mergedTextComment.  Keep the local flag as a compatibility
+      // fallback for older MNUtils versions that do not expose the subtype.
+      if (detailedType === "mergedMarkdownComment" || (rawComment && rawComment.markdown)) {
+        return "mergedMarkdownComment";
+      }
+      return "mergedTextComment";
     }
     if (detailedType && !["TextNote", "HtmlNote", "LinkNote", "PaintNote", "AudioNote"].includes(detailedType)) {
       return detailedType;
     }
-    return classifyTextComment(text, detailedType);
+    return classifyTextComment(text, detailedType, !!(rawComment && rawComment.markdown));
   }
 
   function extractImageHash(rawComment, detailedComment) {
@@ -406,7 +416,7 @@ var __MN_COMMENT_DATA__ = (function () {
       canExtractText: hasText,
       canDelete: true,
       canMove: true,
-      isMarkdown: !!(rawComment && rawComment.markdown) || type === "markdownComment" || type === "markdownLinkComment" || type === "summaryComment",
+      isMarkdown: !!(rawComment && rawComment.markdown) || type === "markdownComment" || type === "markdownLinkComment" || type === "mergedMarkdownComment" || type === "summaryComment",
       isHtml: originalType === "HtmlNote" || type === "HtmlComment",
       isMerged: originalType === "LinkNote",
       isMedia: IMAGE_TYPES.indexOf(type) >= 0 || type === "audioComment" || type === "mergedChildMapComment",

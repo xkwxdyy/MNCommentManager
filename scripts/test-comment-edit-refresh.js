@@ -34,16 +34,13 @@ function runEditScenario({ immediateRefresh = true }) {
         events.push(`app-db-refresh:${notebookId}`);
       },
     },
-    refreshAfterDBChanged(notebookId) {
-      events.push(`debounced-db-refresh:${notebookId}`);
-    },
     showHUD(message) {
       events.push(`hud:${message}`);
     },
   };
   if (immediateRefresh) {
-    mnUtil.xdyyRefreshAfterDBChangedNow = function (notebookId) {
-      events.push(`immediate-db-refresh:${notebookId}`);
+    mnUtil.refreshAfterDBChanged = function (notebookId) {
+      events.push(`mnutil-db-refresh:${notebookId}`);
     };
   }
 
@@ -94,7 +91,7 @@ function runEditScenario({ immediateRefresh = true }) {
     "move:0:0:false",
     "note-refresh",
     "undo-end:编辑评论",
-    "immediate-db-refresh:NOTEBOOK-1",
+    "mnutil-db-refresh:NOTEBOOK-1",
     "hud:评论已更新",
   ]);
   assert.strictEqual(note.comments[0].text, "updated **markdown**");
