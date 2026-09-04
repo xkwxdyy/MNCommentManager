@@ -170,6 +170,25 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     coordinateHandwritingPreviewRefresh(controller, snapshot);
   }
 
+  function pushBatchEditorState(controller, reason) {
+    if (!controller || !controller.webView) return;
+    try {
+      const batch = controller.addon && controller.addon.batchCommentContext;
+      const state = batch && Array.isArray(batch.notes)
+        ? __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands.getBatchCommentEditorState(
+          { controller, addon: controller.addon, closePanel: performCloseWindow },
+          { token: batch.token },
+        )
+        : { mode: "batch", token: "", cards: [], noteIds: [], catalog: [], workflows: [], error: "未读取到多选卡片" };
+      const payload = { reason: reason || "batch-panel-sync", state };
+      const script = `window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync('${encodeBridgeJSON(payload)}')`;
+      evaluateScript(controller.webView, script);
+    } catch (error) {
+      const payload = { reason: reason || "batch-panel-sync", state: { mode: "batch", cards: [], noteIds: [], catalog: [], workflows: [], error: String(error && error.message ? error.message : error) } };
+      evaluateScript(controller.webView, `window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync('${encodeBridgeJSON(payload)}')`);
+    }
+  }
+
   function scheduleCurrentNoteSnapshotPush(controller, reason) {
     controller._snapshotSyncSeq = (controller._snapshotSyncSeq || 0) + 1;
     const syncSeq = controller._snapshotSyncSeq;
@@ -296,6 +315,10 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       controller.view.removeFromSuperview();
     }
     NSUserDefaults.standardUserDefaults().setObjectForKey(false, PANEL_ON_KEY);
+    if (controller && controller.panelMode === "batch" && controller.addon) {
+      controller.addon.batchCommentContext = null;
+      controller.panelMode = "single";
+    }
 
     NSTimer.scheduledTimerWithTimeInterval(0, false, function () {
       const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;
@@ -663,7 +686,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       self.view.hidden = false;
       self.webView.delegate = self;
       evaluateScript(self.webView, "typeof window.__onPanelShow==='function'&&window.__onPanelShow();");
-      scheduleCurrentNoteSnapshotPush(self, "panel-show");
+      if (self.panelMode === "batch") pushBatchEditorState(self, "panel-show");
+      else scheduleCurrentNoteSnapshotPush(self, "panel-show");
     },
 
     viewWillDisappear: function () {
@@ -679,7 +703,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
     webViewDidFinishLoad: function () {
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
-      scheduleCurrentNoteSnapshotPush(self, "web-load");
+      if (self.panelMode === "batch") pushBatchEditorState(self, "web-load");
+      else scheduleCurrentNoteSnapshotPush(self, "web-load");
     },
 
     webViewDidFailLoadWithError: function (webView, error) {
@@ -734,7 +759,9 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     return controller;
   }
 
-  function showPanel(controller) {
+  function showPanel(controller, options) {
+    const panelOptions = options && typeof options === "object" ? options : {};
+    controller.panelMode = panelOptions.mode === "batch" ? "batch" : "single";
     const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;
     const studyController = Application.sharedInstance().studyController(targetWindow);
     if (!studyController || !studyController.view) {
@@ -750,7 +777,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     applySavedOrDefaultFrame(controller);
     controller.view.hidden = false;
     NSUserDefaults.standardUserDefaults().setObjectForKey(true, PANEL_ON_KEY);
-    scheduleCurrentNoteSnapshotPush(controller, "show-panel");
+    if (controller.panelMode === "batch") pushBatchEditorState(controller, "show-panel");
+    else scheduleCurrentNoteSnapshotPush(controller, "show-panel");
   }
 
   function hidePanel(controller) {
@@ -781,5 +809,6 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     shouldRestorePanel,
     ensureLayout,
     syncCurrentNote: scheduleCurrentNoteSnapshotPush,
+    syncBatch: pushBatchEditorState,
   };
 })();

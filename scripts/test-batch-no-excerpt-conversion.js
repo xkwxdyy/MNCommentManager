@@ -434,6 +434,117 @@ assert.strictEqual(mergeResult.actionCompleted, true);
 assert.deepStrictEqual(Array.from(mergeResult.selectedIndices), [0]);
 assert.deepStrictEqual(Array.from(mergeResult.snapshot.comments, (comment) => comment.text), ["merged result"]);
 
+const mergeToExcerptPlainSource = createActionSource(31, {
+  excerptText: "",
+  comments: [
+    { type: "TextNote", text: "plain A" },
+    { type: "TextNote", text: "plain B" },
+    { type: "TextNote", text: "plain keep" },
+  ],
+});
+const mergeToExcerptPlainResult = context.__MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+  mergeToExcerptPlainSource.noteId,
+  { excerptSelected: false, commentIndices: [0, 1] },
+  "plain A\n\nplain B (edited)",
+  true,
+);
+assert.strictEqual(mergeToExcerptPlainResult.converted, false);
+assert.strictEqual(mergeToExcerptPlainResult.snapshot.excerpt.type, "text");
+assert.strictEqual(mergeToExcerptPlainSource.excerptText, "plain A\n\nplain B (edited)");
+assert.deepStrictEqual(
+  Array.from(mergeToExcerptPlainResult.snapshot.comments, (comment) => comment.text),
+  ["plain keep"],
+);
+
+const mergeToExcerptTextSource = createActionSource(32, {
+  excerptText: "existing excerpt",
+  comments: [
+    { type: "TextNote", text: "text A" },
+    { type: "TextNote", text: "text B" },
+    { type: "TextNote", text: "text keep" },
+  ],
+});
+const mergeToExcerptTextResult = context.__MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+  mergeToExcerptTextSource.noteId,
+  { excerptSelected: false, commentIndices: [0, 1] },
+  "existing excerpt\n\ntext A\n\ntext B (edited)",
+  true,
+);
+assert.strictEqual(mergeToExcerptTextResult.converted, false);
+assert.strictEqual(mergeToExcerptTextResult.snapshot.noteId, mergeToExcerptTextSource.noteId);
+assert.strictEqual(mergeToExcerptTextSource.excerptText, "existing excerpt\n\ntext A\n\ntext B (edited)");
+assert.deepStrictEqual(
+  Array.from(mergeToExcerptTextResult.snapshot.comments, (comment) => comment.text),
+  ["text keep"],
+);
+
+const mergeSelectedExcerptWithOneCommentSource = createActionSource(35, {
+  excerptText: "selected excerpt",
+  comments: [
+    { type: "TextNote", text: "single comment" },
+    { type: "TextNote", text: "keep me" },
+  ],
+});
+const mergeSelectedExcerptWithOneCommentResult = context.__MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+  mergeSelectedExcerptWithOneCommentSource.noteId,
+  { excerptSelected: true, commentIndices: [0] },
+  "selected excerpt\n\nsingle comment (edited)",
+  true,
+);
+assert.strictEqual(mergeSelectedExcerptWithOneCommentResult.converted, false);
+assert.strictEqual(mergeSelectedExcerptWithOneCommentResult.snapshot.excerpt.type, "text");
+assert.strictEqual(
+  mergeSelectedExcerptWithOneCommentSource.excerptText,
+  "selected excerpt\n\nsingle comment (edited)",
+);
+assert.deepStrictEqual(
+  Array.from(mergeSelectedExcerptWithOneCommentResult.snapshot.comments, (comment) => comment.text),
+  ["keep me"],
+);
+
+const mergeToExcerptImageSource = createActionSource(33, {
+  excerptType: "image",
+  excerptText: "image OCR",
+  excerptPic: { paint: "merge-image-hash" },
+  comments: [
+    { type: "TextNote", text: "image A" },
+    { type: "TextNote", text: "image B" },
+    { type: "TextNote", text: "image keep" },
+  ],
+});
+const mergeToExcerptImageResult = context.__MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+  mergeToExcerptImageSource.noteId,
+  { excerptSelected: true, commentIndices: [0, 1] },
+  "new text excerpt",
+  true,
+);
+assert.strictEqual(mergeToExcerptImageResult.converted, true);
+assert.notStrictEqual(mergeToExcerptImageResult.snapshot.noteId, mergeToExcerptImageSource.noteId);
+assert.strictEqual(mergeToExcerptImageResult.snapshot.excerpt.type, "text");
+assert.strictEqual(mergeToExcerptImageResult.snapshot.comments[0].type, "mergedImageComment");
+assert.deepStrictEqual(
+  Array.from(mergeToExcerptImageResult.snapshot.comments, (comment) => comment.text),
+  ["image OCR", "image keep"],
+);
+
+const mergeToExcerptAudioSource = createActionSource(34, {
+  excerptType: "audio",
+  excerptPic: { video: true, video_ext: "mp3" },
+  comments: [
+    { type: "TextNote", text: "audio A" },
+    { type: "TextNote", text: "audio B" },
+  ],
+});
+assert.throws(
+  () => context.__MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+    mergeToExcerptAudioSource.noteId,
+    { excerptSelected: true, commentIndices: [0, 1] },
+    "must reject",
+    true,
+  ),
+  /音频或视频摘录暂不支持/,
+);
+
 const inlineMergeSource = createActionSource(9, {
   excerptText: "inline excerpt",
   comments: [
@@ -697,6 +808,13 @@ assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));
 assert(dynamicActionsSource.includes('"runSingleConvertToNoExcerpt:"'));
 assert(addonSource.includes("runSingleConvertToNoExcerpt: async function"));
 assert(bridgeSource.includes("updateLinkCommentFromClipboard"));
+assert(bridgeSource.includes("mergeCommentsToExcerpt"));
+assert(webAppSource.includes('checkboxLabel: "合并到摘录"'));
+assert(webAppSource.includes('runCommand("mergeCommentsToExcerpt"'));
+assert(webAppSource.includes("selectedComments.length >= (excerptSelected ? 1 : 2)"));
+assert(webAppSource.includes("const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt"));
+assert(webAppSource.includes("mergeToExcerptDefault"));
+assert(webAppSource.includes('updateActionButtonSettings", { mergeToExcerptDefault: normalized }'));
 assert(webAppSource.includes('onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}'));
 assert(webAppSource.includes('runCommand("updateLinkCommentFromClipboard"'));
 

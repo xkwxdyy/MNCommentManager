@@ -318,19 +318,54 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const context = addon && addon.dynamicCommentContext;
     if (!context || !context.note) { hideButton(addon, "menu.noContext"); return false; }
     const param = String(context.noteId || "");
-    const item = (title, selector) => ({ title, object: addon, selector, param, checked: false });
-    const popover = MNUtil.getPopoverAndPresent(button || addon.dynamicCommentButton, [
+    const item = (title, selector, itemParam) => ({ title, object: addon, selector, param: itemParam === undefined ? param : itemParam, checked: false });
+    const items = [
       item("── 单选处理 ──", "noopBatchCommentAction:"),
       item("  只保留第一条内容", "runSingleKeepFirstContent:"),
       item("  转换 HTML 为 Markdown", "runSingleConvertHtmlToMarkdown:"),
       item("  转为非摘录版", "runSingleConvertToNoExcerpt:"),
       item("  去掉链接评论", "runSingleRemoveAllLinks:"),
+      item("  清除失效链接 ➡️", "openSingleInvalidLinkMenu:", { noteId: param }),
       item("  清空评论", "runSingleClearAllComments:"),
       item("  清空标题", "runSingleClearAllTitles:"),
-    ], 280, 0);
+    ];
+    const popover = MNUtil.getPopoverAndPresent(button || addon.dynamicCommentButton, items, 280, 0);
     if (!popover) { hideButton(addon, "menu.presentFailed"); return false; }
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
+    addon.dynamicCommentMenuItems = items;
+    return true;
+  }
+
+  function openSingleInvalidLinkMenu(addon) {
+    const context = addon && addon.dynamicCommentContext;
+    if (!context || !context.note) throw new Error("未读取到当前卡片");
+    addon.dynamicCommentMenuStack = addon.dynamicCommentMenuStack || [];
+    addon.dynamicCommentMenuStack.push(addon.dynamicCommentMenuItems || []);
+    const item = (title, mode) => ({ title, object: addon, selector: "runSingleClearInvalidLinks:", param: { noteId: String(context.noteId || ""), mode }, checked: false });
+    const items = [
+      { title: "↩ 返回单选处理", object: addon, selector: "backSingleInvalidLinkMenu:", param: "", checked: false },
+      item("  纯卡片链接", "card"),
+      item("  Markdown 行内链接", "markdown"),
+      item("  全部失效链接", "all"),
+    ];
+    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 280, 0);
+    if (!popover) return false;
+    popover.delegate = addon;
+    addon.dynamicCommentMenuPopoverController = popover;
+    addon.dynamicCommentMenuItems = items;
+    return true;
+  }
+
+  function backSingleInvalidLinkMenu(addon) {
+    const stack = addon && addon.dynamicCommentMenuStack;
+    if (!Array.isArray(stack) || stack.length === 0) return false;
+    const items = stack.pop();
+    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 280, 0);
+    if (!popover) return false;
+    popover.delegate = addon;
+    addon.dynamicCommentMenuPopoverController = popover;
+    addon.dynamicCommentMenuItems = items;
     return true;
   }
 
@@ -390,6 +425,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       }
     } catch (_) {}
     const context = addon && addon.dynamicCommentContext;
+    if (rawExpectedId && typeof rawExpectedId === "object") rawExpectedId = rawExpectedId.noteId || rawExpectedId.id || "";
     const expectedId = String(rawExpectedId || (context && context.noteId) || "").trim();
     if (!expectedId) throw new Error("未读取到菜单绑定的卡片");
     if (context && context.noteId && String(context.noteId) !== expectedId) {
@@ -411,11 +447,43 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     }
   }
 
-  return { handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
+  async function runInvalidLinkCleanup(addon, sender) {
+    try {
+      const param = sender && typeof sender === "object" && sender.param !== undefined ? sender.param : {};
+      const note = noteFromSender(addon, param);
+      const mode = String(param.mode || "card");
+      const preview = __MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes([note], { allowSingle: true, mode });
+      const removable = Number(preview.removableCardLinks || 0) + Number(preview.removableMarkdownLinks || 0);
+      if (removable <= 0) {
+        MNUtil.showHUD("当前卡片没有失效链接");
+        return preview;
+      }
+      const confirmed = await MNUtil.confirm(
+        "确认清除失效链接？",
+        `将清理 ${preview.affectedCards} 张卡片：卡片链接 ${preview.removableCardLinks} 条，Markdown 行内链接 ${preview.removableMarkdownLinks} 条。\n\n操作可撤销。`,
+        ["取消", "确认清除"],
+      );
+      if (!confirmed) {
+        MNUtil.showHUD("已取消清除失效链接");
+        return { cancelled: true };
+      }
+      return __MN_COMMENT_MUTATIONS__.clearInvalidLinksForNotes([note], {
+        allowSingle: true,
+        mode,
+        expectedSignature: preview.signature,
+      });
+    } finally {
+      dismissMenu(addon, true);
+      hideButton(addon, "invalid-links.done");
+    }
+  }
+
+  return { handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, openSingleInvalidLinkMenu, backSingleInvalidLinkMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
     runKeepFirstContent: (addon, sender) => runAction(addon, sender, "keepFirstContentForNotes"),
     runConvertHtmlToMarkdown: (addon, sender) => runAction(addon, sender, "convertHtmlCommentsToMarkdownForNotes"),
     runConvertToNoExcerpt: (addon, sender) => runAction(addon, sender, "convertNotesToNoExcerptForNotes"),
     runRemoveAllLinks: (addon, sender) => runAction(addon, sender, "removeAllLinkCommentsForNotes"),
+    runClearInvalidLinks: runInvalidLinkCleanup,
     runClearAllComments: (addon, sender) => runAction(addon, sender, "clearAllCommentsForNotes"),
     runClearAllTitles: (addon, sender) => runAction(addon, sender, "clearAllTitlesForNotes"),
   };

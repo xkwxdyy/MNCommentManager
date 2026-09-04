@@ -22,13 +22,21 @@ const settings = context.__MN_COMMENT_ACTION_SETTINGS__;
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
   showBatchButton: true,
   enableDynamicSingleCardButton: true,
+  mergeToExcerptDefault: false,
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showBatchButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: true,
+  mergeToExcerptDefault: false,
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enableDynamicSingleCardButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
+  mergeToExcerptDefault: false,
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ mergeToExcerptDefault: true }))), {
+  showBatchButton: false,
+  enableDynamicSingleCardButton: false,
+  mergeToExcerptDefault: true,
 });
 console.log("comment action settings tests passed");

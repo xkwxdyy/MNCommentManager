@@ -354,6 +354,11 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       try { button.titleLabel.font = UIFont.boldSystemFontOfSize(14); } catch (error) {}
       try { button.accessibilityLabel = "MN Comment Manager 批量处理"; } catch (error) {}
       try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTapped:", 1 << 6); } catch (error) {}
+      try {
+        MNButton.addLongPressGesture(button, addon, "batchCommentButtonLongPressed:", 0.45);
+      } catch (error) {
+        console.log(`[MN Comment Manager] batch long-press binding failed: ${error && error.message ? error.message : error}`);
+      }
       hostView.addSubview(button);
     } else if (button.superview !== hostView && hostView.addSubview) {
       hostView.addSubview(button);
@@ -369,16 +374,22 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     });
   }
 
-  function hideButton(addon, reason) {
+  function hideButton(addon, reason, options) {
     try {
+      const popover = addon && addon.batchCommentMenuPopoverController;
+      addon.batchCommentMenuPopoverController = null;
+      if (popover && typeof popover.dismissPopoverAnimated === "function") {
+        try { popover.dismissPopoverAnimated(true); } catch (error) {
+          console.log(`[MN Comment Manager] dismiss batch menu failed: ${error && error.message ? error.message : error}`);
+        }
+      }
       const button = addon.batchCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG);
       if (button) {
         button.hidden = true;
         try { button.enabled = false; } catch (error) {}
         try { button.userInteractionEnabled = false; } catch (error) {}
       }
-      addon.batchCommentContext = null;
-      addon.batchCommentMenuPopoverController = null;
+      if (!(options && options.preserveContext === true)) addon.batchCommentContext = null;
       console.log(`[MN Comment Manager] batch button hidden: ${reason || ""}`);
     } catch (error) {
       console.log(`[MN Comment Manager] hide batch button failed: ${error && error.message ? error.message : error}`);
@@ -451,12 +462,18 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       hideButton(addon, "menu.noSelection");
       return false;
     }
+    if (typeof __MN_COMMENT_WORKFLOW_MENU__ !== "undefined" &&
+      __MN_COMMENT_WORKFLOW_MENU__ &&
+      typeof __MN_COMMENT_WORKFLOW_MENU__.openBatchMenu === "function") {
+      return __MN_COMMENT_WORKFLOW_MENU__.openBatchMenu(addon, button, context);
+    }
     const commandTable = [
       tableItem(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
       tableItem(addon, `  只保留第一条内容（${context.notes.length} 张）`, "runBatchKeepFirstContent:"),
       tableItem(addon, `  转换 HTML 为 Markdown（${context.notes.length} 张）`, "runBatchConvertHtmlToMarkdown:"),
       tableItem(addon, `  转为非摘录版（${context.notes.length} 张）`, "runBatchConvertToNoExcerpt:"),
       tableItem(addon, `  去掉所有链接（${context.notes.length} 张）`, "runBatchRemoveAllLinks:"),
+      tableItem(addon, "  清除失效链接 ➡️", "openBatchInvalidLinkMenu:"),
       tableItem(addon, `  清空所有评论（${context.notes.length} 张）`, "runBatchClearAllComments:"),
       tableItem(addon, `  清空所有标题（${context.notes.length} 张）`, "runBatchClearAllTitles:"),
     ];
@@ -676,6 +693,35 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return MNUtil.confirm("确认去掉所有链接？", message, ["取消", "确认去掉"]);
   }
 
+  async function runClearInvalidLinks(addon, sender) {
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+      MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
+      return false;
+    }
+    const param = sender && typeof sender === "object" && sender.param && typeof sender.param === "object" ? sender.param : {};
+    const mode = String(param.mode || "card");
+    const preview = __MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes(context.notes, { mode });
+    const removable = Number(preview.removableCardLinks || 0) + Number(preview.removableMarkdownLinks || 0);
+    if (removable <= 0) {
+      MNUtil.showHUD("所选卡片没有失效链接");
+      hideButton(addon, "invalid-links.empty");
+      return preview;
+    }
+    const confirmed = await MNUtil.confirm(
+      "确认清除失效链接？",
+      `将清理 ${preview.affectedCards} 张卡片：卡片链接 ${preview.removableCardLinks} 条，Markdown 行内链接 ${preview.removableMarkdownLinks} 条。\n\n操作可撤销。`,
+      ["取消", "确认清除"],
+    );
+    if (!confirmed) {
+      MNUtil.showHUD("已取消清除失效链接");
+      return { cancelled: true };
+    }
+    const result = __MN_COMMENT_MUTATIONS__.clearInvalidLinksForNotes(context.notes, { mode, expectedSignature: preview.signature });
+    hideButton(addon, "invalid-links.done");
+    return result;
+  }
+
   async function confirmConvertToNoExcerpt(context) {
     const stats = countConvertToNoExcerptImpact(context && context.notes);
     const message = [
@@ -813,6 +859,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     runConvertHtmlToMarkdown,
     runConvertToNoExcerpt,
     runRemoveAllLinks,
+    runClearInvalidLinks,
     runClearAllComments,
     runClearAllTitles,
   };

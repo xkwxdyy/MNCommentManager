@@ -207,6 +207,31 @@ function createMNCommentManagerAddon(mainPath) {
     }
   }
 
+  function selectorParam(sender) {
+    try {
+      if (sender && typeof sender === "object" && sender.param !== undefined) return sender.param;
+    } catch (_) {}
+    return sender || {};
+  }
+
+  function validateBatchMenuToken(addon, sender) {
+    const param = selectorParam(sender);
+    const context = addon && addon.batchCommentContext;
+    if (param && param.token && context && context.token && String(param.token) !== String(context.token)) {
+      throw new Error("多选卡片已变化，请重新打开批处理菜单");
+    }
+    return param;
+  }
+
+  async function runBatchWorkflowMenuAction(addon, sender) {
+    const param = selectorParam(sender);
+    const workflow = param && param.workflow ? param.workflow : param && param.workflowId;
+    if (!workflow) throw new Error("未读取到工作流");
+    const result = await __MN_COMMENT_WORKFLOW_RUNNER__.run(addon, workflow, param);
+    __MN_BATCH_COMMENT_ACTIONS__.hideButton(addon, "workflow.done");
+    return result;
+  }
+
   return JSB.defineClass("MNCommentManagerAddon : JSExtension <UIPopoverControllerDelegate>", {
     sceneWillConnect: async function () {
       await initializeAddonWhenReady(self, false);
@@ -321,7 +346,13 @@ function createMNCommentManagerAddon(mainPath) {
     onMindmapViewOnMultipleSelection: function (sender) {
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "multipleSelection");
-        __MN_BATCH_COMMENT_ACTIONS__.handleMultipleSelection(self, sender);
+        const hasBatchSelection = __MN_BATCH_COMMENT_ACTIONS__.handleMultipleSelection(self, sender);
+        if (!hasBatchSelection && self.webController && self.webController.panelMode === "batch") {
+          __MN_WEB_API_MNCommentManagerAddon.hidePanel(self.webController);
+        } else if (hasBatchSelection && self.webController && self.webController.panelMode === "batch" &&
+          self.webController.view && self.webController.view.window) {
+          __MN_WEB_API_MNCommentManagerAddon.syncBatch(self.webController, "selection-changed");
+        }
       } catch (error) {
         console.log(`[MN Comment Manager] multiple selection failed: ${error && error.message ? error.message : error}`);
       }
@@ -336,11 +367,86 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     batchCommentButtonTapped: function (button) {
+      if (self._batchCommentLongPressFired) {
+        self._batchCommentLongPressFired = false;
+        return;
+      }
       try {
         __MN_BATCH_COMMENT_ACTIONS__.openMenu(self, button);
       } catch (error) {
         MNUtil.showHUD(`打开批处理菜单失败: ${error && error.message ? error.message : error}`);
         console.log(`[MN Comment Manager] open batch menu failed: ${error && error.message ? error.message : error}`);
+      }
+    },
+
+    batchCommentButtonLongPressed: function (gesture) {
+      if (!gesture || gesture.state !== 1) return;
+      self._batchCommentLongPressFired = true;
+      try {
+        const context = self.batchCommentContext;
+        if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
+          throw new Error("未读取到多选卡片");
+        }
+        if (!self.webController) throw new Error("评论管理器尚未初始化");
+        __MN_WEB_API_MNCommentManagerAddon.showPanel(self.webController, { mode: "batch" });
+        self.layoutViewController();
+        __MN_WEB_API_MNCommentManagerAddon.syncBatch(self.webController, "batch-long-press");
+        __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "batch-editor-open", { preserveContext: true });
+      } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        MNUtil.showHUD(`打开多卡评论编辑器失败: ${message}`);
+        console.log(`[MN Comment Manager] batch editor failed: ${message}`);
+      }
+    },
+
+    openBatchWorkflows: function (sender) {
+      try {
+        return __MN_COMMENT_WORKFLOW_MENU__.openBatchWorkflows(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`打开工作流菜单失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] open batch workflows failed: ${error && error.message ? error.message : error}`);
+        return false;
+      }
+    },
+
+    backWorkflowMenu: function () {
+      try {
+        return __MN_COMMENT_WORKFLOW_MENU__.backWorkflowMenu(self);
+      } catch (error) {
+        console.log(`[MN Comment Manager] back workflow menu failed: ${error && error.message ? error.message : error}`);
+        return false;
+      }
+    },
+
+    openWorkflowManager: function () {
+      try {
+        return __MN_COMMENT_WORKFLOW_MENU__.openWorkflowManager(self);
+      } catch (error) {
+        MNUtil.showHUD(`打开工作流管理器失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] open workflow manager failed: ${error && error.message ? error.message : error}`);
+        return false;
+      }
+    },
+
+    showWorkflowMissing: function (sender) {
+      try {
+        return __MN_COMMENT_WORKFLOW_MENU__.showWorkflowMissing(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`工作流依赖不可用: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] show missing workflow dependency failed: ${error && error.message ? error.message : error}`);
+        return false;
+      }
+    },
+
+    runBatchWorkflow: async function (sender) {
+      try {
+        return await runBatchWorkflowMenuAction(self, sender);
+      } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "workflow.failed");
+        MNUtil.showHUD(`工作流执行失败: ${message}`);
+        console.log(`[MN Comment Manager] batch workflow failed: ${message}`);
+        return false;
       }
     },
 
@@ -386,6 +492,9 @@ function createMNCommentManagerAddon(mainPath) {
     runSingleConvertHtmlToMarkdown: async function (sender) { await runSingleMenuAction(self, sender, "runConvertHtmlToMarkdown", "转换 HTML 评论失败"); },
     runSingleConvertToNoExcerpt: async function (sender) { await runSingleMenuAction(self, sender, "runConvertToNoExcerpt", "转为非摘录版失败"); },
     runSingleRemoveAllLinks: async function (sender) { await runSingleMenuAction(self, sender, "runRemoveAllLinks", "去掉链接失败"); },
+    openSingleInvalidLinkMenu: function () { return __MN_DYNAMIC_COMMENT_ACTIONS__.openSingleInvalidLinkMenu(self); },
+    backSingleInvalidLinkMenu: function () { return __MN_DYNAMIC_COMMENT_ACTIONS__.backSingleInvalidLinkMenu(self); },
+    runSingleClearInvalidLinks: async function (sender) { await runSingleMenuAction(self, sender, "runClearInvalidLinks", "清除失效链接失败"); },
     runSingleClearAllComments: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllComments", "清空评论失败"); },
     runSingleClearAllTitles: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllTitles", "清空标题失败"); },
 
@@ -395,6 +504,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runBatchKeepFirstContent: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runKeepFirstContent(self, sender);
       } catch (error) {
         MNUtil.showHUD(`批处理失败: ${error && error.message ? error.message : error}`);
@@ -404,6 +514,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runBatchClearAllComments: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runClearAllComments(self, sender);
       } catch (error) {
         MNUtil.showHUD(`清空评论失败: ${error && error.message ? error.message : error}`);
@@ -413,6 +524,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runBatchConvertHtmlToMarkdown: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runConvertHtmlToMarkdown(self, sender);
       } catch (error) {
         MNUtil.showHUD(`转换 HTML 评论失败: ${error && error.message ? error.message : error}`);
@@ -422,6 +534,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runBatchConvertToNoExcerpt: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runConvertToNoExcerpt(self, sender);
       } catch (error) {
         MNUtil.showHUD(`转为非摘录版失败: ${error && error.message ? error.message : error}`);
@@ -431,6 +544,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     runBatchRemoveAllLinks: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runRemoveAllLinks(self, sender);
       } catch (error) {
         MNUtil.showHUD(`去掉链接失败: ${error && error.message ? error.message : error}`);
@@ -438,8 +552,32 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
+    openBatchInvalidLinkMenu: function (sender) {
+      try {
+        return __MN_COMMENT_WORKFLOW_MENU__.openBatchInvalidLinkMenu(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`打开失效链接菜单失败: ${error && error.message ? error.message : error}`);
+        return false;
+      }
+    },
+
+    backBatchInvalidLinkMenu: function () {
+      return __MN_COMMENT_WORKFLOW_MENU__.backBatchInvalidLinkMenu(self);
+    },
+
+    runBatchClearInvalidLinks: async function (sender) {
+      try {
+        validateBatchMenuToken(self, sender);
+        await __MN_BATCH_COMMENT_ACTIONS__.runClearInvalidLinks(self, sender);
+      } catch (error) {
+        MNUtil.showHUD(`清除失效链接失败: ${error && error.message ? error.message : error}`);
+        console.log(`[MN Comment Manager] batch clear invalid links failed: ${error && error.message ? error.message : error}`);
+      }
+    },
+
     runBatchClearAllTitles: async function (sender) {
       try {
+        validateBatchMenuToken(self, sender);
         await __MN_BATCH_COMMENT_ACTIONS__.runClearAllTitles(self, sender);
       } catch (error) {
         MNUtil.showHUD(`清空标题失败: ${error && error.message ? error.message : error}`);

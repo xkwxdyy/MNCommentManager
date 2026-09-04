@@ -54,6 +54,32 @@ function makeDownloadUrl(rootUrl, filename) {
   return `${root}/${encodeURI(filename)}`;
 }
 
+function expectedPackageFilename(version) {
+  return `mn-comment-manager-v${version}.mnaddon`;
+}
+
+function validateDownloadIdentity({ version, filename, url }) {
+  const expectedFilename = expectedPackageFilename(version);
+  if (filename !== expectedFilename) {
+    throw new Error(
+      `Package filename ${filename} does not match src/mnaddon.json version ${version}; expected ${expectedFilename}`
+    );
+  }
+
+  // A direct URL may be a numeric 123pan file id. When it carries a package
+  // filename, however, it must identify the same artifact as the manifest.
+  try {
+    const pathname = decodeURIComponent(new URL(url).pathname);
+    const urlFilename = path.basename(pathname);
+    if (/\.mnaddon$/i.test(urlFilename) && urlFilename !== filename) {
+      throw new Error(`Download URL filename ${urlFilename} does not match manifest filename ${filename}`);
+    }
+  } catch (error) {
+    if (error && /does not match manifest filename/.test(error.message)) throw error;
+    // Keep accepting legacy/non-standard direct-link URLs that URL cannot parse.
+  }
+}
+
 function defaultChangelogUrl() {
   const explicit = String(process.env.MNCOMMENTMANAGER_CHANGELOG_URL || "").trim();
   if (explicit) return explicit;
@@ -76,15 +102,19 @@ function readPreviousHistory(...paths) {
 
 function pushUnique(history, item) {
   if (!item || typeof item !== "object") return;
-  const version = String(item.version || "").trim();
-  const url = String(item.url || "").trim();
+  const normalizedItem = { ...item };
+  const version = String(normalizedItem.version || "").trim();
+  const url = String(normalizedItem.url || "").trim();
   if (!version) return;
   if (history.versions.has(version)) return;
   const key = `${version}::${url}`;
   if (history.seen.has(key)) return;
+  // Repair legacy entries created before filename/version validation existed.
+  normalizedItem.filename = expectedPackageFilename(version);
+  if (url) validateDownloadIdentity({ version, filename: normalizedItem.filename, url });
   history.seen.add(key);
   history.versions.add(version);
-  history.items.push(item);
+  history.items.push(normalizedItem);
 }
 
 function buildManifest({ rootDir, mnaddonPath, rootUrl, downloadUrl, outPath, fallbackOutPath, changelogUrl, fileID }) {
@@ -102,6 +132,8 @@ function buildManifest({ rootDir, mnaddonPath, rootUrl, downloadUrl, outPath, fa
   if (!version) throw new Error("src/mnaddon.json is missing version");
   if (!addonid) throw new Error("src/mnaddon.json is missing addonid");
   if (!url) throw new Error("Missing --download-url, --root-url, MNCOMMENTMANAGER_DOWNLOAD_URL, or MNCOMMENTMANAGER_DOWNLOAD_ROOT_URL");
+
+  validateDownloadIdentity({ version, filename, url });
 
   const current = { version, channel: "stable", url, filename, updatedAt };
   if (fileID) current.fileID = Number(fileID);

@@ -13,11 +13,19 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 - Merge selected text-like comments into one Markdown comment.
 - Extract selected comments into a child note.
 - Copy text, copy images, and focus linked notes when supported.
+- Select multiple cards and run a saved comment-processing workflow; each step
+  is applied to each card separately and the complete workflow is grouped into
+  one undo operation.
+- Build, reorder, and edit workflow steps from the WebView panel. Workflow
+  definitions are stored as native JSON under the MarginNote document folder.
+- Extend the action catalog with independent Patch addons. See
+  [`patches/README.md`](patches/README.md) and the example patch for the
+  versioned registration API.
 
 ## Install
 
 Install and enable MN Utils first, then download or build
-`mn-comment-manager-v0.1.19.mnaddon` and install it in MarginNote 4.
+`mn-comment-manager-v0.1.20.mnaddon` and install it in MarginNote 4.
 
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
@@ -57,7 +65,7 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.19.mnaddon
+mn-comment-manager-v0.1.20.mnaddon
 ```
 
 Generate a stable update manifest after uploading the package into the 123pan
@@ -91,6 +99,11 @@ changes for the released version.
 - `src/WebBridgeCommands.js`: native bridge command handlers.
 - `src/CommentData.js`: current-note comment serialization and capability detection.
 - `src/CommentMutations.js`: comment move/delete/edit/merge/extract operations.
+- `src/CommentWorkflowStore.js`: native JSON persistence for saved workflows.
+- `src/CommentWorkflowRegistry.js`: versioned built-in and Patch action registry.
+- `src/CommentWorkflowRunner.js`: sequential batch runner and undo grouping.
+- `src/CommentWorkflowMenu.js`: nested batch menu for saved workflows and presets.
+- `patches/`: independent Patch API documentation and example addon.
 - `src/update-fallback/`: stable update manifest and changelog fallback JSON.
 - `web/`: React and Vite source for the panel UI.
 

@@ -517,6 +517,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     if (Number.isFinite(sourceIndex) && typeof target.moveTo === "function") {
       target.moveTo(sourceIndex);
     }
+    if (parentNote && target.parentNote && getNoteId(target.parentNote) !== getNoteId(parentNote)) {
+      throw new Error("转换后的卡片父节点发生变化，请撤销后重试");
+    }
+    if (Number.isFinite(sourceIndex) && Number.isFinite(Number(target.indexInBrotherNotes)) &&
+      Number(target.indexInBrotherNotes) !== sourceIndex) {
+      throw new Error("转换后的卡片位置无法恢复，请撤销后重试");
+    }
     setNoteTitle(target, sourceTitle);
     syncPinnedNoteId(sourceNoteId, getNoteId(target));
     refreshNote(target);
@@ -616,6 +623,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       selectedIndices: normalizeIndexArray(opts.selectedIndices),
       statusMessage: String(opts.statusMessage || ""),
       error: String(opts.error || ""),
+      convertedNoteMap: opts.convertedNoteMap && typeof opts.convertedNoteMap === "object" ? opts.convertedNoteMap : {},
     };
   }
 
@@ -915,6 +923,38 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     appendTextComment(note, text);
   }
 
+  function setExcerptText(note, text, markdown) {
+    const normalizedText = String(text || "").trim();
+    if (!normalizedText) throw new Error("请填写合并后的内容");
+    const targets = [];
+    if (note) targets.push(note);
+    if (note && note.note && note.note !== note) targets.push(note.note);
+    let assigned = false;
+    for (let i = 0; i < targets.length; i += 1) {
+      const target = targets[i];
+      try {
+        target.excerptText = normalizedText;
+        if (markdown !== undefined) target.excerptTextMarkdown = markdown === true;
+        assigned = true;
+        break;
+      } catch (error) {}
+    }
+    if (!assigned) throw new Error("当前版本无法写入文本摘录，请更新 MarginNote 后再试");
+    const rawNote = getRawNote(note);
+    try {
+      const persistedText = String(
+        note && (note.mainExcerptText || note.excerptText) ||
+        rawNote && rawNote.excerptText ||
+        "",
+      ).trim();
+      if (persistedText !== normalizedText) {
+        throw new Error("文本摘录写入后校验失败，请撤销后重试");
+      }
+    } catch (error) {
+      if (error && error.message === "文本摘录写入后校验失败，请撤销后重试") throw error;
+    }
+  }
+
   function escapeMarkdownLinkText(text) {
     return String(text || "").replace(/\]/g, "\\]");
   }
@@ -969,6 +1009,181 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return getSerializedComments(note)
       .filter((comment) => comment && (comment.type === "linkComment" || comment.type === "summaryComment"))
       .map((comment) => comment.index);
+  }
+
+  function normalizeInvalidLinkCleanupMode(mode) {
+    const value = String(mode || "card").trim().toLowerCase();
+    if (value === "markdown" || value === "all" || value === "card") return value;
+    throw new Error("失效链接清理范围无效");
+  }
+
+  function getDatabaseNoteState(noteId, cache) {
+    const id = String(noteId || "").trim().toUpperCase();
+    if (!id) return { state: "missing" };
+    if (cache && cache[id]) return cache[id];
+    let result;
+    try {
+      if (typeof Database === "undefined" || !Database || typeof Database.sharedInstance !== "function") {
+        result = { state: "error", message: "当前环境不支持数据库卡片查询" };
+      } else {
+        const database = Database.sharedInstance();
+        const target = database && typeof database.getNoteById === "function"
+          ? database.getNoteById(id)
+          : undefined;
+        result = target ? { state: "exists" } : { state: "missing" };
+      }
+    } catch (error) {
+      result = { state: "error", message: error && error.message ? String(error.message) : String(error) };
+    }
+    if (cache) cache[id] = result;
+    return result;
+  }
+
+  function isMarkdownCodePosition(source, startIndex, endIndex) {
+    const text = String(source || "");
+    const before = text.slice(0, Number(startIndex || 0));
+    let fence = "";
+    before.split(/\n/).forEach((line) => {
+      const marker = (line.match(/^\s*(```|~~~)/) || [])[1];
+      if (!marker) return;
+      fence = fence === marker ? "" : (fence || marker);
+    });
+    if (fence) return true;
+    const backticks = (before.match(/`/g) || []).length;
+    if (backticks % 2 === 1) return true;
+    return text.slice(Math.max(0, Number(startIndex || 0) - 1), Number(startIndex || 0)) === "!";
+  }
+
+  function scanInvalidLinkCleanup(notes, mode, options) {
+    const normalizedMode = normalizeInvalidLinkCleanupMode(mode);
+    const targetNotes = Array.isArray(notes) ? notes : [];
+    const lookupCache = (options && options.lookupCache) || {};
+    const plans = [];
+    const errors = [];
+    let cardLinks = 0;
+    let markdownLinks = 0;
+    let affectedCards = 0;
+    targetNotes.forEach((note) => {
+      const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+      const cardPlan = { noteId: getNoteId(note), cardIndices: [], markdown: [] };
+      const comments = snapshot && Array.isArray(snapshot.comments) ? snapshot.comments : [];
+      comments.forEach((comment) => {
+        if (!comment) return;
+        if (normalizedMode === "card" || normalizedMode === "all") {
+          const link = __MN_COMMENT_DATA__.extractPureMarginNoteLink(comment.text);
+          const isCardComment = comment.type === "linkComment" || comment.type === "summaryComment";
+          const isSummary = link && /\/summary(?:\/|$)/i.test(link.url || "");
+          if (isCardComment && link && !isSummary) {
+            const state = getDatabaseNoteState(link.noteId, lookupCache);
+            if (state.state === "missing") {
+              cardPlan.cardIndices.push(comment.index);
+              cardLinks += 1;
+            } else if (state.state === "error") {
+              errors.push({ noteId: cardPlan.noteId, index: comment.index, message: state.message });
+            }
+          }
+        }
+        if (normalizedMode === "markdown" || normalizedMode === "all") {
+          const links = Array.isArray(comment.markdownLinks) ? comment.markdownLinks : [];
+          const invalid = links.filter((link) => {
+            if (!link || isMarkdownCodePosition(comment.text, link.startIndex, link.endIndex)) return false;
+            const parsed = __MN_COMMENT_DATA__.extractPureMarginNoteLink(link.url);
+            if (!parsed || /\/summary(?:\/|$)/i.test(parsed.url || "")) return false;
+            const state = getDatabaseNoteState(parsed.noteId, lookupCache);
+            if (state.state === "error") {
+              errors.push({ noteId: cardPlan.noteId, index: comment.index, message: state.message });
+              return false;
+            }
+            return state.state === "missing";
+          });
+          if (invalid.length > 0) {
+            cardPlan.markdown.push({ commentIndex: comment.index, links: invalid });
+            markdownLinks += invalid.length;
+          }
+        }
+      });
+      if (cardPlan.cardIndices.length > 0 || cardPlan.markdown.length > 0) affectedCards += 1;
+      plans.push(cardPlan);
+    });
+    return {
+      mode: normalizedMode,
+      plans,
+      affectedCards,
+      removableCardLinks: cardLinks,
+      removableMarkdownLinks: markdownLinks,
+      failed: errors.length,
+      errors,
+    };
+  }
+
+  function invalidLinkCleanupSignature(scan) {
+    return JSON.stringify((scan && scan.plans || []).map((plan) => ({
+      noteId: plan.noteId,
+      cardIndices: plan.cardIndices,
+      markdown: plan.markdown.map((item) => ({
+        commentIndex: item.commentIndex,
+        links: item.links.map((link) => [link.startIndex, link.endIndex, link.url]),
+      })),
+    })));
+  }
+
+  function previewInvalidLinkCleanupForNotes(notes, options) {
+    const targetNotes = normalizeNoteArray(notes, options && options.allowSingle === true ? options : { allowSingle: true });
+    const scan = scanInvalidLinkCleanup(targetNotes, options && options.mode, options);
+    return Object.assign({}, scan, { signature: invalidLinkCleanupSignature(scan), total: targetNotes.length });
+  }
+
+  function clearInvalidLinksForNotes(notes, options) {
+    const targetNotes = normalizeNoteArray(notes, options);
+    const mode = options && options.mode ? options.mode : "card";
+    const before = scanInvalidLinkCleanup(targetNotes, mode, options);
+    if (options && options.expectedSignature && options.expectedSignature !== invalidLinkCleanupSignature(before)) {
+      throw new Error("链接内容已变化，请重新预览后再试");
+    }
+    const stats = {
+      total: targetNotes.length,
+      changed: 0,
+      affectedCards: before.affectedCards,
+      removedCardLinks: 0,
+      removedMarkdownLinks: 0,
+      failed: before.failed,
+      errors: before.errors.slice(),
+    };
+    const changedNotes = [];
+    withUndoGrouping("清除失效链接", { notes: targetNotes }, () => {
+      before.plans.forEach((plan, planIndex) => {
+        const note = targetNotes[planIndex];
+        try {
+          plan.markdown.slice().sort((a, b) => b.commentIndex - a.commentIndex).forEach((item) => {
+            const current = getSerializedComment(note, item.commentIndex);
+            if (!current) throw new Error(`评论 #${item.commentIndex} 已不存在`);
+            let nextText = String(current.text || "");
+            item.links.slice().sort((a, b) => b.startIndex - a.startIndex).forEach((link) => {
+              nextText = nextText.slice(0, link.startIndex) + String(link.displayText || "") + nextText.slice(link.endIndex);
+            });
+            replaceCommentText(note, item.commentIndex, nextText, !!(current.capabilities && current.capabilities.isMarkdown));
+            stats.removedMarkdownLinks += item.links.length;
+          });
+          if (plan.cardIndices.length > 0) {
+            removeCommentsByIndices(note, plan.cardIndices);
+            stats.removedCardLinks += plan.cardIndices.length;
+          }
+          if (plan.cardIndices.length > 0 || plan.markdown.length > 0) {
+            refreshNote(note);
+            changedNotes.push(note);
+            stats.changed += 1;
+          }
+        } catch (error) {
+          stats.failed += 1;
+          stats.errors.push({ noteId: plan.noteId, message: error && error.message ? String(error.message) : String(error) });
+        }
+      });
+    });
+    refreshNotebooksAfterCommentMutation(changedNotes);
+    if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
+      MNUtil.showHUD(`已清除 ${stats.changed}/${stats.total} 张卡片的失效链接（卡片 ${stats.removedCardLinks} 条，Markdown ${stats.removedMarkdownLinks} 条）`);
+    }
+    return stats;
   }
 
   function convertHtmlCommentIndicesInNote(note, indices, stats) {
@@ -1180,6 +1395,104 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return result;
   }
 
+  function mergeCommentsToExcerpt(noteId, selection, text, markdown) {
+    const sourceNote = getNoteOrThrow(noteId);
+    const sourceSnapshot = __MN_COMMENT_DATA__.getNoteSnapshot(sourceNote);
+    const normalizedSelection = normalizeContentSelection(selection, sourceSnapshot.comments.length);
+    const selectedIndices = normalizedSelection.commentIndices;
+    const finalText = String(text || "").trim();
+    const minimumCommentCount = normalizedSelection.excerptSelected ? 1 : 2;
+    if (selectedIndices.length < minimumCommentCount) {
+      throw new Error(normalizedSelection.excerptSelected
+        ? "选中摘录时至少选择 1 条文本评论才能合并到摘录"
+        : "至少选择 2 条文本评论才能合并到摘录");
+    }
+    if (!finalText) throw new Error("请填写合并后的内容");
+
+    selectedIndices.forEach((index) => {
+      const comment = sourceSnapshot.comments.find((item) => item.index === index);
+      requireCapability(comment, "canMergeText", `#${index} 不是可合并的文本评论`);
+      requireCapability(comment, "canCopyText", `#${index} 没有可合并的文本`);
+    });
+
+    const sourceExcerpt = sourceSnapshot.excerpt || __MN_COMMENT_DATA__.getExcerptState(sourceNote);
+    if (normalizedSelection.excerptSelected && !sourceExcerpt.present) {
+      throw new Error("当前卡片已没有原生摘录，请刷新后重试");
+    }
+    if (sourceExcerpt.present && (sourceExcerpt.type === "audio" || sourceExcerpt.type === "video")) {
+      throw new Error("音频或视频摘录暂不支持合并到文本摘录");
+    }
+
+    let targetNote = sourceNote;
+    let mappedIndices = selectedIndices.slice();
+    let converted = false;
+    let affectedNotes = [];
+    let partialError = "";
+    withUndoGrouping("合并到文本摘录", { note: sourceNote }, () => {
+      if (sourceExcerpt.present && sourceExcerpt.type !== "text") {
+        const conversion = convertNoteToNoExcerpt(sourceNote, { allowTextExcerpt: true });
+        if (!conversion.changed || !conversion.note) {
+          throw new Error(getConversionErrorMessage(conversion.reason));
+        }
+        targetNote = conversion.note;
+        converted = true;
+        affectedNotes = Array.isArray(conversion.affectedNotes) ? conversion.affectedNotes : [];
+        try {
+          mappedIndices = validateConvertedCommentMapping(
+            sourceSnapshot,
+            targetNote,
+            getNoteId(sourceNote),
+            { excerptSelected: false, commentIndices: selectedIndices },
+          );
+        } catch (error) {
+          partialError = error && error.message ? error.message : String(error);
+          return;
+        }
+      }
+      if (partialError) return;
+      try {
+        setExcerptText(targetNote, finalText, markdown !== false);
+        removeCommentsByIndices(targetNote, mappedIndices);
+        refreshNote(targetNote);
+      } catch (error) {
+        partialError = error && error.message ? error.message : String(error);
+      }
+    });
+
+    if (partialError) {
+      const failedSnapshot = __MN_COMMENT_DATA__.getNoteSnapshot(targetNote);
+      return makeSelectionActionResult(targetNote, {
+        sourceNoteId: getNoteId(sourceNote),
+        converted,
+        actionCompleted: false,
+        affectedNotes,
+        mappedIndices: [],
+        selectedIndices: [],
+        statusMessage: `卡片已转为非摘录版，但合并到摘录已停止：${partialError}`,
+        error: partialError,
+        snapshot: failedSnapshot,
+        convertedNoteMap: converted && getNoteId(sourceNote) !== getNoteId(targetNote)
+          ? { [getNoteId(sourceNote)]: getNoteId(targetNote) } : {},
+      });
+    }
+
+    refreshNotebooksAfterCommentMutation(
+      affectedNotes.concat(targetNote),
+    );
+    MNUtil.showHUD("已合并到文本摘录");
+    return makeSelectionActionResult(targetNote, {
+      sourceNoteId: getNoteId(sourceNote),
+      converted,
+      actionCompleted: true,
+      affectedNotes,
+      mappedIndices,
+      selectedIndices: [],
+      statusMessage: "已合并到文本摘录",
+      convertedNoteMap: converted && getNoteId(sourceNote) !== getNoteId(targetNote)
+        ? { [getNoteId(sourceNote)]: getNoteId(targetNote) } : {},
+    });
+  }
+
   function moveComments(noteId, indices, targetIndex) {
     const note = getNoteOrThrow(noteId);
     let selectedIndices = [];
@@ -1192,6 +1505,30 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
     snapshot.selectedIndices = selectedIndices;
     return snapshot;
+  }
+
+  function reverseCommentIndices(noteId, indices) {
+    const note = getNoteOrThrow(noteId);
+    const selected = Array.from(new Set(normalizeIndexArray(indices))).sort((a, b) => a - b);
+    if (selected.length < 2) return { changed: false, selectedIndices: selected, noteId: getNoteId(note) };
+    const order = Array.from({ length: getCommentCount(note) }, (_, index) => index);
+    const targetOrder = order.slice();
+    selected.forEach((destinationIndex, step) => {
+      targetOrder[destinationIndex] = selected[selected.length - 1 - step];
+    });
+    // Rebuild the exact target order. Moving one item shifts the intervening
+    // comments, so processing only the selected indices can accidentally move
+    // unselected comments out of their original positions.
+    targetOrder.forEach((targetToken, destinationIndex) => {
+      const sourceIndex = order.indexOf(targetToken);
+      if (sourceIndex < 0 || sourceIndex === destinationIndex) return;
+      moveSingleComment(note, sourceIndex, destinationIndex);
+      const token = order.splice(sourceIndex, 1)[0];
+      order.splice(destinationIndex, 0, token);
+    });
+    refreshNote(note);
+    refreshNotebooksAfterCommentMutation(note);
+    return { changed: true, selectedIndices: selected, noteId: getNoteId(note) };
   }
 
   function deleteComments(noteId, indices) {
@@ -1896,6 +2233,25 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function convertNotesToNoExcerptForNotes(notes, options) {
     const targetNotes = normalizeNoteArray(notes, options);
+    const originalOrderBySourceId = {};
+    targetNotes.forEach((note, index) => {
+      const noteId = getNoteId(note);
+      if (noteId) originalOrderBySourceId[noteId] = index;
+    });
+    // Removing a sibling can change the following siblings' live indices.
+    // Process each parent from the highest original index downward so every
+    // remaining source index stays deterministic for the current pass.
+    const orderedNotes = targetNotes.map((note, order) => ({
+      note,
+      order,
+      parentId: getNoteId(note && note.parentNote),
+      siblingIndex: Number(note && note.indexInBrotherNotes),
+    })).sort((left, right) => {
+      if (left.parentId !== right.parentId) return left.order - right.order;
+      const leftIndex = Number.isFinite(left.siblingIndex) ? left.siblingIndex : -1;
+      const rightIndex = Number.isFinite(right.siblingIndex) ? right.siblingIndex : -1;
+      return rightIndex - leftIndex || left.order - right.order;
+    }).map((item) => item.note);
     const stats = {
       total: targetNotes.length,
       changed: 0,
@@ -1906,12 +2262,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       unsupportedMedia: 0,
       failed: 0,
       convertedNoteIds: [],
+      convertedNoteMap: {},
       errors: [],
     };
     const changedNotes = [];
 
     withUndoGrouping("批量转为非摘录版", { notes: targetNotes }, () => {
-      targetNotes.forEach((note) => {
+      orderedNotes.forEach((note) => {
         try {
           const result = convertNoteToNoExcerpt(note, { allowTextExcerpt: true });
           if (!result.changed) {
@@ -1926,7 +2283,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           if (result.reason === "image") stats.imageExcerpt += 1;
           else if (result.reason === "text") stats.textExcerpt += 1;
           const convertedNoteId = getNoteId(result.note);
-          if (convertedNoteId) stats.convertedNoteIds.push(convertedNoteId);
+          if (convertedNoteId) {
+            stats.convertedNoteIds.push(convertedNoteId);
+            const sourceNoteId = getNoteId(note);
+            if (sourceNoteId && sourceNoteId !== convertedNoteId) {
+              stats.convertedNoteMap[sourceNoteId] = convertedNoteId;
+            }
+          }
         } catch (error) {
           stats.failed += 1;
           stats.errors.push({
@@ -1936,6 +2299,14 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         }
       });
     });
+    const sourceIdByConvertedId = {};
+    Object.keys(stats.convertedNoteMap).forEach((sourceId) => {
+      sourceIdByConvertedId[stats.convertedNoteMap[sourceId]] = sourceId;
+    });
+    stats.convertedNoteIds.sort((left, right) =>
+      (originalOrderBySourceId[sourceIdByConvertedId[left]] === undefined ? Number.MAX_SAFE_INTEGER : originalOrderBySourceId[sourceIdByConvertedId[left]]) -
+      (originalOrderBySourceId[sourceIdByConvertedId[right]] === undefined ? Number.MAX_SAFE_INTEGER : originalOrderBySourceId[sourceIdByConvertedId[right]])
+    );
     refreshNotebooksAfterCommentMutation(changedNotes);
 
     if (stats.failed > 0) {
@@ -1946,6 +2317,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   return {
     moveComments,
+    reverseCommentIndices,
     moveContentSelection,
     deleteComments,
     deleteContentSelection,
@@ -1953,6 +2325,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     deleteBidirectionalLinks,
     mergeTextComments,
     mergeContentSelection,
+    mergeCommentsToExcerpt,
     editCommentText,
     editMarkdownLink,
     convertHtmlCommentsToMarkdown,
@@ -1964,6 +2337,8 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     copyContentImage,
     focusLinkedNote,
     updateLinkCommentFromClipboard,
+    previewInvalidLinkCleanupForNotes,
+    clearInvalidLinksForNotes,
     keepFirstContentForNotes,
     clearAllCommentsForNotes,
     clearAllTitlesForNotes,

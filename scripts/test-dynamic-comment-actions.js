@@ -103,7 +103,7 @@ assert(addon.dynamicCommentContext, "touch-down hold must preserve the card cont
 
 actions.suppressTapAfterLongPress(addon);
 assert.strictEqual(actions.openMenu(addon, addon.dynamicCommentButton), true);
-assert.strictEqual(addon.dynamicCommentMenuPopoverController.commandTable.length, 7);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.commandTable.length, 8);
 assert.deepStrictEqual(
   Array.from(addon.dynamicCommentMenuPopoverController.commandTable, (item) => String(item.selector)),
   [
@@ -112,16 +112,25 @@ assert.deepStrictEqual(
     "runSingleConvertHtmlToMarkdown:",
     "runSingleConvertToNoExcerpt:",
     "runSingleRemoveAllLinks:",
+    "openSingleInvalidLinkMenu:",
     "runSingleClearAllComments:",
     "runSingleClearAllTitles:",
   ],
 );
 assert.deepStrictEqual(
   Array.from(addon.dynamicCommentMenuPopoverController.commandTable.slice(3), (item) => String(item.title).trim()),
-  ["转为非摘录版", "去掉链接评论", "清空评论", "清空标题"],
+  ["转为非摘录版", "去掉链接评论", "清除失效链接 ➡️", "清空评论", "清空标题"],
   "single-card menu labels must use single-card semantics",
 );
 assert.strictEqual(addon.dynamicCommentMenuPopoverController.delegate, addon);
+const invalidLinkParent = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "openSingleInvalidLinkMenu:");
+assert(invalidLinkParent);
+assert.strictEqual(actions.openSingleInvalidLinkMenu(addon, invalidLinkParent), true);
+assert.deepStrictEqual(
+  Array.from(addon.dynamicCommentMenuPopoverController.commandTable, (item) => String(item.selector)),
+  ["backSingleInvalidLinkMenu:", "runSingleClearInvalidLinks:", "runSingleClearInvalidLinks:", "runSingleClearInvalidLinks:"],
+);
+assert.strictEqual(actions.backSingleInvalidLinkMenu(addon), true);
 const conversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "runSingleConvertToNoExcerpt:");
 assert(conversionItem);
 assert.strictEqual(conversionItem.param, "single-note");

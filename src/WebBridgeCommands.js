@@ -83,6 +83,15 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     );
   }
 
+  function mergeCommentsToExcerpt(context, payload) {
+    return __MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(
+      payload.noteId,
+      payload.selection,
+      payload.text,
+      payload.markdown !== false,
+    );
+  }
+
   function editCommentText(context, payload) {
     return __MN_COMMENT_MUTATIONS__.editCommentText(
       payload.noteId,
@@ -158,6 +167,26 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     );
   }
 
+  function previewInvalidLinkCleanup(context, payload) {
+    const note = __MN_COMMENT_DATA__.getWrappedNoteById(payload && payload.noteId);
+    if (!note) throw new Error("没有找到这张卡片，请刷新后再试");
+    return __MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes([note], {
+      allowSingle: true,
+      mode: payload && payload.mode,
+    });
+  }
+
+  function clearInvalidLinks(context, payload) {
+    const note = __MN_COMMENT_DATA__.getWrappedNoteById(payload && payload.noteId);
+    if (!note) throw new Error("没有找到这张卡片，请刷新后再试");
+    const result = __MN_COMMENT_MUTATIONS__.clearInvalidLinksForNotes([note], {
+      allowSingle: true,
+      mode: payload && payload.mode,
+      expectedSignature: payload && payload.expectedSignature,
+    });
+    return Object.assign({}, result, { snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note) });
+  }
+
   function getActionButtonSettings() {
     return __MN_COMMENT_ACTION_SETTINGS__.getSettings();
   }
@@ -167,6 +196,86 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     if (settings.showBatchButton !== true) __MN_BATCH_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
     if (settings.enableDynamicSingleCardButton !== true) __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
     return settings;
+  }
+
+  function getWorkflowActionCatalog() {
+    return __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog("batch");
+  }
+
+  function missingWorkflowActions(workflow) {
+    const missing = [];
+    (workflow && Array.isArray(workflow.steps) ? workflow.steps : []).forEach((step) => {
+      const actionId = step && String(step.actionId || "").trim();
+      if (actionId && !__MN_COMMENT_WORKFLOW_REGISTRY__.getAction(actionId) && missing.indexOf(actionId) < 0) {
+        missing.push(actionId);
+      }
+    });
+    return missing;
+  }
+
+  function decorateWorkflow(workflow) {
+    if (!workflow) return null;
+    const result = JSON.parse(JSON.stringify(workflow));
+    result.missingActions = missingWorkflowActions(result);
+    return result;
+  }
+
+  function listWorkflows() {
+    return __MN_COMMENT_WORKFLOW_STORE__.list().map(decorateWorkflow);
+  }
+
+  function getBatchCommentEditorState(context, payload) {
+    const addon = context && context.addon;
+    const batch = addon && addon.batchCommentContext;
+    const token = payload && payload.token ? String(payload.token) : "";
+    if (!batch || !Array.isArray(batch.notes) || batch.notes.length <= 1) throw new Error("未读取到多选卡片，请重新多选后再试");
+    if (token && String(batch.token) !== token) throw new Error("多选卡片已变化，请重新打开编辑器");
+    return {
+      mode: "batch",
+      token: String(batch.token || ""),
+      noteIds: batch.notes.map((note) => String(note && note.noteId || "")),
+      cards: __MN_COMMENT_BATCH_EDITOR__.buildOverview(batch.notes),
+      catalog: __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog("batch"),
+      workflows: listWorkflows(),
+    };
+  }
+
+  function previewBatchWorkflow(context, payload) {
+    const addon = context && context.addon;
+    const workflow = payload && payload.workflow ? payload.workflow : payload;
+    const batch = addon && addon.batchCommentContext;
+    if (!batch || !workflow) throw new Error("未读取到批量工作流");
+    const cards = __MN_COMMENT_BATCH_EDITOR__.buildOverview(batch.notes);
+    const steps = (workflow.steps || []).map((step) => {
+      if (step && String(step.kind || "action").toLowerCase() === "select") {
+        const selector = __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector);
+        const matched = batch.notes.map((note) => __MN_COMMENT_BATCH_EDITOR__.selectCommentIndices(note, selector).length);
+        return { kind: "select", selector, matched, totalMatched: matched.reduce((sum, count) => sum + count, 0) };
+      }
+      const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step && step.actionId);
+      return { kind: "action", actionId: step && step.actionId ? String(step.actionId) : "", title: action ? action.title : "未知动作" };
+    });
+    return { token: String(batch.token || ""), cards, steps, workflowId: workflow.id || "" };
+  }
+
+  async function runBatchWorkflow(context, payload) {
+    const addon = context && context.addon;
+    const workflow = payload && payload.workflow ? payload.workflow : payload;
+    const token = payload && payload.token ? payload.token : "";
+    return __MN_COMMENT_WORKFLOW_RUNNER__.run(addon, workflow, { token });
+  }
+
+  function saveWorkflow(context, payload) {
+    const saved = __MN_COMMENT_WORKFLOW_STORE__.save(payload);
+    return decorateWorkflow(saved);
+  }
+
+  function deleteWorkflow(context, payload) {
+    const id = payload && payload.id !== undefined ? payload.id : payload;
+    return {
+      deleted: __MN_COMMENT_WORKFLOW_STORE__.remove(id),
+      workflows: listWorkflows(),
+    };
   }
 
   const commands = {
@@ -183,6 +292,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     deleteBidirectionalLinks,
     mergeTextComments,
     mergeContentSelection,
+    mergeCommentsToExcerpt,
     editCommentText,
     editMarkdownLink,
     convertHtmlCommentsToMarkdown,
@@ -194,8 +304,17 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     copyContentImage,
     focusLinkedNote,
     updateLinkCommentFromClipboard,
+    previewInvalidLinkCleanup,
+    clearInvalidLinks,
     getActionButtonSettings,
     updateActionButtonSettings,
+    getWorkflowActionCatalog,
+    listWorkflows,
+    getBatchCommentEditorState,
+    previewBatchWorkflow,
+    runBatchWorkflow,
+    saveWorkflow,
+    deleteWorkflow,
   };
 
   return {

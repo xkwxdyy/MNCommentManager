@@ -376,6 +376,7 @@ function App() {
   const [rangeAnchor, setRangeAnchor] = useState(null);
   const [insertMode, setInsertMode] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
   const [deletePressing, setDeletePressing] = useState(false);
   const [singleDeletePressing, setSingleDeletePressing] = useState(null);
   const deleteTimer = useRef(null);
@@ -388,6 +389,9 @@ function App() {
   const linkFocusLongPressFired = useRef({});
   const [inlineLinkPressing, setInlineLinkPressing] = useState(null);
   const [actionButtonSettings, setActionButtonSettings] = useState(null);
+  const [workflowManager, setWorkflowManager] = useState(null);
+  const [batchEditor, setBatchEditor] = useState(null);
+  const [invalidLinkCleanup, setInvalidLinkCleanup] = useState(null);
 
   const comments = snapshot.comments || [];
   const excerpt = snapshot.excerpt || makeEmptySnapshot().excerpt;
@@ -441,6 +445,13 @@ function App() {
   );
   const selectedCanEditText = !excerptSelected && hasOneSelection && canComment(selectedComments[0], "canEditText");
   const selectedCanMergeText = hasMultiSelection && excerptCanMergeText && allSelectedCan(selectedComments, "canMergeText") && allSelectedCan(selectedComments, "canCopyText");
+  const selectedCommentsCanMergeToExcerpt = selectedComments.length >= (excerptSelected ? 1 : 2)
+    && allSelectedCan(selectedComments, "canMergeText")
+    && allSelectedCan(selectedComments, "canCopyText");
+  const selectedCanMergeAction = selectedCanMergeText
+    || (selectedCommentsCanMergeToExcerpt && (!excerptSelected || excerpt.type === "image"));
+  const mergeToExcerptBlockedByMedia = excerptPresent && (excerpt.type === "audio" || excerpt.type === "video");
+  const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt && !mergeToExcerptBlockedByMedia;
   const selectedCanBidirectionalDelete = hasSelection && !excerptSelected && allSelectedCan(selectedComments, "canBidirectionalDelete");
   const selectedHtmlComments = useMemo(
     () => selectedComments.filter((comment) => comment?.capabilities?.isHtml),
@@ -515,10 +526,44 @@ function App() {
     }
   };
 
+  const openInvalidLinkCleanup = () => setInvalidLinkCleanup({ mode: "", preview: null });
+  const previewInvalidLinkCleanup = async (mode) => {
+    if (!mode) {
+      setInvalidLinkCleanup({ mode: "", preview: null });
+      return;
+    }
+    setLoading(true);
+    try {
+      const preview = await MNBridge.send("previewInvalidLinkCleanup", { noteId: snapshot.noteId, mode });
+      setInvalidLinkCleanup({ mode, preview });
+      if (Number(preview?.removableCardLinks || 0) + Number(preview?.removableMarkdownLinks || 0) <= 0) {
+        notifyStatus("当前卡片没有失效链接");
+      }
+    } catch (error) {
+      notifyStatus(normalizeError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+  const confirmInvalidLinkCleanup = async () => {
+    const mode = invalidLinkCleanup?.mode;
+    const preview = invalidLinkCleanup?.preview;
+    if (!mode || !preview) return;
+    setInvalidLinkCleanup(null);
+    await execute(() => runCommand("clearInvalidLinks", {
+      noteId: snapshot.noteId,
+      mode,
+      expectedSignature: preview.signature,
+    }, { message: "失效链接已清除" }));
+  };
+
   useEffect(() => {
     if (didInitialLoad.current) return;
     didInitialLoad.current = true;
     loadCurrentNote();
+    MNBridge.send("getActionButtonSettings")
+      .then((settings) => setMergeToExcerptDefault(settings?.mergeToExcerptDefault === true))
+      .catch(() => {});
     return () => {
       clearDeleteTimer();
       clearSingleDeleteTimer();
@@ -526,6 +571,25 @@ function App() {
       Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
     };
   }, []);
+
+  useEffect(() => {
+    window.__MNCommentManagerBatchNativeSync = (raw) => {
+      try {
+        const payload = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (payload?.state?.mode === "batch") setBatchEditor(payload.state);
+        else setBatchEditor(null);
+      } catch (error) {
+        notifyStatus(normalizeError(error));
+      }
+    };
+    return () => { delete window.__MNCommentManagerBatchNativeSync; };
+  }, []);
+
+  const persistMergeToExcerptDefault = (nextChecked) => {
+    const normalized = nextChecked === true;
+    setMergeToExcerptDefault(normalized);
+    MNBridge.send("updateActionButtonSettings", { mergeToExcerptDefault: normalized }).catch(() => {});
+  };
 
   useEffect(() => {
     if (filter !== "all" && (filterCounts[filter] || 0) === 0) {
@@ -543,6 +607,9 @@ function App() {
     window.__MNCommentManagerNativeSync = (rawPayload) => {
       try {
         const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+        // A native close or a switch back to single-card mode must dismiss a
+        // stale batch overlay that may still be mounted in the WebView.
+        setBatchEditor(null);
         if (!payload?.snapshot) return;
         const syncMessage = payload.snapshot.error
           ? payload.snapshot.error
@@ -1022,28 +1089,67 @@ function App() {
   };
 
   const openMergeDialog = () => {
-    if (selectedContentCount < 2) {
-      notifyStatus("至少选择 2 项内容才能合并");
+    if (!selectedCanMergeAction) {
+      notifyStatus("至少选择 2 条可合并的文本评论");
       return;
     }
-    if (!selectedCanMergeText) {
-      notifyStatus("只能合并带文本的评论");
-      return;
-    }
+    const mergeExcerptText = excerptPresent && excerpt.type === "text" && excerptCanCopyText
+      ? String(excerpt.text || "").trim()
+      : "";
     const text = [
-      excerptSelected && excerpt?.capabilities?.canCopyText ? excerpt.text : "",
+      (excerptSelected || (canMergeToExcerpt && mergeToExcerptDefault)) && excerpt?.capabilities?.canCopyText
+        ? excerpt.text
+        : "",
       ...selectedComments.map(commentText),
     ].filter(Boolean).join("\n\n");
+    const autoExcerptPrefix = mergeExcerptText ? `${mergeExcerptText}\n\n` : "";
+    let autoExcerptPrefixApplied = canMergeToExcerpt && mergeToExcerptDefault && !excerptSelected && !!autoExcerptPrefix;
     setDialog({
       title: "合并为一条评论",
       body: excerptSelected
-        ? "原生文本摘录会先随卡片转为第一条普通评论，再与所选文本合并为一条 Markdown 评论。"
+        ? (excerpt.type === "image"
+          ? "已选中的图片摘录会跳过；所选文本评论可继续合并，图片摘录只会在选择“合并到摘录”时转为普通合并摘录评论。"
+          : "原生文本摘录已包含在当前选区中；你也可以改为把结果写回文本摘录。")
         : "所选文本会合并成一条新的 Markdown 评论，原评论会被移除。",
       inputLabel: "合并后的内容",
       inputValue: text,
+      checkboxLabel: "合并到摘录",
+      checkboxDescription: mergeToExcerptBlockedByMedia
+        ? "音频/视频摘录暂不支持；请使用普通合并。"
+        : (excerpt.type === "image"
+          ? "先将图片摘录转为合并摘录评论，再把编辑后的文本设为新的文本摘录。"
+          : (mergeExcerptText ? "把现有文本摘录放在前面，并将编辑后的结果写回文本摘录。" : "把编辑后的结果设为新的文本摘录。")),
+      checkboxDisabled: !canMergeToExcerpt,
+      checkboxDefault: canMergeToExcerpt && mergeToExcerptDefault,
+      onCheckChange: (checked, currentValue) => {
+        persistMergeToExcerptDefault(checked);
+        if (!mergeExcerptText) return currentValue;
+        if (checked && !autoExcerptPrefixApplied && !String(currentValue || "").startsWith(autoExcerptPrefix)) {
+          autoExcerptPrefixApplied = true;
+          return `${autoExcerptPrefix}${String(currentValue || "")}`;
+        }
+        if (!checked && autoExcerptPrefixApplied && String(currentValue || "").startsWith(autoExcerptPrefix)) {
+          autoExcerptPrefixApplied = false;
+          return String(currentValue || "").slice(autoExcerptPrefix.length);
+        }
+        return currentValue;
+      },
       confirmText: "合并",
-      onConfirm: async (value) => {
+      onConfirm: async (value, options) => {
         setDialog(null);
+        if (options?.checked && canMergeToExcerpt) {
+          await runCommand("mergeCommentsToExcerpt", {
+            noteId: snapshot.noteId,
+            selection: contentSelection,
+            text: value,
+            markdown: true,
+          }, { message: "已合并到文本摘录" });
+          return;
+        }
+        if (!selectedCanMergeText) {
+          notifyStatus("当前选区只能使用“合并到摘录”");
+          return;
+        }
         await runCommand("mergeContentSelection", {
           noteId: snapshot.noteId,
           selection: contentSelection,
@@ -1265,7 +1371,7 @@ function App() {
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
     { key: "html-to-markdown", label: "转为 Markdown", visible: selectedHasHtmlComments, onClick: openConvertHtmlToMarkdownDialog },
-    { key: "merge-text", label: "合并文本", visible: selectedCanMergeText, onClick: openMergeDialog },
+    { key: "merge-text", label: "合并文本", visible: selectedCanMergeAction, onClick: openMergeDialog },
     { key: "inline-merge", label: "生成行内链接", visible: selectedCanInlineMerge, onClick: openInlineMergeDialog },
     { key: "extract", label: "提取为子卡片", visible: hasSelection, onClick: openExtractDialog },
   ].filter((action) => action.visible);
@@ -1298,8 +1404,35 @@ function App() {
     }
   };
 
+  const openWorkflowManager = async () => {
+    try {
+      const [catalog, workflows] = await Promise.all([
+        MNBridge.send("getWorkflowActionCatalog"),
+        MNBridge.send("listWorkflows"),
+      ]);
+      setWorkflowManager({ catalog: Array.isArray(catalog) ? catalog : [], workflows: Array.isArray(workflows) ? workflows : [] });
+    } catch (error) {
+      notifyStatus(normalizeError(error));
+    }
+  };
+
+  const closeBatchEditor = async () => {
+    // Clear the overlay immediately, then ask the native controller to close
+    // and invalidate the batch token. This keeps WebView and native lifecycle
+    // state aligned even when the bridge response is delayed.
+    setBatchEditor(null);
+    try {
+      await MNBridge.send("closePanel", { reason: "batch-editor-close" });
+    } catch (error) {
+      notifyStatus(normalizeError(error));
+    }
+  };
+
   return (
     <div className="comment-manager">
+      {batchEditor ? (
+        <BatchCommentEditor key={batchEditor.token || "batch"} state={batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
+      ) : null}
       <header className="topbar">
         <div className="topbar-title">
           <h1>评论管理器</h1>
@@ -1326,6 +1459,7 @@ function App() {
           <Button className="secondary" disabled={!hasSelection} onClick={() => setContentSelection(makeContentSelection(false, []))}>清空</Button>
           <Button className={rangePicking ? "active" : "secondary"} disabled={!excerptPresent && comments.length === 0} onClick={startRangeSelection}>选范围</Button>
           <Button className="secondary" onClick={loadCurrentNote} disabled={loading}>刷新</Button>
+          <Button className="secondary" onClick={openWorkflowManager} title="管理已保存工作流">工作流</Button>
           <Button className="secondary" onClick={openActionButtonSettings} title="设置卡片操作按钮">设置</Button>
           <Button className="secondary" onClick={() => MNBridge.send("closePanel")}>关闭</Button>
         </div>
@@ -1388,6 +1522,11 @@ function App() {
                 </Button>
               ))}
             </div>
+            {filter === "link" ? (
+              <Button className="secondary wide" disabled={loading || !snapshot.noteId} onClick={openInvalidLinkCleanup}>
+                清除失效链接
+              </Button>
+            ) : null}
           </section>
         </aside>
 
@@ -1698,6 +1837,133 @@ function App() {
           onClose={() => setActionButtonSettings(null)}
         />
       ) : null}
+      {workflowManager ? (
+        <WorkflowManagerDialog
+          initialCatalog={workflowManager.catalog}
+          initialWorkflows={workflowManager.workflows}
+          onClose={() => setWorkflowManager(null)}
+          onStatus={notifyStatus}
+        />
+      ) : null}
+      {invalidLinkCleanup ? (
+        <InvalidLinkCleanupDialog
+          state={invalidLinkCleanup}
+          loading={loading}
+          onChoose={previewInvalidLinkCleanup}
+          onConfirm={confirmInvalidLinkCleanup}
+          onClose={() => setInvalidLinkCleanup(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function BatchCommentEditor({ state, onClose, onStatus }) {
+  const [selectorType, setSelectorType] = useState("all");
+  const [order, setOrder] = useState("forward");
+  const [includeExcerpt, setIncludeExcerpt] = useState(false);
+  const [mergeableOnly, setMergeableOnly] = useState(false);
+  const [action, setAction] = useState("convertSelectedHtmlToMarkdown");
+  const [destination, setDestination] = useState("comment");
+  const [recording, setRecording] = useState(false);
+  const [steps, setSteps] = useState([]);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editorMessage, setEditorMessage] = useState(state.error || "");
+  const typeMap = {
+    all: [], text: ["text"], markdown: ["markdown"], html: ["html"], image: ["image"], link: ["link"],
+  };
+  const selector = {
+    subject: "comments",
+    types: typeMap[selectorType] || [],
+    capabilities: mergeableOnly ? ["canMergeText"] : [],
+    includeExcerpt,
+    order,
+  };
+  const actionTitle = (id) => (state.catalog || []).find((item) => item.id === id)?.title || id;
+  const selectorTitle = (item) => {
+    const selectedTypes = item?.selector?.types || [];
+    const typeLabel = selectedTypes.length ? selectedTypes.join("、") : "全部";
+    const suffix = [
+      item?.selector?.capabilities?.includes("canMergeText") ? "可合并" : "",
+      item?.selector?.includeExcerpt === true ? "含摘录" : "",
+      item?.selector?.order === "reverse" ? "倒序" : "",
+    ].filter(Boolean);
+    return `选择：${typeLabel}${suffix.length ? `（${suffix.join(" · ")}）` : ""}`;
+  };
+  const report = (message) => {
+    const normalized = String(message || "");
+    setEditorMessage(normalized);
+    onStatus(normalized);
+  };
+
+  const appendRecorded = (nextSteps) => {
+    if (!recording) return;
+    setSteps((current) => {
+      // Only fold a repeated selector at the end of the draft. Selectors
+      // belonging to earlier actions must remain in the recorded sequence.
+      const compact = current.slice();
+      if (compact.length > 0 && compact[compact.length - 1].kind === "select") compact.pop();
+      return [...compact, ...nextSteps];
+    });
+  };
+
+  const execute = async () => {
+    setBusy(true);
+    try {
+      const workflow = {
+        id: `draft-${Date.now()}`,
+        name: "多卡临时操作",
+        scope: "batch",
+        steps: [
+          { kind: "select", selector },
+          { kind: "action", actionId: action, options: action === "mergeSelectedComments" ? { destination, markdown: true, separator: "\n\n" } : {} },
+        ],
+      };
+      const result = await MNBridge.send("runBatchWorkflow", { token: state.token, workflow });
+      // Failed or cancelled executions are deliberately not recorded. A
+      // partial result may have mutated some cards, but it is not a confirmed
+      // workflow step from the user's perspective.
+      if (result?.completed === true) {
+        appendRecorded(workflow.steps);
+        report(result.statusMessage || "批量操作已完成");
+      } else if (result?.cancelled) {
+        report("已取消执行，未写入录制草稿");
+      }
+    } catch (error) {
+      report(normalizeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveRecording = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || steps.length === 0) return report("请先录制至少一个动作并填写名称");
+    try {
+      const saved = await MNBridge.send("saveWorkflow", { name: trimmed, scope: "batch", steps });
+      report(`已保存工作流「${saved?.name || trimmed}」`);
+      setRecording(false);
+      setName("");
+    } catch (error) { report(normalizeError(error)); }
+  };
+
+  return (
+    <div className="dialog-backdrop batch-editor-backdrop" role="presentation">
+      <section className="dialog batch-editor" role="dialog" aria-modal="true" aria-labelledby="batch-editor-title">
+        <header className="batch-editor-header">
+          <div><h2 id="batch-editor-title">多卡评论编辑器</h2><p>{(state.noteIds || []).length} 张卡片 · 每张卡片分别处理</p></div>
+          <Button className={recording ? "danger" : "secondary"} onClick={() => setRecording((value) => !value)}>{recording ? "停止录制" : "开始录制"}</Button>
+        </header>
+        {editorMessage ? <p className="batch-editor-status" role="status">{editorMessage}</p> : null}
+        <div className="batch-editor-grid">
+          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCounts?.all || 0} 条评论 · 摘录：{card.excerptType}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
+          <section><h3>选择器</h3><label>评论类型<select value={selectorType} onChange={(event) => setSelectorType(event.target.value)}><option value="all">全部评论</option><option value="text">文本</option><option value="markdown">Markdown</option><option value="html">HTML</option><option value="image">图片/手写</option><option value="link">纯卡片链接</option></select></label><label>排列顺序<select value={order} onChange={(event) => setOrder(event.target.value)}><option value="forward">正序</option><option value="reverse">倒序</option></select></label><label className="dialog-check"><input type="checkbox" checked={mergeableOnly} onChange={(event) => setMergeableOnly(event.target.checked)} /><span>仅可合并文本</span></label><label className="dialog-check"><input type="checkbox" checked={includeExcerpt} onChange={(event) => setIncludeExcerpt(event.target.checked)} /><span>包含原生摘录</span></label></section>
+          <section><h3>动作</h3><select value={action} onChange={(event) => setAction(event.target.value)}>{(state.catalog || []).filter((item) => item.compatible !== false).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>{action === "mergeSelectedComments" ? <label>目标<select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="comment">合并为评论</option><option value="excerpt">合并到摘录</option></select></label> : null}<Button className="primary wide" disabled={busy} onClick={execute}>{busy ? "执行中…" : "执行当前操作"}</Button></section>
+        </div>
+        {recording ? <section className="batch-recording"><h3>录制草稿</h3><p>{steps.length ? steps.map((step, index) => <span key={index}>{index + 1}. {step.kind === "select" ? selectorTitle(step) : actionTitle(step.actionId)}</span>) : "尚未录制操作"}</p><div className="batch-recording-save"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="工作流名称" /><Button className="secondary" onClick={saveRecording}>保存工作流</Button></div></section> : null}
+        <div className="dialog-actions"><Button className="secondary" disabled={busy} onClick={onClose}>关闭</Button></div>
+      </section>
     </div>
   );
 }
@@ -1740,6 +2006,297 @@ function ActionButtonSettingsDialog({ settings, loading, onChange, onClose }) {
   );
 }
 
+const WORKFLOW_SELECTOR_TYPES = [
+  { value: "", label: "全部评论" },
+  { value: "text", label: "普通文本" },
+  { value: "markdown", label: "Markdown" },
+  { value: "html", label: "HTML" },
+  { value: "image", label: "图片 / 手写" },
+  { value: "link", label: "纯卡片链接" },
+];
+
+function selectorTypeValue(selector) {
+  const types = Array.isArray(selector?.types) ? selector.types : [];
+  if (types.length > 1) return "__mixed";
+  return types.length === 1 ? types[0] : "";
+}
+
+function SelectorEditor({ selector, onChange }) {
+  const value = selector && typeof selector === "object" ? selector : {};
+  const type = selectorTypeValue(value);
+  const capabilities = Array.isArray(value.capabilities) ? value.capabilities : [];
+  return (
+    <div className="workflow-visual-options">
+      <label><span>评论类型</span><select value={type} onChange={(event) => { if (event.target.value !== "__mixed") onChange({ ...value, types: event.target.value ? [event.target.value] : [] }); }}>
+        {type === "__mixed" ? <option value="__mixed">多种类型（保持现状）</option> : null}
+        {WORKFLOW_SELECTOR_TYPES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
+      </select></label>
+      <label><span>处理顺序</span><select value={value.order === "reverse" ? "reverse" : "forward"} onChange={(event) => onChange({ ...value, order: event.target.value })}>
+        <option value="forward">正序</option><option value="reverse">倒序</option>
+      </select></label>
+      <label className="workflow-inline-check"><input type="checkbox" checked={capabilities.includes("canMergeText")} onChange={(event) => onChange({ ...value, capabilities: event.target.checked ? Array.from(new Set([...capabilities, "canMergeText"])) : capabilities.filter((item) => item !== "canMergeText") })} /><span>仅选择可合并文本</span></label>
+      <label className="workflow-inline-check"><input type="checkbox" checked={value.includeExcerpt === true} onChange={(event) => onChange({ ...value, includeExcerpt: event.target.checked })} /><span>包含原生摘录</span></label>
+    </div>
+  );
+}
+
+function ActionOptionsEditor({ actionId, options, onChange }) {
+  const value = options && typeof options === "object" ? options : {};
+  if (actionId === "mergeSelectedComments") {
+    const separatorValue = String(value.separator === undefined ? "\n\n" : value.separator).replace(/\n/g, "\\n");
+    return (
+      <div className="workflow-visual-options">
+        <label><span>合并目标</span><select value={value.destination === "excerpt" ? "excerpt" : "comment"} onChange={(event) => onChange({ ...value, destination: event.target.value })}>
+          <option value="comment">生成一条评论</option><option value="excerpt">合并到原生摘录</option>
+        </select></label>
+        <label><span>分隔符（\n 表示换行）</span><input value={separatorValue} onChange={(event) => onChange({ ...value, separator: event.target.value.replace(/\\n/g, "\n") })} /></label>
+        <label className="workflow-inline-check"><input type="checkbox" checked={value.markdown !== false} onChange={(event) => onChange({ ...value, markdown: event.target.checked })} /><span>以 Markdown 保存</span></label>
+      </div>
+    );
+  }
+  if (["convertSelectedHtmlToMarkdown", "deleteSelectedComments", "reverseSelectedComments", "convertSelectedCardsToNoExcerpt", "keepFirstContent", "convertHtmlCommentsToMarkdown", "convertNotesToNoExcerpt", "removeAllLinkComments", "clearAllComments", "clearAllTitles"].includes(actionId)) {
+    return <small className="workflow-options-hint">此动作没有需要配置的参数。</small>;
+  }
+  return <small className="workflow-options-hint">此扩展动作没有可视化参数；已有配置会原样保留。</small>;
+}
+
+function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onStatus }) {
+  const catalog = Array.isArray(initialCatalog) ? initialCatalog : [];
+  const [workflows, setWorkflows] = useState(() => (Array.isArray(initialWorkflows) ? initialWorkflows : []));
+  const [selectedId, setSelectedId] = useState(() => initialWorkflows?.[0]?.id || "");
+  const [draft, setDraft] = useState(() => ({ id: "", name: "新工作流", scope: "batch", steps: [] }));
+  const [busy, setBusy] = useState(false);
+  const [newActionId, setNewActionId] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    const selected = workflows.find((workflow) => workflow.id === selectedId);
+    if (selected) {
+      const next = JSON.parse(JSON.stringify(selected));
+      setDraft(next);
+      return;
+    }
+    if (!selectedId) {
+      const next = { id: "", name: "新工作流", scope: "batch", steps: [] };
+      setDraft(next);
+    }
+  }, [selectedId, workflows]);
+
+  const selectWorkflow = (workflow) => {
+    setSelectedId(workflow?.id || "");
+  };
+
+  const createWorkflow = () => {
+    setSelectedId("");
+    const next = { id: "", name: "新工作流", scope: "batch", steps: [] };
+    setDraft(next);
+  };
+
+  const addStep = () => {
+    const action = catalog.find((item) => item.id === newActionId);
+    if (!action || action.compatible === false) return;
+    setDraft((current) => ({
+      ...current,
+      steps: [...(current.steps || []), { actionId: action.id, options: {} }],
+    }));
+    setNewActionId("");
+  };
+
+  const removeStep = (index) => {
+    setDraft((current) => ({
+      ...current,
+      steps: (current.steps || []).filter((_, stepIndex) => stepIndex !== index),
+    }));
+  };
+
+  const moveStep = (index, offset) => {
+    setDraft((current) => {
+      const steps = [...(current.steps || [])];
+      const target = index + offset;
+      if (target < 0 || target >= steps.length) return current;
+      const [step] = steps.splice(index, 1);
+      steps.splice(target, 0, step);
+      return { ...current, steps };
+    });
+  };
+
+  const updateStep = (index, patch) => {
+    setDraft((current) => ({
+      ...current,
+      steps: (current.steps || []).map((step, stepIndex) => stepIndex === index ? { ...step, ...patch } : step),
+    }));
+  };
+
+  const save = async () => {
+    if (!String(draft.name || "").trim()) {
+      onStatus?.("请填写工作流名称");
+      return;
+    }
+    if (!Array.isArray(draft.steps) || draft.steps.length === 0) {
+      onStatus?.("至少添加一个工作流动作");
+      return;
+    }
+    const normalizedSteps = [];
+    for (let index = 0; index < draft.steps.length; index += 1) {
+      const step = draft.steps[index];
+      normalizedSteps.push(draft.steps[index].kind === "select"
+        ? { kind: "select", selector: step.selector || {} }
+        : { kind: "action", actionId: step.actionId, options: step.options || {} });
+    }
+    setBusy(true);
+    try {
+      const saved = await MNBridge.send("saveWorkflow", {
+        id: draft.id || undefined,
+        name: String(draft.name || "").trim(),
+        scope: "batch",
+        steps: normalizedSteps,
+      });
+      const next = Array.isArray(saved) ? saved : saved ? [saved] : [];
+      const savedWorkflow = next[0] || saved;
+      if (savedWorkflow?.id) {
+        setWorkflows((current) => {
+          const exists = current.some((workflow) => workflow.id === savedWorkflow.id);
+          return exists
+            ? current.map((workflow) => workflow.id === savedWorkflow.id ? savedWorkflow : workflow)
+            : [...current, savedWorkflow];
+        });
+        setSelectedId(savedWorkflow.id);
+        setDraft(JSON.parse(JSON.stringify(savedWorkflow)));
+      }
+      onStatus?.(`工作流「${savedWorkflow?.name || draft.name}」已保存`);
+    } catch (error) {
+      onStatus?.(normalizeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeConfirmed = async () => {
+    if (!draft.id) return;
+    setConfirmDelete(false);
+    setBusy(true);
+    try {
+      const result = await MNBridge.send("deleteWorkflow", { id: draft.id });
+      const next = Array.isArray(result?.workflows) ? result.workflows : workflows.filter((workflow) => workflow.id !== draft.id);
+      setWorkflows(next);
+      setSelectedId(next[0]?.id || "");
+      onStatus?.("工作流已删除");
+    } catch (error) {
+      onStatus?.(normalizeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = () => {
+    if (!draft.id || busy) return;
+    setConfirmDelete(true);
+  };
+
+  const actionTitle = (actionId) => catalog.find((item) => item.id === actionId)?.title || actionId;
+  const actionDescriptor = (actionId) => catalog.find((item) => item.id === actionId) || null;
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <section className="dialog workflow-manager" role="dialog" aria-modal="true" aria-labelledby="workflow-manager-title" onClick={(event) => event.stopPropagation()}>
+        <div className="workflow-manager-header">
+          <div>
+            <h2 id="workflow-manager-title">工作流</h2>
+            <p>把多个评论批处理动作组合成一个菜单项。工作流会保存在 MarginNote 原生配置中。</p>
+          </div>
+          <Button className="ghost compact" onClick={onClose}>×</Button>
+        </div>
+        <div className="workflow-manager-body">
+          <aside className="workflow-list" aria-label="已保存工作流">
+            <Button className="primary wide" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
+            {workflows.length === 0 ? <p className="workflow-empty">暂无工作流</p> : null}
+            {workflows.map((workflow) => (
+              <button
+                type="button"
+                key={workflow.id}
+                className={selectedId === workflow.id ? "workflow-list-item active" : "workflow-list-item"}
+                onClick={() => selectWorkflow(workflow)}
+              >
+                <strong>{workflow.name}</strong>
+                <small>{workflow.steps?.length || 0} 步 · 使用 {workflow.usageCount || 0} 次{workflow.missingActions?.length ? " · 有缺失动作" : ""}</small>
+              </button>
+            ))}
+          </aside>
+          <div className="workflow-editor">
+            <label className="workflow-name-field">
+              <span>名称</span>
+              <input value={draft.name || ""} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+            </label>
+            <div className="workflow-step-header">
+              <h3>步骤</h3>
+              <span>{draft.steps?.length || 0} 步</span>
+            </div>
+            <div className="workflow-steps">
+              {(draft.steps || []).map((step, index) => (
+                <div className="workflow-step" key={`${step.kind || "action"}-${step.actionId || "select"}-${index}`}>
+                  <span className="workflow-step-index">{index + 1}</span>
+                  <div className="workflow-step-main">
+                    <span className="workflow-step-title">{step.kind === "select" ? `选择：${(step.selector?.types || []).join("、") || "全部评论"}` : actionTitle(step.actionId)}</span>
+                    {actionDescriptor(step.actionId) ? (
+                      <small className="workflow-step-meta">
+                        范围：{actionDescriptor(step.actionId).scope === "both" ? "单卡/多卡" : actionDescriptor(step.actionId).scope === "single" ? "单卡" : "多卡"}
+                        {actionDescriptor(step.actionId).dangerous ? " · 危险操作" : " · 只读/安全"}
+                      </small>
+                    ) : null}
+                    {step.kind === "select" ? (
+                      <SelectorEditor selector={step.selector || {}} onChange={(selector) => updateStep(index, { selector })} />
+                    ) : (
+                      <ActionOptionsEditor actionId={step.actionId} options={step.options || {}} onChange={(options) => updateStep(index, { options })} />
+                    )}
+                  </div>
+                  {step.kind === "select" || catalog.some((item) => item.id === step.actionId) ? null : <small className="workflow-missing">缺失动作</small>}
+                  <Button className="ghost compact" disabled={busy || index === 0} onClick={() => moveStep(index, -1)} title="上移">↑</Button>
+                  <Button className="ghost compact" disabled={busy || index === (draft.steps || []).length - 1} onClick={() => moveStep(index, 1)} title="下移">↓</Button>
+                  <Button className="ghost compact" disabled={busy} onClick={() => removeStep(index)} title="删除">×</Button>
+                </div>
+              ))}
+              {(draft.steps || []).length === 0 ? <p className="workflow-empty">从下方选择动作开始搭建</p> : null}
+            </div>
+            <div className="workflow-add-step">
+              <Button className="secondary" disabled={busy} onClick={() => {
+                setDraft((current) => ({ ...current, steps: [...(current.steps || []), { kind: "select", selector: { subject: "comments", types: [], includeExcerpt: false, order: "forward" } }] }));
+              }}>添加选择器</Button>
+              <select value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
+                <option value="">选择一个动作…</option>
+                {catalog.filter((item) => item.compatible !== false).map((action) => (
+                  <option value={action.id} key={action.id}>
+                    {action.title} · {action.scope === "both" ? "单卡/多卡" : action.scope === "single" ? "单卡" : "多卡"}{action.dangerous ? " · 危险" : " · 安全"}
+                  </option>
+                ))}
+              </select>
+              <Button className="secondary" disabled={busy || !newActionId} onClick={addStep}>添加步骤</Button>
+            </div>
+            {draft.missingActions?.length ? <p className="workflow-warning">缺失动作：{draft.missingActions.join(", ")}。安装对应 Patch 后才能运行。</p> : null}
+            <div className="dialog-actions workflow-actions">
+              {draft.id ? <Button className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
+              <span />
+              <Button className="secondary" disabled={busy} onClick={onClose}>关闭</Button>
+              <Button className="primary" disabled={busy || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>保存</Button>
+            </div>
+          </div>
+        </div>
+        {confirmDelete ? (
+          <div className="dialog-backdrop workflow-confirm-backdrop" role="presentation" onClick={() => !busy && setConfirmDelete(false)}>
+            <section className="dialog workflow-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="workflow-delete-title" onClick={(event) => event.stopPropagation()}>
+              <h2 id="workflow-delete-title">删除工作流？</h2>
+              <p>确定删除「{draft.name}」吗？删除后无法从工作流菜单中恢复。</p>
+              <div className="dialog-actions">
+                <Button className="secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>取消</Button>
+                <Button className="danger" disabled={busy} onClick={removeConfirmed}>{busy ? "删除中…" : "确认删除"}</Button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
 function Dialog({ dialog, loading, onClose }) {
   if (dialog.kind === "inlineMerge") {
     return <InlineMergeDialog dialog={dialog} loading={loading} onClose={onClose} />;
@@ -1748,6 +2305,41 @@ function Dialog({ dialog, loading, onClose }) {
     return <MarkdownLinkEditDialog dialog={dialog} loading={loading} onClose={onClose} />;
   }
   return <TextDialog dialog={dialog} loading={loading} onClose={onClose} />;
+}
+
+function InvalidLinkCleanupDialog({ state, loading, onChoose, onConfirm, onClose }) {
+  const preview = state?.preview;
+  const hasPreview = !!(state?.mode && preview);
+  const removable = Number(preview?.removableCardLinks || 0) + Number(preview?.removableMarkdownLinks || 0);
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="invalid-link-cleanup-title" onClick={(event) => event.stopPropagation()}>
+        <h2 id="invalid-link-cleanup-title">清除失效链接</h2>
+        {!hasPreview ? (
+          <>
+            <p>请选择要扫描的链接范围。</p>
+            <div className="stack">
+              <Button className="secondary" disabled={loading} onClick={() => onChoose("card")}>纯卡片链接</Button>
+              <Button className="secondary" disabled={loading} onClick={() => onChoose("markdown")}>Markdown 行内链接</Button>
+              <Button className="secondary" disabled={loading} onClick={() => onChoose("all")}>全部失效链接</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>{removable > 0
+              ? `扫描到 ${preview.affectedCards || 0} 张卡片的失效链接：卡片链接 ${preview.removableCardLinks || 0} 条，Markdown 行内链接 ${preview.removableMarkdownLinks || 0} 条。`
+              : "当前卡片没有失效链接。"}</p>
+            <div className="dialog-actions">
+              <Button className="secondary" disabled={loading} onClick={() => onChoose("")}>返回选择</Button>
+              <Button className="secondary" disabled={loading} onClick={onClose}>取消</Button>
+              <Button className="danger" disabled={loading || removable <= 0} onClick={onConfirm}>确认清除</Button>
+            </div>
+          </>
+        )}
+        {!hasPreview ? <div className="dialog-actions"><Button className="secondary" disabled={loading} onClick={onClose}>取消</Button></div> : null}
+      </section>
+    </div>
+  );
 }
 
 function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart, onLocateFinish, onLocateCancel, onEdit }) {
@@ -1824,6 +2416,14 @@ function TextDialog({ dialog, loading, onClose }) {
   const [value, setValue] = useState(dialog.inputValue || "");
   const [checked, setChecked] = useState(dialog.checkboxDefault === true);
 
+  const handleCheckboxChange = (nextChecked) => {
+    setChecked(nextChecked);
+    if (typeof dialog.onCheckChange === "function") {
+      const nextValue = dialog.onCheckChange(nextChecked, value);
+      if (typeof nextValue === "string") setValue(nextValue);
+    }
+  };
+
   useEffect(() => {
     const handler = (event) => {
       if (event.key === "Escape") onClose();
@@ -1859,7 +2459,8 @@ function TextDialog({ dialog, loading, onClose }) {
             <input
               type="checkbox"
               checked={checked}
-              onChange={(event) => setChecked(event.target.checked)}
+              disabled={loading || dialog.checkboxDisabled === true}
+              onChange={(event) => handleCheckboxChange(event.target.checked)}
             />
             <span>
               <strong>{dialog.checkboxLabel}</strong>

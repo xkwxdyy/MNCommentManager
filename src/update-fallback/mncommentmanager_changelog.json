@@ -1,8 +1,31 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-08-21T00:00:00+08:00",
+  "updatedAt": "2026-09-04T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.20",
+      "channel": "stable",
+      "date": "2026-09-04",
+      "items": [
+        {
+          "zh": "新增「合并到摘录」功能，可将多条评论直接合并到卡片摘录；图片摘录会自动转为文本摘录并保留原图；支持设置为默认行为。",
+          "en": "Added \"merge to excerpt\" feature to combine multiple comments into the card excerpt; image excerpts automatically convert to text excerpts while keeping the original image; can be set as default behavior."
+        },
+        {
+          "zh": "新增评论工作流系统，支持保存和复用批量评论处理流程（选择评论 → 编辑 → 合并/删除等），可在批量菜单和单卡菜单中快速调用。",
+          "en": "Added comment workflow system to save and reuse batch comment processing flows (select comments → edit → merge/delete etc.), accessible from both batch and single-card menus."
+        },
+        {
+          "zh": "新增失效链接清理功能，可分别清理失效的卡片链接、Markdown 行内链接或全部清理，操作前预览影响范围，可撤销。",
+          "en": "Added invalid link cleanup to remove broken card links, Markdown inline links, or both; shows preview of affected cards before execution, and is undoable."
+        },
+        {
+          "zh": "批量处理按钮支持长按（0.45 秒）打开扩展菜单，未来可用于快速访问保存的工作流。",
+          "en": "Batch action button now supports long-press (0.45s) to open an extended menu, for future quick access to saved workflows."
+        }
+      ]
+    },
     {
       "version": "0.1.19",
       "channel": "stable",
