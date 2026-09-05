@@ -1350,6 +1350,7 @@ button.pressing {
 .batch-recording p { display: grid; gap: 5px; margin: 0 0 12px; font-size: 12px; }
 .batch-recording-save { display: flex; gap: 8px; }
 .batch-recording-save input { flex: 1; }
+.batch-preview-list { display: grid; gap: 4px; margin-top: 8px; padding: 7px 8px; border-radius: 6px; background: var(--accent-blue-soft, #eef4ff); color: var(--text-secondary, #4b5563); font-size: 11px; }
 @media (max-width: 720px) { .batch-editor-grid { grid-template-columns: 1fr; } .batch-recording-save { flex-direction: column; } }
 
 .workflow-manager-header {
@@ -1430,6 +1431,7 @@ button.pressing {
 }
 
 .workflow-name-field input,
+.workflow-name-field select,
 .workflow-add-step select {
   width: 100%;
   min-height: 36px;
@@ -1441,6 +1443,7 @@ button.pressing {
 }
 
 .workflow-name-field input:focus,
+.workflow-name-field select:focus,
 .workflow-add-step select:focus {
   border-color: var(--accent-blue);
   box-shadow: 0 0 0 3px var(--focus);
@@ -1537,6 +1540,19 @@ button.pressing {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: var(--bg-app);
+}
+
+.workflow-position-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+}
+
+.workflow-input-error {
+  display: block;
+  grid-column: 1 / -1;
+  color: var(--accent-orange) !important;
+  font-size: 11px;
 }
 
 .workflow-inline-check {

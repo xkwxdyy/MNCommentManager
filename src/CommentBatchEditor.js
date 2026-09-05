@@ -1,16 +1,46 @@
 var __MN_COMMENT_BATCH_EDITOR__ = (function () {
   function text(value) { return value === undefined || value === null ? "" : String(value); }
 
+  function parseSafeInteger(value) {
+    if (typeof value === "number") return Number.isSafeInteger(value) ? value : null;
+    if (typeof value !== "string" || !/^-?\d+$/.test(value.trim())) return null;
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+
+  function normalizePosition(position) {
+    if (position === undefined || position === null || position === "") return null;
+    if (!position || typeof position !== "object" || Array.isArray(position)) {
+      return { invalid: true, error: "评论位置必须是单个索引或范围" };
+    }
+    const mode = text(position.mode).trim().toLowerCase();
+    if (mode === "all") return null;
+    if (mode === "single") {
+      const index = parseSafeInteger(position.index);
+      if (index === null) return { invalid: true, error: "评论索引必须是整数" };
+      return { mode: "single", index };
+    }
+    if (mode === "range") {
+      const start = parseSafeInteger(position.start);
+      const end = parseSafeInteger(position.end);
+      if (start === null || end === null) return { invalid: true, error: "评论范围的起点和终点必须是整数" };
+      return { mode: "range", start, end };
+    }
+    return { invalid: true, error: "评论位置模式只能是 single 或 range" };
+  }
+
   function normalizeSelector(selector) {
     const source = selector && typeof selector === "object" ? selector : {};
     const types = Array.isArray(source.types) ? source.types.map(text).filter(Boolean) : [];
     const capabilities = Array.isArray(source.capabilities) ? source.capabilities.map(text).filter(Boolean) : [];
+    const position = normalizePosition(source.position);
     return {
       subject: "comments",
       types,
       capabilities,
       includeExcerpt: source.includeExcerpt === true,
       order: text(source.order).toLowerCase() === "reverse" ? "reverse" : "forward",
+      position,
     };
   }
 
@@ -32,13 +62,57 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
     return normalized.capabilities.every((capability) => comment.capabilities && comment.capabilities[capability] === true);
   }
 
+  function resolveSelectionFromSnapshot(snapshot, selector) {
+    const normalized = normalizeSelector(selector);
+    if (normalized.position && normalized.position.invalid) throw new Error(normalized.position.error);
+    const comments = Array.isArray(snapshot.comments) ? snapshot.comments : [];
+    const count = comments.length;
+    let positionSet = null;
+    let positionValid = true;
+    if (normalized.position && normalized.position.mode === "single") {
+      const resolved = normalized.position.index < 0 ? count + normalized.position.index : normalized.position.index;
+      positionValid = resolved >= 0 && resolved < count;
+      positionSet = positionValid ? new Set([resolved]) : new Set();
+    } else if (normalized.position && normalized.position.mode === "range") {
+      const rawStart = normalized.position.start;
+      const rawEnd = normalized.position.end;
+      const start = rawStart < 0 ? count + rawStart : rawStart;
+      const end = rawEnd < 0 ? count + rawEnd : rawEnd;
+      // Do not clamp a range: a missing endpoint means this card is skipped.
+      positionValid = start >= 0 && start < count && end >= 0 && end < count;
+      if (positionValid) {
+        const low = Math.min(start, end);
+        const high = Math.max(start, end);
+        positionSet = new Set();
+        for (let index = low; index <= high; index += 1) positionSet.add(index);
+      } else {
+        positionSet = new Set();
+      }
+    }
+    const indices = comments
+      .filter((comment, position) => (positionSet === null || positionSet.has(position)) && matches(comment, normalized))
+      .map((comment) => comment.index);
+    return {
+      selector: normalized,
+      indices: normalized.order === "reverse" ? indices.reverse() : indices,
+      positionValid: normalized.position === null ? true : positionValid,
+    };
+  }
+
   function selectCommentIndices(note, selector) {
     const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
-    const normalized = normalizeSelector(selector);
-    const indices = (snapshot.comments || [])
-      .filter((comment) => matches(comment, normalized))
-      .map((comment) => comment.index);
-    return normalized.order === "reverse" ? indices.reverse() : indices;
+    return resolveSelectionFromSnapshot(snapshot, selector).indices;
+  }
+
+  function previewSelection(note, selector) {
+    const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+    const result = resolveSelectionFromSnapshot(snapshot, selector);
+    return {
+      indices: result.indices,
+      matched: result.indices.length,
+      positionValid: result.positionValid,
+      positionOutOfRange: result.positionValid === false,
+    };
   }
 
   function buildOverview(notes) {
@@ -59,6 +133,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
         noteId: text(snapshot.noteId || note.noteId),
         title: text(snapshot.noteTitle || "未命名卡片"),
         excerptType: text(snapshot.excerpt && snapshot.excerpt.type || "none"),
+        commentCount: Array.isArray(snapshot.comments) ? snapshot.comments.length : 0,
         commentCounts: counts,
       };
     });
@@ -175,6 +250,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
   return {
     normalizeSelector,
     selectCommentIndices,
+    previewSelection,
     buildOverview,
     mergeSelected,
     convertHtml,

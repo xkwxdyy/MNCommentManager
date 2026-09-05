@@ -42,6 +42,10 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     return value === undefined || value === null ? "" : String(value);
   }
 
+  function debug(event, details) {
+    try { console.log(`[MN Comment Manager][workflow-runner] ${event}`, details || ""); } catch (_) {}
+  }
+
   function isPromiseLike(value) {
     return !!value && typeof value.then === "function";
   }
@@ -65,7 +69,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "convertSelectedHtmlToMarkdown",
       title: "转换选中的 HTML 评论",
-      scope: "batch",
+      scope: "both",
       input: "selection",
       dangerous: true,
       run(context) {
@@ -75,7 +79,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "mergeSelectedComments",
       title: "合并选中的评论",
-      scope: "batch",
+      scope: "both",
       input: "selection",
       dangerous: true,
       run(context, options) {
@@ -85,7 +89,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "deleteSelectedComments",
       title: "删除选中的评论",
-      scope: "batch",
+      scope: "both",
       input: "selection",
       dangerous: true,
       run(context) {
@@ -95,7 +99,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "reverseSelectedComments",
       title: "反转选中评论排列",
-      scope: "batch",
+      scope: "both",
       input: "selection",
       dangerous: true,
       run(context) {
@@ -105,7 +109,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "convertSelectedCardsToNoExcerpt",
       title: "选中卡片转为非摘录版",
-      scope: "batch",
+      scope: "both",
       input: "notes",
       dangerous: true,
       run(context) {
@@ -148,6 +152,43 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     };
   }
 
+  function getSingleContext(addon, token, noteId) {
+    const source = addon && addon.dynamicCommentContext;
+    debug("single-context.read", { hasAddon: !!addon, hasSource: !!source, hasNote: !!(source && source.note), sourceNoteId: source && source.noteId, requestedNoteId: noteId, tokenMatch: !token || !source || !source.token || String(token) === String(source.token) });
+    if (!source || !source.note || !source.noteId) {
+      throw new Error("未读取到当前卡片，请重新打开单卡菜单");
+    }
+    if (token && source.token && String(token) !== String(source.token)) {
+      throw new Error("单卡已变化，请重新打开工作流菜单");
+    }
+    if (noteId && String(noteId) !== String(source.noteId)) {
+      throw new Error("单卡已变化，请重新打开工作流菜单");
+    }
+    if (typeof __MN_COMMENT_DATA__ !== "undefined" && __MN_COMMENT_DATA__ &&
+      typeof __MN_COMMENT_DATA__.getWrappedNoteById === "function" &&
+      !__MN_COMMENT_DATA__.getWrappedNoteById(source.noteId)) {
+      throw new Error(`卡片已不存在，请重新打开菜单：${source.noteId}`);
+    }
+    const note = source.note;
+    const id = text(note.noteId || source.noteId).trim();
+    if (!id) throw new Error("当前卡片无效，请重新打开菜单");
+    return {
+      mode: "single",
+      token: source.token || "",
+      addon,
+      notes: [note],
+      noteIds: [id],
+      noteId: id,
+      lanes: [{
+        originNoteId: id,
+        currentNoteId: id,
+        parentNoteId: text(note && note.parentNote && note.parentNote.noteId),
+        originalSiblingIndex: Number(note && note.indexInBrotherNotes),
+        status: "ready",
+      }],
+    };
+  }
+
   function refreshContextNotes(context, result) {
     if (!context || !result || !result.convertedNoteMap || typeof result.convertedNoteMap !== "object") return;
     const map = result.convertedNoteMap;
@@ -164,6 +205,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     });
     context.notes = nextNotes;
     context.noteIds = nextNotes.map((note) => text(note && note.noteId).trim()).filter(Boolean);
+    if (context.mode === "single") context.noteId = context.noteIds[0] || context.noteId;
     if (Array.isArray(context.lanes)) {
       context.lanes.forEach((lane) => {
         const targetId = text(map[lane.currentNoteId] || map[lane.originNoteId]).trim();
@@ -173,12 +215,26 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     if (context.addon && context.addon.batchCommentContext) {
       context.addon.batchCommentContext.notes = nextNotes;
     }
+    if (context.addon && context.mode === "single" && context.addon.dynamicCommentContext) {
+      context.addon.dynamicCommentContext.note = nextNotes[0];
+      context.addon.dynamicCommentContext.noteId = text(nextNotes[0] && nextNotes[0].noteId).trim();
+    }
   }
 
   function isLiveBatchContext(context) {
     const live = context && context.addon && context.addon.batchCommentContext;
     return !!(live && String(live.token || "") === String(context.token || "") &&
       Array.isArray(live.notes) && live.notes.length > 1);
+  }
+
+  function isLiveSingleContext(context) {
+    const live = context && context.addon && context.addon.dynamicCommentContext;
+    return !!(live && String(live.token || "") === String(context.token || "") &&
+      String(live.noteId || "") === String(context.noteId || "") && live.note);
+  }
+
+  function isLiveContext(context) {
+    return context && context.mode === "single" ? isLiveSingleContext(context) : isLiveBatchContext(context);
   }
 
   function workflowDanger(workflow) {
@@ -224,7 +280,11 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     const actions = [];
     (workflow.steps || []).forEach((step) => {
       if (step && String(step.kind || "action").toLowerCase() === "select") {
-        actions.push({ kind: "select", selector: __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector) });
+        const selector = __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector);
+        if (selector.position && selector.position.invalid) {
+          throw new Error(`选择步骤无效：${selector.position.error}`);
+        }
+        actions.push({ kind: "select", selector });
         return;
       }
       const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
@@ -269,7 +329,9 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
         const action = actions[index];
         const step = workflow.steps[index];
         try {
-          if (!isLiveBatchContext(context)) throw new Error("多卡上下文已关闭或发生变化，请重新选择卡片");
+          if (!isLiveContext(context)) throw new Error(context.mode === "single"
+            ? "单卡上下文已关闭或发生变化，请重新打开菜单"
+            : "多卡上下文已关闭或发生变化，请重新选择卡片");
           if (action.kind === "select") {
             context.selector = action.selector;
             context.selection = context.notes.map((note) => ({
@@ -323,12 +385,21 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       ? workflowOrId
       : __MN_COMMENT_WORKFLOW_STORE__.get(workflowOrId);
     if (!workflow) throw new Error("工作流不存在或已被删除");
-    const scope = text(workflow.scope).trim().toLowerCase() || "batch";
-    if (scope !== "batch" && scope !== "both") {
-      throw new Error(`工作流「${text(workflow.name || "未命名")}」仅支持单卡，请在工作流管理器中改为多卡后再执行`);
+    if (Array.isArray(workflow.invalidSelectors) && workflow.invalidSelectors.length > 0) {
+      throw new Error(`工作流包含无效选择器：${workflow.invalidSelectors[0].message || "请在工作流管理器中修复"}`);
     }
-
-    const context = getBatchContext(addon, rawParam.token);
+    const scope = text(workflow.scope).trim().toLowerCase() || "batch";
+    debug("run.request", { workflowId: workflow.id, scope, requestedMode: rawParam.mode, token: rawParam.token, noteId: rawParam.noteId, hasBatchContext: !!(addon && addon.batchCommentContext), hasSingleContext: !!(addon && addon.dynamicCommentContext) });
+    if (scope !== "batch" && scope !== "single" && scope !== "both") {
+      throw new Error(`工作流「${text(workflow.name || "未命名")}」的支持范围无效`);
+    }
+    const preferSingle = rawParam.mode === "single" || (scope === "single" && !(addon && addon.batchCommentContext));
+    const context = preferSingle
+      ? getSingleContext(addon, rawParam.token, rawParam.noteId)
+      : getBatchContext(addon, rawParam.token);
+    debug("run.context", { mode: context.mode, noteIds: context.noteIds, token: context.token });
+    if (scope === "single" && context.mode !== "single") throw new Error("该工作流仅支持单卡，请从单卡菜单执行");
+    if (scope === "batch" && context.mode !== "batch") throw new Error("该工作流仅支持多卡，请从多选菜单执行");
     const actions = validateActions(workflow, context);
     if (!(await confirmWorkflow(workflow, context))) {
       if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") MNUtil.showHUD("已取消执行工作流");
@@ -337,13 +408,14 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
 
     const execution = executeSync(workflow, context, actions);
     const completed = !execution.failedStep && execution.stepResults.length === workflow.steps.length;
+    const targetLabel = context.mode === "single" ? "当前卡片" : `${context.notes.length} 张卡片`;
     const summary = completed
-      ? `工作流「${workflow.name}」已完成（${workflow.steps.length} 步，${context.notes.length} 张卡片）`
+      ? `工作流「${workflow.name}」已完成（${workflow.steps.length} 步，${targetLabel}）`
       : `工作流「${workflow.name}」已在第 ${(execution.failedStep ? execution.failedStep.index : execution.stepResults.length) + 1} 步停止`;
     const persistedWorkflow = workflow.id && typeof __MN_COMMENT_WORKFLOW_STORE__.get === "function"
       ? __MN_COMMENT_WORKFLOW_STORE__.get(workflow.id)
       : null;
-    if (persistedWorkflow && isLiveBatchContext(context) && execution.stepResults.length > 0 && typeof __MN_COMMENT_WORKFLOW_STORE__.recordUsage === "function") {
+    if (persistedWorkflow && isLiveContext(context) && execution.stepResults.length > 0 && typeof __MN_COMMENT_WORKFLOW_STORE__.recordUsage === "function") {
       try { __MN_COMMENT_WORKFLOW_STORE__.recordUsage(workflow.id); } catch (error) { console.log(`[MN Comment Manager] workflow usage write failed: ${error}`); }
     }
     if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") MNUtil.showHUD(summary);
@@ -363,6 +435,8 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
   return {
     run,
     getBatchContext,
+    getSingleContext,
+    isLiveContext,
     builtinActions: BUILTIN_ACTIONS.slice(),
   };
 })();

@@ -494,6 +494,26 @@ function createMNCommentManagerAddon(mainPath) {
     runSingleRemoveAllLinks: async function (sender) { await runSingleMenuAction(self, sender, "runRemoveAllLinks", "去掉链接失败"); },
     openSingleInvalidLinkMenu: function () { return __MN_DYNAMIC_COMMENT_ACTIONS__.openSingleInvalidLinkMenu(self); },
     backSingleInvalidLinkMenu: function () { return __MN_DYNAMIC_COMMENT_ACTIONS__.backSingleInvalidLinkMenu(self); },
+    openSingleWorkflows: function (sender) { return __MN_DYNAMIC_COMMENT_ACTIONS__.openSingleWorkflows(self, sender); },
+    backSingleWorkflowMenu: function () { return __MN_DYNAMIC_COMMENT_ACTIONS__.backSingleWorkflowMenu(self); },
+    showSingleWorkflowMissing: function (sender) { return __MN_DYNAMIC_COMMENT_ACTIONS__.showSingleWorkflowMissing(self, sender); },
+    runSingleWorkflow: async function (sender) {
+      try {
+        console.log("[MN Comment Manager][single-workflow] selector.runSingleWorkflow", {
+          senderType: typeof sender,
+          hasParam: !!(sender && sender.param),
+          paramKeys: sender && sender.param && typeof sender.param === "object" ? Object.keys(sender.param) : [],
+          dynamicNoteId: self.dynamicCommentContext && self.dynamicCommentContext.noteId,
+          dynamicToken: self.dynamicCommentContext && self.dynamicCommentContext.token,
+        });
+        return await __MN_DYNAMIC_COMMENT_ACTIONS__.runSingleWorkflow(self, sender);
+      } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        MNUtil.showHUD(`工作流执行失败: ${message}`);
+        console.log(`[MN Comment Manager] single workflow failed: ${message}`);
+        return false;
+      }
+    },
     runSingleClearInvalidLinks: async function (sender) { await runSingleMenuAction(self, sender, "runClearInvalidLinks", "清除失效链接失败"); },
     runSingleClearAllComments: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllComments", "清空评论失败"); },
     runSingleClearAllTitles: async function (sender) { await runSingleMenuAction(self, sender, "runClearAllTitles", "清空标题失败"); },

@@ -4,11 +4,11 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "/Users/xiakangwei/Nutstore/Github/repository/MN-Addon/MNAddon-develop/marginnote-addon-docs/mcp/cli.mjs",
+        "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/marginnote-addon-docs/mcp/cli.mjs",
         "--stdio",
         "--silent",
         "--root",
-        "/Users/xiakangwei/Nutstore/Github/repository/MN-Addon/MNAddon-develop/marginnote-addon-docs"
+        "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/marginnote-addon-docs"
       ]
     }
   }

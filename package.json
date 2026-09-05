@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "private": true,
   "scripts": {
     "build": "node scripts/build-release.js",
@@ -22,10 +22,12 @@
     "test:workflow-registry": "node scripts/test-comment-workflow-registry.js",
     "test:workflow-runner": "node scripts/test-comment-workflow-runner.js",
     "test:workflow-menu": "node scripts/test-comment-workflow-menu.js",
+    "test:single-workflow-menu": "node scripts/test-single-workflow-menu.js",
+    "test:workflow-preview": "node scripts/test-comment-workflow-preview.js",
     "test:batch-editor": "node scripts/test-comment-batch-editor.js",
     "test:undo-helper": "node scripts/test-undo-helper.js",
     "test:runtime-isolation": "node scripts/test-runtime-dependency-isolation.js",
-    "version": "0.1.20",
+    "version": "0.1.21",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major"

@@ -1,8 +1,27 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-09-04T00:00:00+08:00",
+  "updatedAt": "2026-09-05T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.21",
+      "channel": "stable",
+      "date": "2026-09-05",
+      "items": [
+        {
+          "zh": "单卡菜单新增「工作流」子菜单，可直接在单张卡片上执行保存的工作流，无需进入多选模式；支持范围设置（单卡/多卡/两者），菜单会按范围筛选。",
+          "en": "Single-card menu now includes a \"Workflows\" submenu to run saved workflows directly on one card without multi-select mode; supports scope settings (single/batch/both) with menu filtering by scope."
+        },
+        {
+          "zh": "选择器新增位置过滤功能，支持单个索引（如 0 第一条、-1 最后一条）或范围（如 0 到 -1），可精准选择特定位置的评论；保存前自动验证有效性，批量编辑器支持预览匹配结果。",
+          "en": "Selectors now support position filtering with single index (e.g., 0 for first, -1 for last) or range (e.g., 0 to -1), allowing precise targeting of comments at specific positions; validation before save, batch editor shows preview of matches per card."
+        },
+        {
+          "zh": "所有内置动作（HTML 转换、评论合并/删除/反转、转为非摘录版）的支持范围从「仅多卡」扩展为「单卡/多卡」，可在单卡工作流中使用。",
+          "en": "All built-in actions (HTML conversion, comment merge/delete/reverse, convert to no-excerpt) now support both single and batch modes, enabling use in single-card workflows."
+        }
+      ]
+    },
     {
       "version": "0.1.20",
       "channel": "stable",

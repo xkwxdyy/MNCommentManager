@@ -1861,6 +1861,10 @@ function App() {
 function BatchCommentEditor({ state, onClose, onStatus }) {
   const [selectorType, setSelectorType] = useState("all");
   const [order, setOrder] = useState("forward");
+  const [positionMode, setPositionMode] = useState("all");
+  const [positionIndex, setPositionIndex] = useState("0");
+  const [positionStart, setPositionStart] = useState("0");
+  const [positionEnd, setPositionEnd] = useState("-1");
   const [includeExcerpt, setIncludeExcerpt] = useState(false);
   const [mergeableOnly, setMergeableOnly] = useState(false);
   const [action, setAction] = useState("convertSelectedHtmlToMarkdown");
@@ -1869,17 +1873,24 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   const [steps, setSteps] = useState([]);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null);
   const [editorMessage, setEditorMessage] = useState(state.error || "");
   const typeMap = {
     all: [], text: ["text"], markdown: ["markdown"], html: ["html"], image: ["image"], link: ["link"],
   };
-  const selector = {
+  const selectorBase = {
     subject: "comments",
     types: typeMap[selectorType] || [],
     capabilities: mergeableOnly ? ["canMergeText"] : [],
     includeExcerpt,
     order,
   };
+  const selector = selectorWithPosition(selectorBase, positionMode, {
+    index: positionIndex,
+    start: positionStart,
+    end: positionEnd,
+  });
+  const selectorError = selectorPositionError(selector.position);
   const actionTitle = (id) => (state.catalog || []).find((item) => item.id === id)?.title || id;
   const selectorTitle = (item) => {
     const selectedTypes = item?.selector?.types || [];
@@ -1888,6 +1899,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
       item?.selector?.capabilities?.includes("canMergeText") ? "可合并" : "",
       item?.selector?.includeExcerpt === true ? "含摘录" : "",
       item?.selector?.order === "reverse" ? "倒序" : "",
+      item?.selector?.position ? selectorPositionLabel(item.selector.position) : "",
     ].filter(Boolean);
     return `选择：${typeLabel}${suffix.length ? `（${suffix.join(" · ")}）` : ""}`;
   };
@@ -1909,6 +1921,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   };
 
   const execute = async () => {
+    if (selectorError) return report(selectorError);
     setBusy(true);
     try {
       const workflow = {
@@ -1937,6 +1950,25 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
     }
   };
 
+  const previewSelection = async () => {
+    if (selectorError) return report(selectorError);
+    setBusy(true);
+    try {
+      const workflow = {
+        name: "多卡临时预览",
+        scope: "batch",
+        steps: [{ kind: "select", selector }],
+      };
+      const result = await MNBridge.send("previewBatchWorkflow", { token: state.token, workflow });
+      setPreview(result);
+      report(`预览：共匹配 ${result?.steps?.[0]?.totalMatched || 0} 条评论`);
+    } catch (error) {
+      report(normalizeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveRecording = async () => {
     const trimmed = name.trim();
     if (!trimmed || steps.length === 0) return report("请先录制至少一个动作并填写名称");
@@ -1957,9 +1989,9 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         </header>
         {editorMessage ? <p className="batch-editor-status" role="status">{editorMessage}</p> : null}
         <div className="batch-editor-grid">
-          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCounts?.all || 0} 条评论 · 摘录：{card.excerptType}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
-          <section><h3>选择器</h3><label>评论类型<select value={selectorType} onChange={(event) => setSelectorType(event.target.value)}><option value="all">全部评论</option><option value="text">文本</option><option value="markdown">Markdown</option><option value="html">HTML</option><option value="image">图片/手写</option><option value="link">纯卡片链接</option></select></label><label>排列顺序<select value={order} onChange={(event) => setOrder(event.target.value)}><option value="forward">正序</option><option value="reverse">倒序</option></select></label><label className="dialog-check"><input type="checkbox" checked={mergeableOnly} onChange={(event) => setMergeableOnly(event.target.checked)} /><span>仅可合并文本</span></label><label className="dialog-check"><input type="checkbox" checked={includeExcerpt} onChange={(event) => setIncludeExcerpt(event.target.checked)} /><span>包含原生摘录</span></label></section>
-          <section><h3>动作</h3><select value={action} onChange={(event) => setAction(event.target.value)}>{(state.catalog || []).filter((item) => item.compatible !== false).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>{action === "mergeSelectedComments" ? <label>目标<select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="comment">合并为评论</option><option value="excerpt">合并到摘录</option></select></label> : null}<Button className="primary wide" disabled={busy} onClick={execute}>{busy ? "执行中…" : "执行当前操作"}</Button></section>
+          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 摘录：{card.excerptType}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
+          <section><h3>选择器</h3><label>评论类型<select value={selectorType} onChange={(event) => { setSelectorType(event.target.value); setPreview(null); }}><option value="all">全部评论</option><option value="text">文本</option><option value="markdown">Markdown</option><option value="html">HTML</option><option value="image">图片/手写</option><option value="link">纯卡片链接</option></select></label><label>位置<select value={positionMode} onChange={(event) => { setPositionMode(event.target.value); setPreview(null); }}>{WORKFLOW_POSITION_MODES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>{positionMode === "single" ? <label>评论索引<input inputMode="numeric" value={positionIndex} onChange={(event) => { setPositionIndex(event.target.value); setPreview(null); }} placeholder="例如 0 或 -1" /></label> : null}{positionMode === "range" ? <div className="workflow-position-range"><label>范围起点<input inputMode="numeric" value={positionStart} onChange={(event) => { setPositionStart(event.target.value); setPreview(null); }} /></label><label>范围终点<input inputMode="numeric" value={positionEnd} onChange={(event) => { setPositionEnd(event.target.value); setPreview(null); }} /></label></div> : null}<small className={selectorError ? "workflow-input-error" : "workflow-options-hint"}>{selectorError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small><label>排列顺序<select value={order} onChange={(event) => { setOrder(event.target.value); setPreview(null); }}><option value="forward">正序</option><option value="reverse">倒序</option></select></label><label className="dialog-check"><input type="checkbox" checked={mergeableOnly} onChange={(event) => { setMergeableOnly(event.target.checked); setPreview(null); }} /><span>仅可合并文本</span></label><label className="dialog-check"><input type="checkbox" checked={includeExcerpt} onChange={(event) => { setIncludeExcerpt(event.target.checked); setPreview(null); }} /><span>包含原生摘录</span></label>{preview?.steps?.[0]?.perCard ? <div className="batch-preview-list">{preview.steps[0].perCard.map((item, index) => <span key={index}>卡片 {index + 1}：{item.positionOutOfRange ? "位置不存在，跳过" : `匹配 ${item.matched} 条`}</span>)}</div> : null}<Button className="secondary wide" disabled={busy || !!selectorError} onClick={previewSelection}>预览匹配</Button></section>
+          <section><h3>动作</h3><select value={action} onChange={(event) => setAction(event.target.value)}>{(state.catalog || []).filter((item) => item.compatible !== false).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>{action === "mergeSelectedComments" ? <label>目标<select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="comment">合并为评论</option><option value="excerpt">合并到摘录</option></select></label> : null}<Button className="primary wide" disabled={busy || !!selectorError} onClick={execute}>{busy ? "执行中…" : "执行当前操作"}</Button></section>
         </div>
         {recording ? <section className="batch-recording"><h3>录制草稿</h3><p>{steps.length ? steps.map((step, index) => <span key={index}>{index + 1}. {step.kind === "select" ? selectorTitle(step) : actionTitle(step.actionId)}</span>) : "尚未录制操作"}</p><div className="batch-recording-save"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="工作流名称" /><Button className="secondary" onClick={saveRecording}>保存工作流</Button></div></section> : null}
         <div className="dialog-actions"><Button className="secondary" disabled={busy} onClick={onClose}>关闭</Button></div>
@@ -2015,6 +2047,45 @@ const WORKFLOW_SELECTOR_TYPES = [
   { value: "link", label: "纯卡片链接" },
 ];
 
+const WORKFLOW_POSITION_MODES = [
+  { value: "all", label: "全部位置" },
+  { value: "single", label: "单个位置" },
+  { value: "range", label: "位置范围" },
+];
+
+function workflowIntegerError(value, label) {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? "" : `${label}必须是整数`;
+  if (typeof value !== "string" || !/^-?\d+$/.test(value.trim())) return `${label}必须是整数`;
+  return Number.isSafeInteger(Number(value.trim())) ? "" : `${label}超出可用范围`;
+}
+
+function selectorPositionError(position) {
+  if (!position) return "";
+  if (position.mode === "single") return workflowIntegerError(position.index, "评论索引");
+  if (position.mode === "range") {
+    return workflowIntegerError(position.start, "范围起点") || workflowIntegerError(position.end, "范围终点");
+  }
+  return "评论位置模式无效";
+}
+
+function selectorPositionLabel(position) {
+  if (!position || position.mode === "all") return "全部位置";
+  if (position.mode === "single") return `位置 #${position.index}`;
+  return `位置 #${position.start} ～ ${position.end}`;
+}
+
+function selectorWithPosition(value, mode, fields) {
+  const next = { ...(value || {}) };
+  if (mode === "all") {
+    delete next.position;
+  } else if (mode === "single") {
+    next.position = { mode, index: fields?.index ?? "0" };
+  } else {
+    next.position = { mode: "range", start: fields?.start ?? "0", end: fields?.end ?? "-1" };
+  }
+  return next;
+}
+
 function selectorTypeValue(selector) {
   const types = Array.isArray(selector?.types) ? selector.types : [];
   if (types.length > 1) return "__mixed";
@@ -2025,6 +2096,9 @@ function SelectorEditor({ selector, onChange }) {
   const value = selector && typeof selector === "object" ? selector : {};
   const type = selectorTypeValue(value);
   const capabilities = Array.isArray(value.capabilities) ? value.capabilities : [];
+  const position = value.position && typeof value.position === "object" ? value.position : null;
+  const positionMode = position?.mode === "single" || position?.mode === "range" ? position.mode : "all";
+  const positionError = selectorPositionError(positionMode === "all" ? null : position);
   return (
     <div className="workflow-visual-options">
       <label><span>评论类型</span><select value={type} onChange={(event) => { if (event.target.value !== "__mixed") onChange({ ...value, types: event.target.value ? [event.target.value] : [] }); }}>
@@ -2034,6 +2108,12 @@ function SelectorEditor({ selector, onChange }) {
       <label><span>处理顺序</span><select value={value.order === "reverse" ? "reverse" : "forward"} onChange={(event) => onChange({ ...value, order: event.target.value })}>
         <option value="forward">正序</option><option value="reverse">倒序</option>
       </select></label>
+      <label><span>位置</span><select value={positionMode} onChange={(event) => onChange(selectorWithPosition(value, event.target.value, position))}>
+        {WORKFLOW_POSITION_MODES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
+      </select></label>
+      {positionMode === "single" ? <label><span>评论索引</span><input inputMode="numeric" value={position?.index ?? "0"} placeholder="例如 0 或 -1" onChange={(event) => onChange(selectorWithPosition(value, "single", { index: event.target.value }))} /></label> : null}
+      {positionMode === "range" ? <div className="workflow-position-range"><label><span>范围起点</span><input inputMode="numeric" value={position?.start ?? "0"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: event.target.value, end: position?.end ?? "-1" }))} /></label><label><span>范围终点</span><input inputMode="numeric" value={position?.end ?? "-1"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: position?.start ?? "0", end: event.target.value }))} /></label></div> : null}
+      <small className={positionError ? "workflow-input-error" : "workflow-options-hint"}>{positionError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small>
       <label className="workflow-inline-check"><input type="checkbox" checked={capabilities.includes("canMergeText")} onChange={(event) => onChange({ ...value, capabilities: event.target.checked ? Array.from(new Set([...capabilities, "canMergeText"])) : capabilities.filter((item) => item !== "canMergeText") })} /><span>仅选择可合并文本</span></label>
       <label className="workflow-inline-check"><input type="checkbox" checked={value.includeExcerpt === true} onChange={(event) => onChange({ ...value, includeExcerpt: event.target.checked })} /><span>包含原生摘录</span></label>
     </div>
@@ -2064,7 +2144,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
   const catalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const [workflows, setWorkflows] = useState(() => (Array.isArray(initialWorkflows) ? initialWorkflows : []));
   const [selectedId, setSelectedId] = useState(() => initialWorkflows?.[0]?.id || "");
-  const [draft, setDraft] = useState(() => ({ id: "", name: "新工作流", scope: "batch", steps: [] }));
+  const [draft, setDraft] = useState(() => ({ id: "", name: "新工作流", scope: "both", steps: [] }));
   const [busy, setBusy] = useState(false);
   const [newActionId, setNewActionId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -2077,7 +2157,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
       return;
     }
     if (!selectedId) {
-      const next = { id: "", name: "新工作流", scope: "batch", steps: [] };
+      const next = { id: "", name: "新工作流", scope: "both", steps: [] };
       setDraft(next);
     }
   }, [selectedId, workflows]);
@@ -2088,7 +2168,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
 
   const createWorkflow = () => {
     setSelectedId("");
-    const next = { id: "", name: "新工作流", scope: "batch", steps: [] };
+    const next = { id: "", name: "新工作流", scope: "both", steps: [] };
     setDraft(next);
   };
 
@@ -2136,6 +2216,26 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
       onStatus?.("至少添加一个工作流动作");
       return;
     }
+    const invalidSelector = (draft.steps || []).map(invalidSelectorMessage).find(Boolean);
+    if (invalidSelector) {
+      onStatus?.(invalidSelector);
+      return;
+    }
+    const incompatibleAction = (draft.steps || []).map((step) => {
+      if (!step || step.kind === "select") return "";
+      const descriptor = actionDescriptor(step.actionId);
+      if (!descriptor || descriptor.compatible !== false) {
+        const actionScope = descriptor?.scope;
+        const workflowScope = draft.scope === "single" || draft.scope === "batch" ? draft.scope : "both";
+        if (actionScope === "batch" && workflowScope === "single") return `${descriptor.title} 仅支持多卡`;
+        if (actionScope === "single" && workflowScope === "batch") return `${descriptor.title} 仅支持单卡`;
+      }
+      return "";
+    }).find(Boolean);
+    if (incompatibleAction) {
+      onStatus?.(`支持范围不兼容：${incompatibleAction}`);
+      return;
+    }
     const normalizedSteps = [];
     for (let index = 0; index < draft.steps.length; index += 1) {
       const step = draft.steps[index];
@@ -2148,7 +2248,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
       const saved = await MNBridge.send("saveWorkflow", {
         id: draft.id || undefined,
         name: String(draft.name || "").trim(),
-        scope: "batch",
+        scope: draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch",
         steps: normalizedSteps,
       });
       const next = Array.isArray(saved) ? saved : saved ? [saved] : [];
@@ -2195,6 +2295,13 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
 
   const actionTitle = (actionId) => catalog.find((item) => item.id === actionId)?.title || actionId;
   const actionDescriptor = (actionId) => catalog.find((item) => item.id === actionId) || null;
+  const invalidSelectorMessage = (step) => {
+    if (!step || step.kind !== "select") return "";
+    if (step.selectorError) return String(step.selectorError);
+    if (!step.selector || typeof step.selector !== "object" || Array.isArray(step.selector)) return "选择器必须是对象";
+    return selectorPositionError(step.selector.position);
+  };
+  const hasInvalidSelector = (draft.steps || []).some((step) => !!invalidSelectorMessage(step));
 
   return (
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
@@ -2218,7 +2325,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
                 onClick={() => selectWorkflow(workflow)}
               >
                 <strong>{workflow.name}</strong>
-                <small>{workflow.steps?.length || 0} 步 · 使用 {workflow.usageCount || 0} 次{workflow.missingActions?.length ? " · 有缺失动作" : ""}</small>
+                <small>{workflow.steps?.length || 0} 步 · {workflow.scope === "single" ? "仅单卡" : workflow.scope === "both" ? "单卡/多卡" : "仅多卡"} · 使用 {workflow.usageCount || 0} 次{workflow.missingActions?.length ? " · 有缺失动作" : workflow.invalidSelectors?.length ? " · 选择器无效" : ""}</small>
               </button>
             ))}
           </aside>
@@ -2226,6 +2333,15 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
             <label className="workflow-name-field">
               <span>名称</span>
               <input value={draft.name || ""} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+            </label>
+            <label className="workflow-name-field">
+              <span>支持范围</span>
+              <select value={draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch"} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, scope: event.target.value }))}>
+                <option value="both">单卡和多卡</option>
+                <option value="single">仅单卡</option>
+                <option value="batch">仅多卡</option>
+              </select>
+              <small className="workflow-options-hint">单卡菜单和多选菜单会按此范围显示工作流。</small>
             </label>
             <div className="workflow-step-header">
               <h3>步骤</h3>
@@ -2236,15 +2352,16 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
                 <div className="workflow-step" key={`${step.kind || "action"}-${step.actionId || "select"}-${index}`}>
                   <span className="workflow-step-index">{index + 1}</span>
                   <div className="workflow-step-main">
-                    <span className="workflow-step-title">{step.kind === "select" ? `选择：${(step.selector?.types || []).join("、") || "全部评论"}` : actionTitle(step.actionId)}</span>
+                    <span className="workflow-step-title">{step.kind === "select" ? `选择：${(step.selector?.types || []).join("、") || "全部评论"} · ${selectorPositionLabel(step.selector?.position)}` : actionTitle(step.actionId)}</span>
                     {actionDescriptor(step.actionId) ? (
                       <small className="workflow-step-meta">
                         范围：{actionDescriptor(step.actionId).scope === "both" ? "单卡/多卡" : actionDescriptor(step.actionId).scope === "single" ? "单卡" : "多卡"}
+                        {actionDescriptor(step.actionId).input === "selection" ? " · 按选择器" : " · 整张卡片"}
                         {actionDescriptor(step.actionId).dangerous ? " · 危险操作" : " · 只读/安全"}
                       </small>
                     ) : null}
                     {step.kind === "select" ? (
-                      <SelectorEditor selector={step.selector || {}} onChange={(selector) => updateStep(index, { selector })} />
+                      <SelectorEditor selector={step.selector || {}} onChange={(selector) => updateStep(index, { selector, selectorError: undefined })} />
                     ) : (
                       <ActionOptionsEditor actionId={step.actionId} options={step.options || {}} onChange={(options) => updateStep(index, { options })} />
                     )}
@@ -2272,11 +2389,12 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, onClose, onSt
               <Button className="secondary" disabled={busy || !newActionId} onClick={addStep}>添加步骤</Button>
             </div>
             {draft.missingActions?.length ? <p className="workflow-warning">缺失动作：{draft.missingActions.join(", ")}。安装对应 Patch 后才能运行。</p> : null}
+            {draft.invalidSelectors?.length && hasInvalidSelector ? <p className="workflow-warning">选择器无效：请修正位置索引后再保存或运行。</p> : null}
             <div className="dialog-actions workflow-actions">
               {draft.id ? <Button className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
               <span />
               <Button className="secondary" disabled={busy} onClick={onClose}>关闭</Button>
-              <Button className="primary" disabled={busy || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>保存</Button>
+              <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>保存</Button>
             </div>
           </div>
         </div>

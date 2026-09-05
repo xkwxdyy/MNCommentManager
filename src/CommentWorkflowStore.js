@@ -122,16 +122,63 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
     }
   }
 
+  function parseSafeInteger(value) {
+    if (typeof value === "number") return Number.isSafeInteger(value) ? value : null;
+    if (typeof value !== "string" || !/^-?\d+$/.test(value.trim())) return null;
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+
+  function normalizeSelector(selector) {
+    if (selector === undefined || selector === null) return { selector: {}, error: "" };
+    if (typeof selector !== "object" || Array.isArray(selector)) {
+      return { selector: {}, error: "选择器必须是对象" };
+    }
+    const source = normalizeOptions(selector);
+    if (source.position === undefined || source.position === null || source.position === "") {
+      return { selector: source, error: "" };
+    }
+    const position = source.position;
+    if (!position || typeof position !== "object" || Array.isArray(position)) {
+      return { selector: source, error: "评论位置必须是单个索引或范围" };
+    }
+    const mode = stringValue(position.mode).trim().toLowerCase();
+    if (mode === "all") {
+      const next = Object.assign({}, source);
+      delete next.position;
+      return { selector: next, error: "" };
+    }
+    if (mode === "single") {
+      const index = parseSafeInteger(position.index);
+      if (index === null) return { selector: source, error: "评论索引必须是整数" };
+      return { selector: Object.assign({}, source, { position: { mode: "single", index } }), error: "" };
+    }
+    if (mode === "range") {
+      const start = parseSafeInteger(position.start);
+      const end = parseSafeInteger(position.end);
+      if (start === null || end === null) return { selector: source, error: "评论范围的起点和终点必须是整数" };
+      return { selector: Object.assign({}, source, { position: { mode: "range", start, end } }), error: "" };
+    }
+    return { selector: source, error: "评论位置模式只能是 single 或 range" };
+  }
+
   function normalizeWorkflow(raw) {
     if (!raw || typeof raw !== "object") return null;
     const id = stringValue(raw.id).trim() || generateId();
     const name = stringValue(raw.name).trim();
     if (!name) return null;
+    const invalidSelectors = [];
     const steps = Array.isArray(raw.steps)
-      ? raw.steps.map((step) => {
+      ? raw.steps.map((step, stepIndex) => {
         if (!step || typeof step !== "object") return null;
         if (stringValue(step.kind).trim().toLowerCase() === "select") {
-          return { kind: "select", selector: normalizeOptions(step.selector) };
+          const normalized = normalizeSelector(step.selector);
+          if (normalized.error) invalidSelectors.push({ step: stepIndex, message: normalized.error });
+          return {
+            kind: "select",
+            selector: normalized.selector,
+            ...(normalized.error ? { selectorError: normalized.error } : {}),
+          };
         }
         const actionId = stringValue(step.actionId).trim();
         if (!actionId) return null;
@@ -144,6 +191,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       name: name.slice(0, 120),
       scope: normalizeScope(raw.scope),
       steps,
+      invalidSelectors,
       usageCount: Math.max(0, Number(raw.usageCount) || 0),
       lastUsedAt: Math.max(0, Number(raw.lastUsedAt) || 0),
       createdAt: Number(raw.createdAt) || now(),
@@ -154,6 +202,9 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   function validate(raw) {
     const workflow = normalizeWorkflow(raw);
     if (!workflow) return { valid: false, errors: ["工作流必须包含名称和至少一个动作"] };
+    if (workflow.invalidSelectors && workflow.invalidSelectors.length > 0) {
+      return { valid: false, errors: workflow.invalidSelectors.map((item) => `第 ${item.step + 1} 个选择步骤无效：${item.message}`) };
+    }
     return { valid: true, errors: [], workflow };
   }
 

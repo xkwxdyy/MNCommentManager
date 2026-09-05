@@ -198,8 +198,11 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     return settings;
   }
 
-  function getWorkflowActionCatalog() {
-    return __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog("batch");
+  function getWorkflowActionCatalog(_context, payload) {
+    const requestedScope = payload && (payload.scope === "single" || payload.scope === "batch" || payload.scope === "both")
+      ? payload.scope
+      : "both";
+    return __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog(requestedScope);
   }
 
   function missingWorkflowActions(workflow) {
@@ -213,10 +216,15 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     return missing;
   }
 
+  function invalidWorkflowSelectors(workflow) {
+    return workflow && Array.isArray(workflow.invalidSelectors) ? workflow.invalidSelectors.slice() : [];
+  }
+
   function decorateWorkflow(workflow) {
     if (!workflow) return null;
     const result = JSON.parse(JSON.stringify(workflow));
     result.missingActions = missingWorkflowActions(result);
+    result.invalidSelectors = invalidWorkflowSelectors(result);
     return result;
   }
 
@@ -249,8 +257,19 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     const steps = (workflow.steps || []).map((step) => {
       if (step && String(step.kind || "action").toLowerCase() === "select") {
         const selector = __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector);
-        const matched = batch.notes.map((note) => __MN_COMMENT_BATCH_EDITOR__.selectCommentIndices(note, selector).length);
-        return { kind: "select", selector, matched, totalMatched: matched.reduce((sum, count) => sum + count, 0) };
+        const perCard = batch.notes.map((note) => __MN_COMMENT_BATCH_EDITOR__.previewSelection(note, selector));
+        const matched = perCard.map((item) => item.matched);
+        return {
+          kind: "select",
+          selector,
+          matched,
+          totalMatched: matched.reduce((sum, count) => sum + count, 0),
+          perCard: perCard.map((item) => ({
+            matched: item.matched,
+            indices: item.indices,
+            positionOutOfRange: item.positionOutOfRange,
+          })),
+        };
       }
       const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step && step.actionId);
       return { kind: "action", actionId: step && step.actionId ? String(step.actionId) : "", title: action ? action.title : "未知动作" };

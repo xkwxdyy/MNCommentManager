@@ -36,12 +36,26 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
     const missingActions = (workflow.steps || [])
       .map((step) => text(step && step.actionId).trim())
       .filter((actionId, index, list) => actionId && !__MN_COMMENT_WORKFLOW_REGISTRY__.getAction(actionId) && list.indexOf(actionId) === index);
+    const invalidSelectors = Array.isArray(workflow.invalidSelectors)
+      ? workflow.invalidSelectors.slice()
+      : (workflow.steps || []).map((step, index) => {
+        if (!step || text(step.kind).trim().toLowerCase() !== "select") return null;
+        try {
+          const selector = __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector);
+          return selector.position && selector.position.invalid
+            ? { step: index, message: selector.position.error }
+            : null;
+        } catch (error) {
+          return { step: index, message: error && error.message ? error.message : String(error) };
+        }
+      }).filter(Boolean);
     return {
       kind,
       id: normalizedWorkflow.id,
       title,
       workflow: normalizedWorkflow,
       missingActions,
+      invalidSelectors,
     };
   }
 
@@ -110,10 +124,12 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
     if (section === "extension") items.push(item(addon, "── Patch 动作与预设 ──", "noopBatchCommentAction:"));
     entries.forEach((entry) => {
       const noteCount = context && Array.isArray(context.notes) ? context.notes.length : 0;
+      const unavailable = entry.missingActions.length > 0 || entry.invalidSelectors.length > 0;
+      const unavailableLabel = entry.missingActions.length > 0 ? "缺少动作" : "选择器无效";
       items.push(item(
         addon,
-        `  ${entry.title}${entry.missingActions.length ? "（缺少动作）" : `（${noteCount} 张 · ${entry.workflow.usageCount || 0} 次）`}`,
-        entry.missingActions.length ? "showWorkflowMissing:" : "runBatchWorkflow:",
+        `  ${entry.title}${unavailable ? `（${unavailableLabel}）` : `（${noteCount} 张 · ${entry.workflow.usageCount || 0} 次）`}`,
+        unavailable ? "showWorkflowMissing:" : "runBatchWorkflow:",
         {
           workflowId: entry.kind === "workflow" ? entry.id : "",
           // Pass the same normalized snapshot that was used to render the
@@ -122,6 +138,7 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
           workflow: entry.workflow,
           token,
           missingActions: entry.missingActions,
+          invalidSelectors: entry.invalidSelectors,
         },
       ));
     });
@@ -206,9 +223,12 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
     showWorkflowMissing(addon, sender) {
       const param = getSenderParam(sender) || {};
       const missing = Array.isArray(param.missingActions) ? param.missingActions : [];
-      const suffix = missing.length > 0 ? `：${missing.join("、")}` : "";
+      const invalid = Array.isArray(param.invalidSelectors) ? param.invalidSelectors : [];
+      const suffix = missing.length > 0
+        ? `：${missing.join("、")}`
+        : (invalid.length > 0 ? `：${invalid.map((item) => `第 ${(Number(item.step) || 0) + 1} 个选择步骤${item.message ? `（${item.message}）` : ""}`).join("、")}` : "");
       if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
-        MNUtil.showHUD(`工作流依赖的 Patch 动作不可用${suffix}`);
+        MNUtil.showHUD(missing.length > 0 ? `工作流依赖的 Patch 动作不可用${suffix}` : `工作流选择器不可用${suffix}`);
       }
       return false;
     },
