@@ -4,6 +4,29 @@
   "updatedAt": "2026-09-05T00:00:00+08:00",
   "entries": [
     {
+      "version": "0.1.22",
+      "channel": "stable",
+      "date": "2026-09-20",
+      "items": [
+        {
+          "zh": "工作流选择器的「评论类型」从单选升级为多选，可同时匹配文本 / Markdown / HTML 等多种类型，并提供「全部评论」「所有文本」快捷按钮。",
+          "en": "The workflow selector's \"comment type\" filter now supports multi-select, matching multiple types such as text / Markdown / HTML at once, with quick \"all comments\" and \"all text\" shortcuts."
+        },
+        {
+          "zh": "失效链接清理增加实时扫描进度反馈，显示已找到和无法确认的链接数量，不再是清理完才知道结果；插件的批量处理按钮现在会自动避让 MarginNote Pinner 面板的跟随模式扩展按钮。",
+          "en": "Invalid link cleanup now shows live scan progress with counts of found and unresolved links instead of only after completion; the batch action button now automatically avoids MarginNote Pinner's follow-mode extra button."
+        },
+        {
+          "zh": "设置项保存后会回读确认并在失败时提示具体原因；搜索框支持一键清空；桥接通信增加超时保护，避免请求无响应卡死。",
+          "en": "Settings now verify via readback after saving and show the specific reason on failure; the search box supports one-tap clearing; bridge commands now have timeout protection to avoid unresponsive hangs."
+        },
+        {
+          "zh": "修复批量工作流在多选卡片变化后误用旧选区、部分合并失败时误报成功、工作流配置损坏时静默清空、单卡工作流执行前选区状态错乱等问题。",
+          "en": "Fixed batch workflows using a stale selection after the multi-select set changed, some merge failures being misreported as success, workflow config being silently wiped when corrupted, and selection state issues before running a single-card workflow."
+        }
+      ]
+    },
+    {
       "version": "0.1.21",
       "channel": "stable",
       "date": "2026-09-05",

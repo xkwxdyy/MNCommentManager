@@ -612,10 +612,16 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function makeSelectionActionResult(note, options) {
     const opts = options && typeof options === "object" ? options : {};
+    const noteId = getNoteId(note);
+    const sourceNoteId = String(opts.sourceNoteId || noteId);
+    const convertedNoteMap = Object.assign({}, opts.convertedNoteMap || {});
+    if (opts.converted === true && sourceNoteId && noteId && sourceNoteId !== noteId) {
+      convertedNoteMap[sourceNoteId] = noteId;
+    }
     return {
       snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
-      noteId: getNoteId(note),
-      sourceNoteId: String(opts.sourceNoteId || getNoteId(note)),
+      noteId,
+      sourceNoteId,
       converted: opts.converted === true,
       actionCompleted: opts.actionCompleted !== false,
       affectedNotes: Array.isArray(opts.affectedNotes) ? opts.affectedNotes : [],
@@ -623,7 +629,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       selectedIndices: normalizeIndexArray(opts.selectedIndices),
       statusMessage: String(opts.statusMessage || ""),
       error: String(opts.error || ""),
-      convertedNoteMap: opts.convertedNoteMap && typeof opts.convertedNoteMap === "object" ? opts.convertedNoteMap : {},
+      convertedNoteMap,
     };
   }
 

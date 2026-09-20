@@ -483,6 +483,9 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       const workflow = param && (param.workflow || param.workflowId);
       debug("workflow.run.request", { hasSender: !!sender, hasParam: !!param, workflowId: param && param.workflowId, mode: param && param.mode, noteId: param && param.noteId, token: param && param.token });
       if (!workflow) throw new Error("未读取到工作流");
+      // Close before execution can refresh selection and clear the popover
+      // reference. Keep the single-card context for the runner's validation.
+      dismissMenu(addon, true);
       return await __MN_COMMENT_WORKFLOW_RUNNER__.run(addon, workflow, Object.assign({}, param, { mode: "single" }));
     } finally {
       debug("workflow.run.finally", { hasContext: !!(addon && addon.dynamicCommentContext), noteId: addon && addon.dynamicCommentContext && addon.dynamicCommentContext.noteId });

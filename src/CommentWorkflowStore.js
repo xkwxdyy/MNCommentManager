@@ -78,22 +78,31 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
     throw new Error("当前版本无法写入工作流配置");
   }
 
-  function readDocument() {
+  function readDocument(forWrite) {
     let paths;
     try {
       paths = getFilePath();
       const data = readData(paths.file);
-      const parsed = decodeData(data);
-      if (!parsed || typeof parsed !== "object") return { version: SCHEMA_VERSION, workflows: [] };
-      if (!Array.isArray(parsed.workflows) || Number(parsed.version || 0) < 1 || Number(parsed.version || 0) > SCHEMA_VERSION) {
+      if (!data && !NSFileManager.defaultManager().fileExistsAtPath(paths.file)) {
         return { version: SCHEMA_VERSION, workflows: [] };
+      }
+      const parsed = decodeData(data);
+      const version = Number(parsed && parsed.version);
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.workflows) ||
+        !Number.isInteger(version) || version < 1 || version > SCHEMA_VERSION) {
+        throw new Error("工作流配置无法读取或版本不受支持，已保留原文件，请恢复配置后再试");
+      }
+      const workflows = parsed.workflows.map(normalizeWorkflow);
+      if (forWrite && workflows.some((workflow, index) => !workflow || workflow.steps.length !== parsed.workflows[index].steps.length)) {
+        throw new Error("工作流配置包含无法识别的记录，已保留原文件，请修复配置后再试");
       }
       return {
         version: SCHEMA_VERSION,
-        workflows: parsed.workflows.map(normalizeWorkflow).filter(Boolean),
+        workflows: workflows.filter(Boolean),
       };
     } catch (error) {
       console.log(`[MN Comment Manager] load workflows failed: ${error && error.message ? error.message : error}`);
+      if (forWrite) throw error;
       return { version: SCHEMA_VERSION, workflows: [] };
     }
   }
@@ -216,7 +225,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
     const validation = validate(raw);
     if (!validation.valid) throw new Error(validation.errors[0]);
     const next = validation.workflow;
-    const document = readDocument();
+    const document = readDocument(true);
     const index = document.workflows.findIndex((item) => item.id === next.id);
     if (index >= 0) {
       next.createdAt = document.workflows[index].createdAt;
@@ -233,7 +242,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   function remove(id) {
     const normalizedId = stringValue(id).trim();
     if (!normalizedId) return false;
-    const document = readDocument();
+    const document = readDocument(true);
     const next = document.workflows.filter((item) => item.id !== normalizedId);
     if (next.length === document.workflows.length) return false;
     writeDocument(next);
@@ -252,7 +261,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   function recordUsage(id) {
     const normalizedId = stringValue(id).trim();
     if (!normalizedId) return null;
-    const document = readDocument();
+    const document = readDocument(true);
     const index = document.workflows.findIndex((item) => item.id === normalizedId);
     if (index < 0) return null;
     const workflow = document.workflows[index];

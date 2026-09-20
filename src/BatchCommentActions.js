@@ -1,6 +1,7 @@
 var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   const BUTTON_TAG = 9304101;
   const MNPINNER_FOLLOW_BUTTON_TAG = 9205101;
+  const MNPINNER_EXTRA_BUTTON_TAG = 9205103;
   const BUTTON_WIDTH = 54;
   const BUTTON_HEIGHT = 36;
   const BUTTON_GAP = 10;
@@ -225,6 +226,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     try {
       if (typeof pinnerUtils !== "undefined" && pinnerUtils && pinnerUtils.pinnerController) {
         pushButton(pinnerUtils.pinnerController.followModeButton);
+        pushButton(pinnerUtils.pinnerController.followModeExtraButton);
       }
     } catch (error) {
       // pinnerUtils may not exist
@@ -232,9 +234,10 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
     try {
       pushButton(findSubviewByTag(hostView, MNPINNER_FOLLOW_BUTTON_TAG));
+      pushButton(findSubviewByTag(hostView, MNPINNER_EXTRA_BUTTON_TAG));
       forEachSubview(hostView, (child) => {
         try {
-          if (Number(child.tag) === MNPINNER_FOLLOW_BUTTON_TAG) pushButton(child);
+          if (Number(child.tag) === MNPINNER_FOLLOW_BUTTON_TAG || Number(child.tag) === MNPINNER_EXTRA_BUTTON_TAG) pushButton(child);
         } catch (error) {
           // keep scanning
         }
@@ -255,7 +258,18 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const maxY = Math.max(0, Number(bounds.height || 0) - BUTTON_HEIGHT);
     const anchor = context.anchorRect;
     const occupiedRects = collectMNPinnerFollowButtonRects(hostView);
-    const sibling = occupiedRects[0] || null;
+    // Treat Pinner's visible buttons as a group so the preferred right slot
+    // starts after its optional extra action, regardless of discovery order.
+    const sibling = occupiedRects.reduce((group, rect) => {
+      if (!group) return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      const x = Math.min(group.x, rect.x);
+      const y = Math.min(group.y, rect.y);
+      return {
+        x, y,
+        width: Math.max(group.x + group.width, rect.x + rect.width) - x,
+        height: Math.max(group.y + group.height, rect.y + rect.height) - y,
+      };
+    }, null);
     const rightX = Number(anchor.x || 0) + Number(anchor.width || 0) + BUTTON_GAP;
     const leftX = Number(anchor.x || 0) - BUTTON_WIDTH - BUTTON_GAP;
     const centerY = Number(anchor.y || 0) + Number(anchor.height || 0) * 0.5 - BUTTON_HEIGHT * 0.5;

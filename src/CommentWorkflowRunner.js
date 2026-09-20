@@ -191,6 +191,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
 
   function refreshContextNotes(context, result) {
     if (!context || !result || !result.convertedNoteMap || typeof result.convertedNoteMap !== "object") return;
+    const liveContext = isLiveContext(context);
     const map = result.convertedNoteMap;
     const nextNotes = context.notes.map((note) => {
       const sourceId = text(note && note.noteId).trim();
@@ -212,10 +213,10 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
         if (targetId) lane.currentNoteId = targetId;
       });
     }
-    if (context.addon && context.addon.batchCommentContext) {
+    if (liveContext && context.mode === "batch") {
       context.addon.batchCommentContext.notes = nextNotes;
     }
-    if (context.addon && context.mode === "single" && context.addon.dynamicCommentContext) {
+    if (liveContext && context.mode === "single") {
       context.addon.dynamicCommentContext.note = nextNotes[0];
       context.addon.dynamicCommentContext.noteId = text(nextNotes[0] && nextNotes[0].noteId).trim();
     }

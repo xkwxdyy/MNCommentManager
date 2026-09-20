@@ -430,6 +430,7 @@ const mergeResult = context.__MN_COMMENT_MUTATIONS__.mergeContentSelection(
   "text",
 );
 assert.strictEqual(mergeResult.converted, true);
+assert.strictEqual(mergeResult.convertedNoteMap[mergeResult.sourceNoteId], mergeResult.noteId, "merging an excerpt must propagate the replacement ID to workflow steps");
 assert.strictEqual(mergeResult.actionCompleted, true);
 assert.deepStrictEqual(Array.from(mergeResult.selectedIndices), [0]);
 assert.deepStrictEqual(Array.from(mergeResult.snapshot.comments, (comment) => comment.text), ["merged result"]);
@@ -718,6 +719,7 @@ const mappingFailureResult = context.__MN_COMMENT_MUTATIONS__.moveContentSelecti
 );
 targetMergeHook = null;
 assert.strictEqual(mappingFailureResult.converted, true);
+assert.strictEqual(mappingFailureResult.convertedNoteMap[mappingFailureResult.sourceNoteId], mappingFailureResult.noteId, "partial conversion must preserve the replacement ID");
 assert.strictEqual(mappingFailureResult.actionCompleted, false);
 assert.deepStrictEqual(Array.from(mappingFailureResult.mappedIndices), []);
 assert.match(mappingFailureResult.statusMessage, /后续操作已停止/);
@@ -814,7 +816,10 @@ assert(webAppSource.includes('runCommand("mergeCommentsToExcerpt"'));
 assert(webAppSource.includes("selectedComments.length >= (excerptSelected ? 1 : 2)"));
 assert(webAppSource.includes("const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt"));
 assert(webAppSource.includes("mergeToExcerptDefault"));
-assert(webAppSource.includes('updateActionButtonSettings", { mergeToExcerptDefault: normalized }'));
+assert(webAppSource.includes('persistActionButtonSetting('));
+assert(webAppSource.includes('(changes) => MNBridge.send("updateActionButtonSettings", changes)'));
+assert(webAppSource.includes('"mergeToExcerptDefault"'));
+assert(webAppSource.includes('() => MNBridge.send("getActionButtonSettings")'), 'default merge persistence must verify the Native readback rather than assuming success');
 assert(webAppSource.includes('onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}'));
 assert(webAppSource.includes('runCommand("updateLinkCommentFromClipboard"'));
 

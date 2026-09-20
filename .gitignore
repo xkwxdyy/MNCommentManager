@@ -11,3 +11,6 @@ web/src/generated/
 !.codex/config.toml
 
 docs/
+images/
+patches/
+reviews/

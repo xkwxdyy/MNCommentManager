@@ -252,7 +252,9 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     const addon = context && context.addon;
     const workflow = payload && payload.workflow ? payload.workflow : payload;
     const batch = addon && addon.batchCommentContext;
-    if (!batch || !workflow) throw new Error("未读取到批量工作流");
+    if (!batch || !Array.isArray(batch.notes) || batch.notes.length <= 1 || !workflow) throw new Error("未读取到批量工作流");
+    const token = payload && payload.token ? String(payload.token) : "";
+    if (token && String(batch.token) !== token) throw new Error("多选卡片已变化，请重新打开编辑器");
     const cards = __MN_COMMENT_BATCH_EDITOR__.buildOverview(batch.notes);
     const steps = (workflow.steps || []).map((step) => {
       if (step && String(step.kind || "action").toLowerCase() === "select") {

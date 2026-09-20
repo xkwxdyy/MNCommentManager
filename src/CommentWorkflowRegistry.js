@@ -1,8 +1,8 @@
 var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
   const API_VERSION = 2;
-  const builtinActions = {};
-  const extensionActions = {};
-  const extensionPresets = {};
+  const builtinActions = Object.create(null);
+  const extensionActions = Object.create(null);
+  const extensionPresets = Object.create(null);
   const builtinActionOrder = [];
   const extensionActionOrder = [];
   const extensionPresetOrder = [];

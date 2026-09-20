@@ -111,4 +111,47 @@ assert.strictEqual(addon.batchCommentContext.token, latestToken);
 assert.strictEqual(addon.batchCommentButton.hidden, false);
 
 assert.strictEqual(scheduledTimers.length, 0);
+
+// Pinner can render an optional second action to the right of its Pin button.
+const primary = { tag: 9205101, hidden: false, frame: { x: 550, y: 685, width: 34, height: 34 } };
+const extra = { tag: 9205103, hidden: false, frame: { x: 588, y: 685, width: 34, height: 34 } };
+function assertRightOf(rect) {
+  assert.strictEqual(addon.batchCommentButton.frame.x, rect.x + rect.width + 10);
+  assert.strictEqual(addon.batchCommentButton.frame.y, rect.y);
+}
+function assertNoOverlap(rect) {
+  const frame = addon.batchCommentButton.frame;
+  assert(frame.x + frame.width <= rect.x || rect.x + rect.width <= frame.x ||
+    frame.y + frame.height <= rect.y || rect.y + rect.height <= frame.y);
+}
+
+hostView.addSubview(primary);
+showSelection(["note-a", "note-b"]);
+assertRightOf(primary.frame);
+// Discover both tags even when Pinner's controller is unavailable and order differs.
+hostView.subviews.unshift({ subviews: [extra] });
+showSelection(["note-a", "note-b"]);
+assertRightOf(extra.frame);
+assertNoOverlap(primary.frame);
+assertNoOverlap(extra.frame);
+
+extra.hidden = true;
+showSelection(["note-a", "note-b"]);
+assertRightOf(primary.frame);
+extra.hidden = false;
+// The controller-reference path also supports buttons without discoverable tags.
+hostView.subviews = [addon.batchCommentButton];
+sandbox.pinnerUtils = { pinnerController: { followModeButton: primary, followModeExtraButton: extra } };
+showSelection(["note-a", "note-b"]);
+assertRightOf(extra.frame);
+
+// Screen-edge fallback must remain in bounds and avoid both Pinner buttons.
+hostView.bounds.width = 650;
+showSelection(["note-a", "note-b"]);
+assert(addon.batchCommentButton.frame.x >= 0);
+assert(addon.batchCommentButton.frame.x + addon.batchCommentButton.frame.width <= 650);
+assertNoOverlap(primary.frame);
+assertNoOverlap(extra.frame);
+assertNoOverlap({ x: 300, y: 680, width: 240, height: 44 });
+assert.strictEqual(scheduledTimers.length, 0);
 console.log("batch comment selection lifecycle regression passed");

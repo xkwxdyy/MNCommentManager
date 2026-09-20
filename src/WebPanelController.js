@@ -718,6 +718,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     },
 
     webViewShouldStartLoadWithRequestNavigationType: function (webView, request, navigationType) {
+      let message = null;
       try {
         const url = request.URL();
         const scheme = String(url.scheme || "").toLowerCase();
@@ -726,7 +727,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
           return true;
         }
 
-        const message = decodeBridgeMessage(url);
+        message = decodeBridgeMessage(url);
         const result = dispatchBridgeCommand(self, message);
 
         if (isPromiseLike(result)) {
@@ -743,8 +744,10 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
         sendBridgeResponse(webView, message.requestId, result, null);
         return false;
       } catch (error) {
-        const bridgeError = normalizeBridgeError(error, "unknown");
-        sendBridgeResponse(webView, "unknown", null, bridgeError);
+        const requestId = message && message.requestId ? message.requestId : "unknown";
+        const command = message && message.command ? message.command : "unknown";
+        const bridgeError = normalizeBridgeError(error, command);
+        sendBridgeResponse(webView, requestId, null, bridgeError);
         console.log(`[WebAddon] bridge error: ${bridgeError.message}`);
         return false;
       }

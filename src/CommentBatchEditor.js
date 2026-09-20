@@ -44,9 +44,8 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
     };
   }
 
-  function matches(comment, selector) {
+  function matches(comment, normalized) {
     if (!comment) return false;
-    const normalized = normalizeSelector(selector);
     if (normalized.types.length > 0) {
       const typeMatches = normalized.types.some((type) => {
         const capabilities = comment.capabilities || {};
@@ -175,16 +174,20 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
       const noteId = text(note && note.noteId);
       try {
         const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
-        const indices = selectCommentIndices(note, selector);
+        const indices = resolveSelectionFromSnapshot(snapshot, selector).indices;
         if (indices.length === 0) {
           stats.skipped += 1;
           stats.perNote.push({ noteId, status: "skipped", matched: 0 });
           return;
         }
         const result = operation(note, snapshot, indices) || {};
-        if (result.changed !== false) stats.changed += 1;
-        stats.perNote.push({ noteId, status: result.changed === false ? "skipped" : "changed", matched: indices.length });
+        // A failed merge can still have replaced the source card. Preserve
+        // its mapping before reporting failure so the next run uses that card.
         if (result.convertedNoteMap) stats.convertedNoteMap = Object.assign(stats.convertedNoteMap || {}, result.convertedNoteMap);
+        if (result.actionCompleted === false) throw new Error(text(result.error || result.statusMessage || "操作失败"));
+        if (result.changed !== false) stats.changed += 1;
+        else stats.skipped += 1;
+        stats.perNote.push({ noteId, status: result.changed === false ? "skipped" : "changed", matched: indices.length });
       } catch (error) {
         stats.failed += 1;
         stats.errors.push({ noteId, message: error && error.message ? error.message : String(error) });
@@ -214,7 +217,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
       const result = destination === "excerpt"
         ? __MN_COMMENT_MUTATIONS__.mergeCommentsToExcerpt(note.noteId, { excerptSelected, commentIndices: eligibleIndices }, finalText, options && options.markdown !== false)
         : __MN_COMMENT_MUTATIONS__.mergeContentSelection(note.noteId, { excerptSelected, commentIndices: eligibleIndices }, finalText, options && options.markdown !== false, "text");
-      if (result && result.actionCompleted === false) throw new Error(text(result.error || result.statusMessage || "合并失败"));
+      if (result && result.actionCompleted === false) return result;
       return { changed: true, convertedNoteMap: result && result.convertedNoteMap };
     });
   }
