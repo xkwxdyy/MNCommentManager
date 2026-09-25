@@ -2,58 +2,135 @@
   "id": "mncommentmanager",
   "addonid": "marginnote.extension.mncommentmanager",
   "title": "MN Comment Manager",
-  "version": "0.1.10",
+  "version": "0.1.22",
   "channel": "stable",
-  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.10.mnaddon",
-  "filename": "mn-comment-manager-v0.1.9.mnaddon",
-  "updatedAt": "2026-06-26T16:04:19.874Z",
+  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.22.mnaddon",
+  "filename": "mn-comment-manager-v0.1.22.mnaddon",
+  "updatedAt": "2026-09-20T08:56:40.050Z",
   "history": [
+    {
+      "version": "0.1.22",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.22.mnaddon",
+      "filename": "mn-comment-manager-v0.1.22.mnaddon",
+      "updatedAt": "2026-09-20T08:56:40.050Z"
+    },
+    {
+      "version": "0.1.21",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.21.mnaddon",
+      "filename": "mn-comment-manager-v0.1.21.mnaddon",
+      "updatedAt": "2026-09-05T08:57:46.370Z"
+    },
+    {
+      "version": "0.1.20",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.20.mnaddon",
+      "filename": "mn-comment-manager-v0.1.20.mnaddon",
+      "updatedAt": "2026-09-04T12:46:52.072Z"
+    },
+    {
+      "version": "0.1.19",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.19.mnaddon",
+      "filename": "mn-comment-manager-v0.1.19.mnaddon",
+      "updatedAt": "2026-08-30T05:55:30.508Z"
+    },
+    {
+      "version": "0.1.18",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.18.mnaddon",
+      "filename": "mn-comment-manager-v0.1.18.mnaddon",
+      "updatedAt": "2026-08-11T07:12:31.735Z"
+    },
+    {
+      "version": "0.1.17",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.17.mnaddon",
+      "filename": "mn-comment-manager-v0.1.17.mnaddon",
+      "updatedAt": "2026-08-03T12:13:46.933Z"
+    },
+    {
+      "version": "0.1.16",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.16.mnaddon",
+      "filename": "mn-comment-manager-v0.1.16.mnaddon",
+      "updatedAt": "2026-08-03T07:44:28.919Z"
+    },
+    {
+      "version": "0.1.15",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.15.mnaddon",
+      "filename": "mn-comment-manager-v0.1.15.mnaddon",
+      "updatedAt": "2026-08-02T04:11:01.060Z"
+    },
+    {
+      "version": "0.1.14",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.14.mnaddon",
+      "filename": "mn-comment-manager-v0.1.14.mnaddon",
+      "updatedAt": "2026-07-30T16:10:02.984Z"
+    },
+    {
+      "version": "0.1.12",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.12.mnaddon",
+      "filename": "mn-comment-manager-v0.1.12.mnaddon",
+      "updatedAt": "2026-07-24T15:02:46.199Z"
+    },
+    {
+      "version": "0.1.11",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.11.mnaddon",
+      "filename": "mn-comment-manager-v0.1.11.mnaddon",
+      "updatedAt": "2026-07-24T09:22:50.978Z"
+    },
     {
       "version": "0.1.10",
       "channel": "stable",
       "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.10.mnaddon",
-      "filename": "mn-comment-manager-v0.1.9.mnaddon",
+      "filename": "mn-comment-manager-v0.1.10.mnaddon",
       "updatedAt": "2026-06-26T16:04:19.874Z"
     },
     {
       "version": "0.1.9",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.9.mnaddon",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.9.mnaddon",
       "filename": "mn-comment-manager-v0.1.9.mnaddon",
       "updatedAt": "2026-06-13T13:11:13.560Z"
     },
     {
       "version": "0.1.8",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.8.mnaddon",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.8.mnaddon",
       "filename": "mn-comment-manager-v0.1.8.mnaddon",
       "updatedAt": "2026-06-12T11:54:32.644Z"
     },
     {
       "version": "0.1.6",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.6.mnaddon",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.6.mnaddon",
       "filename": "mn-comment-manager-v0.1.6.mnaddon",
       "updatedAt": "2026-06-07T11:18:27.037Z"
     },
     {
       "version": "0.1.5",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.5.mnaddon",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.5.mnaddon",
       "filename": "mn-comment-manager-v0.1.5.mnaddon",
       "updatedAt": "2026-06-06T08:04:16.012Z"
     },
     {
       "version": "0.1.4",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/MNCommentManager/mn-comment-manager-v0.1.4.mnaddon",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.4.mnaddon",
       "filename": "mn-comment-manager-v0.1.4.mnaddon",
       "updatedAt": "2026-06-06T06:18:11.978Z"
     },
     {
       "version": "0.1.3",
       "channel": "stable",
-      "url": "https://1826456163.v.123pan.cn/1826456163/28490444",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.3.mnaddon",
       "filename": "mn-comment-manager-v0.1.3.mnaddon",
       "updatedAt": "2026-06-04T06:08:05.506Z",
       "fileID": 28490444

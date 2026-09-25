@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "update-fallback-baseline",
+  "changes": [
+    {
+      "id": "update-fallback-baseline",
+      "type": "changed",
+      "zh": "chore(updater): align fallback history with version 0.1.22",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}
