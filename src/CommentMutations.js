@@ -1000,9 +1000,32 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const nextText = String(text || "").trim();
     if (!nextText) throw new Error(`#${index} 没有可转换的文本`);
 
+    const readState = () => getSerializedComments(note).map(getCommentFingerprint);
+    const matches = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
+    const before = readState();
     appendMarkdownComment(note, nextText);
-    moveSingleComment(note, getCommentCount(note) - 1, index);
+    const appended = getSerializedComment(note, before.length);
+    const afterAppend = readState();
+    if (afterAppend.length !== before.length + 1 ||
+        !matches(afterAppend.slice(0, before.length), before) ||
+        !appended || appended.originalType !== "TextNote" ||
+        !appended.capabilities || appended.capabilities.isMarkdown !== true ||
+        appended.text !== nextText) {
+      throw new Error("新 Markdown 评论未通过写入校验，已停止转换；请检查原评论和可能新增的副本");
+    }
+    const replacement = afterAppend[before.length];
+    const expectedMoved = before.slice();
+    expectedMoved.splice(index, 0, replacement);
+    moveSingleComment(note, before.length, index);
+    if (!matches(readState(), expectedMoved)) {
+      throw new Error("新 Markdown 评论未移动到目标位置，已停止转换并保留原 HTML 评论");
+    }
     removeSingleComment(note, index + 1);
+    const expectedFinal = expectedMoved.slice();
+    expectedFinal.splice(index + 1, 1);
+    if (!matches(readState(), expectedFinal)) {
+      throw new Error("HTML 评论替换未通过最终校验，请检查评论列表或撤销本次操作");
+    }
   }
 
   function getHtmlCommentIndices(note) {
@@ -1194,16 +1217,20 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function convertHtmlCommentIndicesInNote(note, indices, stats) {
     const sorted = normalizeIndexArray(indices).sort((a, b) => b - a);
-    sorted.forEach((index) => {
+    for (const index of sorted) {
       try {
         const serialized = getSerializedComment(note, index);
         requireCapability(serialized, "isHtml", `#${index} 不是 HTML 评论`);
-        const text = String(serialized.text || serialized.htmlText || "").trim();
-        if (!text) {
-          stats.skippedEmpty += 1;
-          return;
+        const raw = requireComment(note, index);
+        const conversion = __MN_COMMENT_HTML__.convert(raw && raw.html);
+        if (!conversion.ok) {
+          // No mutation has started: unsupported rich content stays intact.
+          stats.failed += 1;
+          stats.errors.push({ noteId: String(note.noteId || ""), index,
+            message: "已保留原 HTML：" + conversion.reasons.join("；") });
+          continue;
         }
-        replaceCommentWithMarkdown(note, index, text);
+        replaceCommentWithMarkdown(note, index, conversion.markdown);
         stats.convertedComments += 1;
       } catch (error) {
         stats.failed += 1;
@@ -1212,8 +1239,11 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           index,
           message: error && error.message ? error.message : String(error),
         });
+        // A failed native operation may have left a new copy or moved indices.
+        // Do not use the remaining positions against that uncertain list.
+        break;
       }
-    });
+    }
   }
 
   function moveCommentIndices(note, indices, targetIndex) {
@@ -1717,14 +1747,18 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       convertHtmlCommentIndicesInNote(note, htmlIndices, stats);
       if (stats.convertedComments > 0) {
         stats.changed = 1;
-        refreshNote(note);
       }
+      if (stats.convertedComments > 0 || stats.failed > 0) refreshNote(note);
     });
-    if (stats.convertedComments > 0) refreshNotebooksAfterCommentMutation(note);
+    if (stats.convertedComments > 0 || stats.failed > 0) refreshNotebooksAfterCommentMutation(note);
 
-    MNUtil.showHUD(`已转换 ${stats.convertedComments} 条 HTML 评论`);
+    const statusMessage = stats.failed > 0
+      ? `转换失败，已完成 ${stats.convertedComments} 条；${stats.errors[0].message}`
+      : `已转换 ${stats.convertedComments} 条 HTML 评论`;
+    MNUtil.showHUD(statusMessage);
     return {
       stats,
+      statusMessage,
       snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
     };
   }
@@ -2175,9 +2209,12 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
             return;
           }
           const before = stats.convertedComments;
+          const failedBefore = stats.failed;
           convertHtmlCommentIndicesInNote(note, htmlIndices, stats);
           if (stats.convertedComments > before) {
             stats.changed += 1;
+          }
+          if (stats.convertedComments > before || stats.failed > failedBefore) {
             refreshNote(note);
             changedNotes.push(note);
           }
@@ -2192,7 +2229,10 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     });
     refreshNotebooksAfterCommentMutation(changedNotes);
 
-    MNUtil.showHUD(`已转换 ${stats.changed}/${stats.total} 张卡片的 ${stats.convertedComments} 条 HTML 评论`);
+    stats.statusMessage = stats.failed > 0
+      ? `HTML 转换失败 ${stats.failed} 处，已完成 ${stats.convertedComments} 条；请检查失败卡片或撤销本次操作`
+      : `已转换 ${stats.changed}/${stats.total} 张卡片的 ${stats.convertedComments} 条 HTML 评论`;
+    MNUtil.showHUD(stats.statusMessage);
     return stats;
   }
 

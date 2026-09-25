@@ -2044,7 +2044,7 @@ function App() {
         `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条 HTML 评论。`,
         skipped > 0 ? `另外 ${skipped} 条非 HTML 评论会跳过。` : "",
         excerptSelected ? "所选原生摘录保持不变，卡片不会转为非摘录版。" : "",
-        "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
+        "可保留的标题、强调、链接、图片、列表和代码会转为 Markdown；含不支持的样式或结构时保留原 HTML。",
       ].filter(Boolean).join("\n"),
       confirmText: "确认转换",
       returnFocusTarget: event?.currentTarget || null,

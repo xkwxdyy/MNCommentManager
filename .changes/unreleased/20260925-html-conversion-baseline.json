@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "html-conversion-baseline",
+  "changes": [
+    {
+      "id": "html-conversion-baseline",
+      "type": "changed",
+      "zh": "fix(comments): preserve rich HTML and verify replacement writes",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}

@@ -4,6 +4,7 @@ JSB.require("CommentData");
 JSB.require("UndoGroupingHelper");
 JSB.require("CommentWorkflowStore");
 JSB.require("CommentWorkflowRegistry");
+JSB.require("CommentHtmlConversion");
 JSB.require("CommentMutations");
 JSB.require("CommentBatchEditor");
 JSB.require("CommentWorkflowRunner");

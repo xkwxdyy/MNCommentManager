@@ -210,6 +210,7 @@ function loadAddon({
     "UndoGroupingHelper",
     "CommentWorkflowStore",
     "CommentWorkflowRegistry",
+    "CommentHtmlConversion",
     "CommentMutations",
     "CommentBatchEditor",
     "CommentWorkflowRunner",

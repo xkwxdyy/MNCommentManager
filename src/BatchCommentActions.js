@@ -577,7 +577,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       htmlCards: 0,
       noHtmlCards: 0,
       convertibleComments: 0,
-      emptyHtmlComments: 0,
+      unsupportedHtmlComments: 0,
     };
     const sourceNotes = Array.isArray(notes) ? notes : [];
     sourceNotes.forEach((note) => {
@@ -590,8 +590,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       comments.forEach((comment) => {
         if (!comment || !comment.capabilities || !comment.capabilities.isHtml) return;
         htmlCount += 1;
-        if (String(comment.text || comment.htmlText || "").trim()) nonEmptyHtmlCount += 1;
-        else stats.emptyHtmlComments += 1;
+        const raw = Array.isArray(note.comments) ? note.comments[comment.index] : null;
+        if (__MN_COMMENT_HTML__.convert(raw && raw.html).ok) nonEmptyHtmlCount += 1;
+        else stats.unsupportedHtmlComments += 1;
       });
       if (htmlCount > 0) stats.htmlCards += 1;
       else stats.noHtmlCards += 1;
@@ -686,9 +687,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       `包含 HTML 评论：${stats.htmlCards} 张。`,
       `无 HTML 评论：${stats.noHtmlCards} 张，不变。`,
       `预计转换 ${stats.convertibleComments} 条 HTML 评论。`,
-      stats.emptyHtmlComments > 0 ? `空 HTML 评论：${stats.emptyHtmlComments} 条，跳过。` : "",
+      stats.unsupportedHtmlComments > 0 ? `无法保真转换：${stats.unsupportedHtmlComments} 条，保留原 HTML。` : "",
       "",
-      "原 HTML 评论会被 Markdown 评论替换，只保留文本本身。",
+      "可保留的标题、强调、链接、图片、列表和代码会转为 Markdown；含不支持的样式或结构时保留原 HTML。",
     ].filter((line) => line !== "").join("\n");
     return MNUtil.confirm("确认转换 HTML 评论？", message, ["取消", "确认转换"]);
   }
