@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "workflow-ui-baseline",
+  "changes": [
+    {
+      "id": "workflow-ui-baseline",
+      "type": "changed",
+      "zh": "fix(ui): preserve workflow drafts and improve dialog interaction",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}

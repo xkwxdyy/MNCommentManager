@@ -517,6 +517,12 @@ function handleQuickActionKeyboardEvent(event, action) {
   if (shouldActivate && typeof action === "function") action();
 }
 
+// React handlers and document listeners both receive composition keystrokes.
+function isComposingKeyEvent(event) {
+  const nativeEvent = event?.nativeEvent || event;
+  return nativeEvent?.isComposing === true || nativeEvent?.keyCode === 229;
+}
+
 const DIALOG_FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -2858,10 +2864,14 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
 
   useEffect(() => {
     if (!closeConfirmation) return;
+    if (closeConfirmation.kind === "saving" && !savingRecording) {
+      cancelEditorClose();
+      return;
+    }
     const dialogElement = closeDialogRef.current;
     const cancelButton = dialogElement?.querySelector?.("[data-batch-close-cancel]") || null;
     focusInitialDialogControl(dialogElement, cancelButton);
-  }, [closeConfirmation]);
+  }, [closeConfirmation, savingRecording]);
 
   const selectorBase = {
     subject: "comments",
@@ -3064,11 +3074,27 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         scope: "batch",
         steps: submittedSteps,
       });
-      const message = `已保存工作流「${saved?.name || trimmed}」`;
+      const savedWorkflow = Array.isArray(saved) ? (saved.length === 1 ? saved[0] : null) : saved;
+      // A transport response alone does not confirm that the recording was saved.
+      if (!savedWorkflow || typeof savedWorkflow.id !== "string" || !savedWorkflow.id.trim()
+        || savedWorkflow.name !== trimmed.slice(0, 120) || savedWorkflow.scope !== "batch"
+        || !Array.isArray(savedWorkflow.steps) || savedWorkflow.steps.length !== submittedSteps.length
+        || !savedWorkflow.steps.every((step) => step && (
+          step.kind === "select"
+            ? step.selector && typeof step.selector === "object" && !Array.isArray(step.selector)
+            : step.kind === "action" && typeof step.actionId === "string" && step.actionId.trim()
+              && step.options && typeof step.options === "object" && !Array.isArray(step.options)
+        ))) {
+        const receiptError = new Error("保存结果未确认：收到的工作流回执不完整或不匹配，请先核对实际保存状态，再决定是否重试");
+        receiptError.saveUnconfirmed = true;
+        throw receiptError;
+      }
+      const message = `已保存工作流「${savedWorkflow.name}」`;
       onStatus(message);
       if (!mountedRef.current) return;
       setEditorMessage(message);
       setEditorMessageKind("success");
+      setRecordingSaveFeedback({ kind: "success", message });
       setSavedRecordingSignature(batchRecordingDraftSignature("", submittedSteps));
       setRecording(false);
       setName("");
@@ -3080,7 +3106,9 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
       setEditorMessageKind("error");
       setRecordingSaveFeedback({
         kind: "error",
-        message: `保存失败：${message}。录制名称和步骤仍保留，请检查后手动重试。`,
+        message: error?.saveUnconfirmed
+          ? `${message}。录制名称和步骤仍保留。`
+          : `保存失败：${message}。录制名称和步骤仍保留，请检查后手动重试。`,
       });
     } finally {
       recordingSaveRef.current = false;
@@ -3099,6 +3127,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         aria-busy={busy || savingRecording ? "true" : undefined}
         tabIndex={-1}
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (closeConfirmationRef.current) return;
           keepFocusWithinDialog(event, batchEditorRef.current);
         }}
@@ -3248,6 +3277,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
               tabIndex={-1}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
+                if (isComposingKeyEvent(event)) return;
                 if (keepFocusWithinDialog(event, closeDialogRef.current)) return;
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -3340,6 +3370,7 @@ function ActionButtonSettingsDialog({
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (event.key === "Escape") {
             event.preventDefault();
             event.stopPropagation();
@@ -3483,6 +3514,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   const pendingDraftTransitionRef = useRef(null);
   const pendingMutationCloseRef = useRef(null);
   const workflowManagerRef = useRef(null);
+  const pendingStepFocusRef = useRef(null);
   const deleteDialogRef = useRef(null);
   const deleteReturnFocusTargetRef = useRef(null);
   const discardDialogRef = useRef(null);
@@ -3633,14 +3665,28 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
 
   useEffect(() => {
     if (!pendingMutationClose) return;
+    if (!busy) {
+      cancelPendingMutationClose();
+      return;
+    }
     const dialogElement = mutationCloseDialogRef.current;
     const continueButton = dialogElement?.querySelector?.("[data-workflow-mutation-close-cancel]") || null;
     focusInitialDialogControl(dialogElement, continueButton);
-  }, [pendingMutationClose]);
+  }, [pendingMutationClose, busy]);
 
   useEffect(() => {
     focusWorkflowManagerStart();
   }, []);
+
+  useEffect(() => {
+    const index = pendingStepFocusRef.current;
+    if (index === null) return;
+    pendingStepFocusRef.current = null;
+    const steps = workflowManagerRef.current?.querySelectorAll(".workflow-step");
+    const step = steps?.[Math.min(index, steps.length - 1)];
+    if (step) focusInitialDialogControl(step);
+    else workflowManagerRef.current?.querySelector("[data-workflow-add-selector]")?.focus();
+  }, [draft.steps]);
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -3652,6 +3698,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   const addStep = () => {
     const action = catalog.find((item) => item.id === newActionId);
     if (!action || action.compatible === false) return;
+    pendingStepFocusRef.current = (draft.steps || []).length;
     setDraft((current) => ({
       ...current,
       steps: [...(current.steps || []), { actionId: action.id, options: {} }],
@@ -3660,6 +3707,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   };
 
   const removeStep = (index) => {
+    pendingStepFocusRef.current = index;
     setDraft((current) => ({
       ...current,
       steps: (current.steps || []).filter((_, stepIndex) => stepIndex !== index),
@@ -3667,6 +3715,9 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   };
 
   const moveStep = (index, offset) => {
+    const targetIndex = index + offset;
+    if (targetIndex < 0 || targetIndex >= (draft.steps || []).length) return;
+    pendingStepFocusRef.current = targetIndex;
     setDraft((current) => {
       const steps = [...(current.steps || [])];
       const target = index + offset;
@@ -3740,7 +3791,24 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
         steps: normalizedSteps,
       });
       const next = Array.isArray(saved) ? saved : saved ? [saved] : [];
-      const savedWorkflow = next[0] || saved;
+      const savedWorkflow = next.length === 1 ? next[0] : null;
+      // Native returns a complete normalized workflow; incomplete receipts must
+      // never replace the editable draft or be announced as a successful save.
+      if (!savedWorkflow || typeof savedWorkflow.id !== "string" || !savedWorkflow.id.trim()
+        || (draft.id && savedWorkflow.id !== draft.id)
+        || typeof savedWorkflow.name !== "string" || !savedWorkflow.name.trim()
+        || !["single", "batch", "both"].includes(savedWorkflow.scope)
+        || !Array.isArray(savedWorkflow.steps) || savedWorkflow.steps.length !== normalizedSteps.length
+        || !savedWorkflow.steps.every((step) => step && (
+          step.kind === "select"
+            ? step.selector && typeof step.selector === "object" && !Array.isArray(step.selector)
+            : step.kind === "action" && typeof step.actionId === "string" && step.actionId.trim()
+              && step.options && typeof step.options === "object" && !Array.isArray(step.options)
+        ))) {
+        const receiptError = new Error("保存结果未确认：收到的工作流回执不完整或不匹配，请先核对实际保存状态，再决定是否重试");
+        receiptError.saveUnconfirmed = true;
+        throw receiptError;
+      }
       if (workflowMountedRef.current && savedWorkflow?.id) {
         const nextDraft = cloneWorkflowDraft(savedWorkflow);
         setWorkflows((current) => {
@@ -3759,7 +3827,12 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     } catch (error) {
       const message = normalizeError(error);
       onStatus?.(message);
-      if (workflowMountedRef.current) setWorkflowFeedback({ kind: "error", message: `保存失败：${message}。草稿仍保留，请检查后手动重试。` });
+      if (workflowMountedRef.current) setWorkflowFeedback({
+        kind: "error",
+        message: error?.saveUnconfirmed
+          ? `${message}。当前草稿已保留。`
+          : `保存失败：${message}。草稿仍保留，请检查后手动重试。`,
+      });
     } finally {
       if (workflowMutationRef.current === operation) {
         workflowMutationRef.current = null;
@@ -3785,7 +3858,24 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     let deleted = false;
     try {
       const result = await MNBridge.send("deleteWorkflow", { id: draft.id });
-      const next = Array.isArray(result?.workflows) ? result.workflows : workflows.filter((workflow) => workflow.id !== draft.id);
+      // Require both the deletion acknowledgement and the resulting list.
+      // Filtering our old list would disguise an absent or contradictory reply.
+      if (result?.deleted !== true || !Array.isArray(result.workflows)
+        || !result.workflows.every((workflow) => workflow
+          && typeof workflow.id === "string" && workflow.id.trim() && workflow.id !== draft.id
+          && typeof workflow.name === "string" && workflow.name.trim()
+          && ["single", "batch", "both"].includes(workflow.scope)
+          && Array.isArray(workflow.steps) && workflow.steps.length > 0
+          && workflow.steps.every((step) => step && (
+            step.kind === "select"
+              ? step.selector && typeof step.selector === "object" && !Array.isArray(step.selector)
+              : step.kind === "action" && typeof step.actionId === "string" && step.actionId.trim()
+                && step.options && typeof step.options === "object" && !Array.isArray(step.options)
+          )))
+        || new Set(result.workflows.map((workflow) => workflow.id)).size !== result.workflows.length) {
+        throw new Error("删除回执不完整或与返回列表不一致");
+      }
+      const next = result.workflows;
       const nextDraft = cloneWorkflowDraft(next[0] || null);
       if (workflowMountedRef.current) {
         setWorkflows(next);
@@ -3799,7 +3889,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     } catch (error) {
       const message = normalizeError(error);
       onStatus?.(message);
-      if (workflowMountedRef.current) setWorkflowFeedback({ kind: "error", message: `删除失败：${message}。工作流仍保留，请手动重试。` });
+      if (workflowMountedRef.current) setWorkflowFeedback({ kind: "error", message: `删除结果未确认：${message}。当前列表和草稿已保留，请先核对实际状态，再决定是否重试。` });
     } finally {
       if (workflowMutationRef.current === operation) {
         workflowMutationRef.current = null;
@@ -3862,6 +3952,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (confirmDelete || pendingDraftTransition || pendingMutationClose) return;
           if (keepFocusWithinDialog(event, workflowManagerRef.current)) return;
           if (event.key === "Escape") {
@@ -3916,7 +4007,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
             </div>
             <div className="workflow-steps">
               {(draft.steps || []).map((step, index) => (
-                <div className="workflow-step" key={`${step.kind || "action"}-${step.actionId || "select"}-${index}`}>
+                <div className="workflow-step" role="group" aria-label={`第 ${index + 1} 步`} tabIndex={-1} key={`${step.kind || "action"}-${step.actionId || "select"}-${index}`}>
                   <span className="workflow-step-index">{index + 1}</span>
                   <div className="workflow-step-main">
                     <span className="workflow-step-title">{step.kind === "select" ? `选择：${(step.selector?.types || []).join("、") || "全部评论"} · ${selectorPositionLabel(step.selector?.position)}` : actionTitle(step.actionId)}</span>
@@ -3934,18 +4025,21 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
                     )}
                   </div>
                   {step.kind === "select" || catalog.some((item) => item.id === step.actionId) ? null : <small className="workflow-missing">缺失动作</small>}
-                  <Button className="ghost compact" disabled={busy || index === 0} onClick={() => moveStep(index, -1)} title="上移" aria-label={`上移第 ${index + 1} 步`}>↑</Button>
-                  <Button className="ghost compact" disabled={busy || index === (draft.steps || []).length - 1} onClick={() => moveStep(index, 1)} title="下移" aria-label={`下移第 ${index + 1} 步`}>↓</Button>
-                  <Button className="ghost compact" disabled={busy} onClick={() => removeStep(index)} title="删除" aria-label={`删除第 ${index + 1} 步`}>×</Button>
+                  <div className="workflow-step-actions">
+                    <Button className="ghost compact" disabled={busy || index === 0} onClick={() => moveStep(index, -1)} title="上移" aria-label={`上移第 ${index + 1} 步`}>↑</Button>
+                    <Button className="ghost compact" disabled={busy || index === (draft.steps || []).length - 1} onClick={() => moveStep(index, 1)} title="下移" aria-label={`下移第 ${index + 1} 步`}>↓</Button>
+                    <Button className="ghost compact" disabled={busy} onClick={() => removeStep(index)} title="删除" aria-label={`删除第 ${index + 1} 步`}>×</Button>
+                  </div>
                 </div>
               ))}
               {(draft.steps || []).length === 0 ? <p className="workflow-empty">从下方选择动作开始搭建</p> : null}
             </div>
             <div className="workflow-add-step">
-              <Button className="secondary" disabled={busy} onClick={() => {
+              <Button data-workflow-add-selector className="secondary" disabled={busy} onClick={() => {
+                pendingStepFocusRef.current = (draft.steps || []).length;
                 setDraft((current) => ({ ...current, steps: [...(current.steps || []), { kind: "select", selector: { subject: "comments", types: [], includeExcerpt: false, order: "forward" } }] }));
               }}>添加选择器</Button>
-              <select value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
+              <select aria-label="添加工作流动作" value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
                 <option value="">选择一个动作…</option>
                 {catalog.filter((item) => item.compatible !== false).map((action) => (
                   <option value={action.id} key={action.id}>
@@ -3957,18 +4051,18 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
             </div>
             {draft.missingActions?.length ? <p className="workflow-warning">缺失动作：{draft.missingActions.join(", ")}。安装对应 Patch 后才能运行。</p> : null}
             {draft.invalidSelectors?.length && hasInvalidSelector ? <p className="workflow-warning">选择器无效：请修正位置索引后再保存或运行。</p> : null}
-            {workflowFeedback ? (
-              <p className={`workflow-feedback ${workflowFeedback.kind}`} role={workflowFeedback.kind === "error" ? "alert" : "status"}>
-                {workflowFeedback.message}
-              </p>
-            ) : null}
-            <div className="dialog-actions workflow-actions">
-              {draft.id ? <Button data-workflow-delete className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
-              <span className={hasUnsavedChanges ? "workflow-save-state unsaved" : "workflow-save-state"} aria-live="polite">{draftStatusText}</span>
-              <Button className="secondary" onClick={requestWorkflowManagerClose}>关闭</Button>
-              <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
-            </div>
           </div>
+        </div>
+        {workflowFeedback ? (
+          <p className={`workflow-feedback ${workflowFeedback.kind}`} role={workflowFeedback.kind === "error" ? "alert" : "status"}>
+            {workflowFeedback.message}
+          </p>
+        ) : null}
+        <div className="dialog-actions workflow-actions">
+          {draft.id ? <Button data-workflow-delete className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
+          <span className={hasUnsavedChanges ? "workflow-save-state unsaved" : "workflow-save-state"} aria-live="polite">{draftStatusText}</span>
+          <Button className="secondary" onClick={requestWorkflowManagerClose}>关闭</Button>
+          <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
         </div>
         {confirmDelete ? (
           <div className="dialog-backdrop workflow-confirm-backdrop" role="presentation" onClick={cancelDeleteConfirmation}>
@@ -3982,6 +4076,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
               tabIndex={-1}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
+                if (isComposingKeyEvent(event)) return;
                 if (keepFocusWithinDialog(event, deleteDialogRef.current)) return;
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -4012,6 +4107,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
               tabIndex={-1}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
+                if (isComposingKeyEvent(event)) return;
                 if (keepFocusWithinDialog(event, mutationCloseDialogRef.current)) return;
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -4041,6 +4137,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
               tabIndex={-1}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
+                if (isComposingKeyEvent(event)) return;
                 if (keepFocusWithinDialog(event, discardDialogRef.current)) return;
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -4117,6 +4214,7 @@ function InvalidLinkCleanupDialog({ state, loading, onChoose, onConfirm, returnF
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (event.key === "Escape") {
             event.preventDefault();
             event.stopPropagation();
@@ -4355,6 +4453,7 @@ function TextDialog({ dialog, loading, onClose }) {
 
   useEffect(() => {
     const handler = (event) => {
+      if (isComposingKeyEvent(event)) return;
       if (focusManaged && event.key === "Tab") {
         keepFocusWithinDialog(event, dialogRef.current);
         return;
@@ -4496,6 +4595,7 @@ function MarkdownLinkEditDialog({ dialog, loading, onClose }) {
 
   useEffect(() => {
     const handler = (event) => {
+      if (isComposingKeyEvent(event)) return;
       if (event.key === "Tab") {
         keepFocusWithinDialog(event, dialogRef.current);
         return;
@@ -4622,6 +4722,7 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
 
   useEffect(() => {
     const handler = (event) => {
+      if (isComposingKeyEvent(event)) return;
       if (event.key === "Tab") {
         keepFocusWithinDialog(event, dialogRef.current);
         return;

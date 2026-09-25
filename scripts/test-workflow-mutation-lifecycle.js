@@ -127,7 +127,7 @@ function makeSaveContext(send) {
     const second = context.save();
     assert.strictEqual(sends, 1, "same-tick save activation must send one Native mutation");
     assert.strictEqual(context.workflowMutationRef.current.kind, "save");
-    response.resolve({ id: "WF-1", name: "My workflow", scope: "both", steps: [] });
+    response.resolve({ id: "WF-1", name: "My workflow", scope: "both", steps: context.draft.steps });
     await Promise.all([first, second]);
     assert.strictEqual(context.workflowMutationRef.current, null);
     assert.deepStrictEqual(events.filter((item) => item[0] === "busy").map((item) => item[1]), [true, false]);
@@ -178,7 +178,7 @@ function makeSaveContext(send) {
     const first = context.removeConfirmed();
     const second = context.removeConfirmed();
     assert.strictEqual(sends, 1, "same-tick delete confirmation must send one Native mutation");
-    response.resolve({ workflows: [{ id: "WF-2", name: "Remaining", steps: [] }] });
+    response.resolve({ deleted: true, workflows: [{ id: "WF-2", name: "Remaining", scope: "both", steps: [{ kind: "select", selector: {} }] }] });
     await Promise.all([first, second]);
     assert.strictEqual(context.workflowMutationRef.current, null);
     assert.ok(events.some((item) => item[0] === "feedback" && item[1]?.kind === "success"));

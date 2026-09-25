@@ -121,7 +121,7 @@ function createDeferred() {
       MNBridge: {
         send: overrides.send || (async (command, payload) => {
           events.push(["bridge", command, payload]);
-          return { name: "Recorded batch" };
+          return { ...payload, id: "recorded-batch" };
         }),
       },
       onStatus: (message) => events.push(["status", message]),
@@ -214,7 +214,7 @@ function createDeferred() {
     const pending = harness.saveRecording();
     await Promise.resolve();
     mountedRef.current = false;
-    deferred.resolve({ name: "Recorded batch" });
+    deferred.resolve({ id: "recorded-batch", name: "Recorded batch", scope: "batch", steps: [{ kind: "action", actionId: "copyText", options: {} }] });
     await pending;
     assert.ok(harness.events.some((item) => item[0] === "status"), "a completed save may still publish its result to the parent status area");
     assert.ok(!harness.events.some((item) => item[0] === "recording"), "a late response must not write local state after the editor closes");
