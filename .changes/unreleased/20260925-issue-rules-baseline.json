@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "issue-rules-baseline",
+  "changes": [
+    {
+      "id": "issue-rules-baseline",
+      "type": "changed",
+      "zh": "docs: record existing bug issue tracking conventions",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}

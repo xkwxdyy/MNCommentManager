@@ -66,3 +66,10 @@
 - 写 `NSUserDefaults` 时不要传 `undefined`、`null`、函数、循环对象或未验证的 Native 对象；结构化小对象优先 `JSON.stringify` 后保存字符串，读取时 `JSON.parse` 兜底。
 - 新增 Web 持久化需求时，先在 `src/WebBridgeCommands.js` 增加命令，再在插件侧存储模块实现读写，Web 侧只能调用 `MNBridge.send(command, payload)`。
 - 如果历史版本已经使用 `localStorage` 保存业务数据，只允许做一次性迁移：读取 allowlist key，发 bridge 写入 Native，成功后清理旧 key；迁移后不得继续双写。
+
+## Bug Issue 自动跟踪
+
+- Bug 反馈、回归和修复默认创建或复用 GitHub Issue，并记录根因、改动、验证与待验收项；用户已给予持续授权，无需逐次确认。
+- 本目录是独立仓库 `xkwxdyy/MNCommentManager`。先查本仓库及父仓库 `xkwxdyy/MN-Addons` 的相关历史，已有跨插件 Issue 优先关联，不重复建单。
+- 在当前 MNAddon 工作区使用 `../.agents/skills/github-issue-tracker/SKILL.md`；独立检出时沿用本节规则并使用 gh。推送、发布与其他外部沟通不在自动 Bug 跟踪授权中。
+- 收尾提供 Issue 链接；网络失败保存草稿并明确报告。历史测试与本次测试分开，未完成真机验收保持开放，关闭需对应授权与完整证据。
