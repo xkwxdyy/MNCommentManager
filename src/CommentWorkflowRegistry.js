@@ -28,6 +28,77 @@ var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
     return builtin || id.indexOf(".") > 0;
   }
 
+  function validateParameter(field, value) {
+    const fail = () => { throw new Error(`参数「${field.label}」无效`); };
+    if (field.type === "string") {
+      if (typeof value !== "string" || value.length > field.maxLength) fail();
+    } else if (field.type === "boolean") {
+      if (typeof value !== "boolean") fail();
+    } else if (field.type === "number") {
+      if (typeof value !== "number" || !Number.isFinite(value) ||
+          (field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max) ||
+          (field.integer && !Number.isInteger(value))) fail();
+    } else if (!field.choices.some((choice) => choice.value === value)) fail();
+    return value;
+  }
+
+  function normalizeParameterSchema(raw) {
+    if (raw === undefined || raw === null) return null; // Legacy extensions keep their opaque options.
+    if (!Array.isArray(raw) || raw.length > 24) throw new Error("动作参数定义必须为数组（最多 24 项）");
+    const seen = Object.create(null);
+    return raw.map((item) => {
+      if (!item || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(item.key) ||
+          ["constructor", "prototype", "__proto__"].includes(item.key) || seen[item.key]) throw new Error("动作参数名称无效或重复");
+      if (!["string", "boolean", "number", "enum"].includes(item.type)) throw new Error("不支持的动作参数类型");
+      seen[item.key] = true;
+      const field = { key: item.key, type: item.type, label: text(item.label || item.key).slice(0, 120), required: item.required === true };
+      if (item.type === "string") {
+        field.maxLength = item.maxLength === undefined ? 4096 : item.maxLength;
+        if (!Number.isInteger(field.maxLength) || field.maxLength < 0 || field.maxLength > 10000) throw new Error("参数长度限制无效");
+        field.escapedNewlines = item.escapedNewlines === true;
+      }
+      if (item.type === "number") {
+        for (const key of ["min", "max"]) {
+          if (item[key] !== undefined) {
+            if (typeof item[key] !== "number" || !Number.isFinite(item[key])) throw new Error("参数范围无效");
+            field[key] = item[key];
+          }
+        }
+        if (field.min !== undefined && field.max !== undefined && field.min > field.max) throw new Error("参数范围无效");
+        field.integer = item.integer === true;
+      }
+      if (item.type === "enum") {
+        if (!Array.isArray(item.choices) || !item.choices.length || item.choices.length > 64) throw new Error("参数选项无效");
+        const values = Object.create(null);
+        field.choices = item.choices.map((choice) => {
+          if (!choice || typeof choice.value !== "string" || choice.value.length > 120 || values[choice.value]) throw new Error("参数选项无效或重复");
+          values[choice.value] = true;
+          return { value: choice.value, label: text(choice.label || choice.value).slice(0, 120) };
+        });
+      }
+      if (Object.prototype.hasOwnProperty.call(item, "default")) field.default = validateParameter(field, item.default);
+      return field;
+    });
+  }
+
+  function validateOptions(action, options) {
+    const source = options === undefined || options === null ? {} : options;
+    if (typeof source !== "object" || Array.isArray(source)) throw new Error("动作参数必须为对象");
+    if (!action.parameterSchema) return JSON.parse(JSON.stringify(source));
+    const output = {};
+    const fields = action.parameterSchema;
+    Object.keys(source).forEach((key) => {
+      if (!fields.some((field) => field.key === key)) throw new Error(`动作 ${action.title} 包含未知参数: ${key}`);
+    });
+    fields.forEach((field) => {
+      const value = Object.prototype.hasOwnProperty.call(source, field.key) ? source[field.key] : field.default;
+      if (value === undefined) {
+        if (field.required) throw new Error(`缺少参数「${field.label}」`);
+      } else output[field.key] = validateParameter(field, value);
+    });
+    return output;
+  }
+
   function normalizeDefinition(raw, builtin, ownerId) {
     const definition = raw && typeof raw === "object" ? raw : {};
     const id = text(definition.id).trim();
@@ -41,6 +112,7 @@ var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
       input: text(definition.input).trim().toLowerCase() === "selection" ? "selection" : "notes",
       dangerous: definition.dangerous === true,
       description: text(definition.description).trim().slice(0, 240),
+      parameterSchema: normalizeParameterSchema(definition.parameterSchema),
       canRun: typeof definition.canRun === "function" ? definition.canRun : null,
       run: definition.run,
       ownerId: text(ownerId || definition.ownerId).trim() || (builtin ? "core" : "extension"),
@@ -163,6 +235,7 @@ var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
       dangerous: action.dangerous === true,
       input: action.input || "notes",
       description: action.description,
+      parameterSchema: action.parameterSchema ? JSON.parse(JSON.stringify(action.parameterSchema)) : null,
       ownerId: action.ownerId,
       builtin: action.builtin === true,
       compatible,
@@ -230,6 +303,7 @@ var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
     registerPreset,
     unregister,
     getAction,
+    validateOptions,
     getCatalog,
     getPresets,
     api,

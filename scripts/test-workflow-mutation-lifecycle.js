@@ -227,7 +227,7 @@ function makeSaveContext(send) {
   assert.ok(workflow.includes('{workflowMutationKind === "save" ? "保存中…" : "保存"}'));
   assert.ok(workflow.includes('{workflowMutationKind === "delete" ? "删除中…" : "确认删除"}'));
   assert.ok(workflow.includes("<SelectorEditor selector={step.selector || {}} disabled={busy}"));
-  assert.ok(workflow.includes("<ActionOptionsEditor actionId={step.actionId} options={step.options || {}} disabled={busy}"));
+  assert.match(workflow, /<ActionOptionsEditor[^\n]*actionId=\{step\.actionId\}[^\n]*options=\{step\.options \|\| \{\}\}[^\n]*disabled=\{busy\}/);
   assert.ok(/disabled=\{busy\}\s+onClick=\{\(event\) => selectWorkflow\(workflow, event\)\}/s.test(workflow));
   assert.ok(workflow.includes('role="alertdialog"'));
   assert.ok(workflow.includes('data-workflow-mutation-close-cancel'));

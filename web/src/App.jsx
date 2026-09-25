@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import CommentTypeSelector from "./components/CommentTypeSelector";
+import WorkflowParameters from "./components/WorkflowParameters";
 import {
   getMoveState,
   getVirtualPositionForComment,
@@ -3455,19 +3456,9 @@ function SelectorEditor({ selector, onChange, disabled = false }) {
   );
 }
 
-function ActionOptionsEditor({ actionId, options, onChange, disabled = false }) {
-  const value = options && typeof options === "object" ? options : {};
-  if (actionId === "mergeSelectedComments") {
-    const separatorValue = String(value.separator === undefined ? "\n\n" : value.separator).replace(/\n/g, "\\n");
-    return (
-      <div className="workflow-visual-options">
-        <label><span>合并目标</span><select value={value.destination === "excerpt" ? "excerpt" : "comment"} disabled={disabled} onChange={(event) => onChange({ ...value, destination: event.target.value })}>
-          <option value="comment">生成一条评论</option><option value="excerpt">合并到原生摘录</option>
-        </select></label>
-        <label><span>分隔符（\n 表示换行）</span><input value={separatorValue} disabled={disabled} onChange={(event) => onChange({ ...value, separator: event.target.value.replace(/\\n/g, "\n") })} /></label>
-        <label className="workflow-inline-check"><input type="checkbox" disabled={disabled} checked={value.markdown !== false} onChange={(event) => onChange({ ...value, markdown: event.target.checked })} /><span>以 Markdown 保存</span></label>
-      </div>
-    );
+function ActionOptionsEditor({ actionId, descriptor, options, onChange, disabled = false }) {
+  if (Array.isArray(descriptor?.parameterSchema)) {
+    return <WorkflowParameters schema={descriptor.parameterSchema} options={options} onChange={onChange} disabled={disabled} />;
   }
   if (["convertSelectedHtmlToMarkdown", "deleteSelectedComments", "reverseSelectedComments", "convertSelectedCardsToNoExcerpt", "keepFirstContent", "convertHtmlCommentsToMarkdown", "convertNotesToNoExcerpt", "removeAllLinkComments", "clearAllComments", "clearAllTitles"].includes(actionId)) {
     return <small className="workflow-options-hint">此动作没有需要配置的参数。</small>;
@@ -3939,7 +3930,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
                     {step.kind === "select" ? (
                       <SelectorEditor selector={step.selector || {}} disabled={busy} onChange={(selector) => updateStep(index, { selector, selectorError: undefined })} />
                     ) : (
-                      <ActionOptionsEditor actionId={step.actionId} options={step.options || {}} disabled={busy} onChange={(options) => updateStep(index, { options })} />
+                      <ActionOptionsEditor actionId={step.actionId} descriptor={actionDescriptor(step.actionId)} options={step.options || {}} disabled={busy} onChange={(options) => updateStep(index, { options })} />
                     )}
                   </div>
                   {step.kind === "select" || catalog.some((item) => item.id === step.actionId) ? null : <small className="workflow-missing">缺失动作</small>}

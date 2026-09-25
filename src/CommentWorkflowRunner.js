@@ -82,6 +82,13 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       scope: "both",
       input: "selection",
       dangerous: true,
+      parameterSchema: [
+        { key: "destination", type: "enum", label: "合并目标", default: "comment", choices: [
+          { value: "comment", label: "生成一条评论" }, { value: "excerpt", label: "合并到原生摘录" },
+        ] },
+        { key: "separator", type: "string", label: "分隔符（\\n 表示换行）", default: "\n\n", maxLength: 256, escapedNewlines: true },
+        { key: "markdown", type: "boolean", label: "以 Markdown 保存", default: true },
+      ],
       run(context, options) {
         return __MN_COMMENT_BATCH_EDITOR__.mergeSelected(context.notes, context.selector || {}, options || {});
       },
@@ -293,14 +300,16 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       if (action.scope !== "both" && action.scope !== context.mode) {
         throw new Error(`动作 ${action.title} 不支持当前上下文`);
       }
+      const options = __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(action, step.options);
       if (typeof action.canRun === "function" && action.input !== "selection") {
-        const result = action.canRun(createActionContext(context, action), step.options || {});
+        const result = action.canRun(createActionContext(context, action), options);
         if (isPromiseLike(result)) throw new Error(`动作 ${action.title} 的 canRun 必须同步返回`);
         if (result === false || (result && result.ok === false)) {
           throw new Error(result && result.reason ? String(result.reason) : `动作 ${action.title} 当前不可用`);
         }
       }
-      actions.push(action);
+      // Keep the validated payload stable across the asynchronous confirmation.
+      actions.push(Object.assign({}, action, { workflowOptions: options }));
     });
     return actions;
   }
@@ -352,12 +361,12 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
           }
           const actionContext = createActionContext(context, action);
           if (typeof action.canRun === "function" && action.input === "selection") {
-            const canRun = action.canRun(actionContext, step.options || {});
+            const canRun = action.canRun(actionContext, action.workflowOptions);
             if (isPromiseLike(canRun) || canRun === false || (canRun && canRun.ok === false)) {
               throw new Error(canRun && canRun.reason ? String(canRun.reason) : `动作 ${action.title} 当前不可用`);
             }
           }
-          const result = action.run(actionContext, step.options || {});
+          const result = action.run(actionContext, action.workflowOptions);
           if (isPromiseLike(result)) {
             throw new Error(`动作 ${action.title} 返回异步结果；工作流动作暂要求同步执行`);
           }

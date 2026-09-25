@@ -274,7 +274,9 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
         };
       }
       const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step && step.actionId);
-      return { kind: "action", actionId: step && step.actionId ? String(step.actionId) : "", title: action ? action.title : "未知动作" };
+      if (!action) throw new Error("工作流依赖的动作不可用");
+      const options = __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(action, step.options);
+      return { kind: "action", actionId: action.id, title: action.title, options };
     });
     return { token: String(batch.token || ""), cards, steps, workflowId: workflow.id || "" };
   }
@@ -287,6 +289,12 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function saveWorkflow(context, payload) {
+    (payload && Array.isArray(payload.steps) ? payload.steps : []).forEach((step) => {
+      if (!step || step.kind === "select") return;
+      const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
+      // Preserve missing extension steps so reinstalling the extension can restore them.
+      if (action) __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(action, step.options);
+    });
     const saved = __MN_COMMENT_WORKFLOW_STORE__.save(payload);
     return decorateWorkflow(saved);
   }

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "workflow-parameters-baseline",
+  "changes": [
+    {
+      "id": "workflow-parameters-baseline",
+      "type": "changed",
+      "zh": "feat(workflows): validate and render action parameter schemas",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}
