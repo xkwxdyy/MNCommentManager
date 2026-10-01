@@ -866,6 +866,7 @@ function App() {
   const selectionModeTriggerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
+  const [showImageExcerptText, setShowImageExcerptText] = useState(false);
   const [mergeDefaultLoadError, setMergeDefaultLoadError] = useState("");
   const [deletePressing, setDeletePressing] = useState(false);
   const [singleDeletePressing, setSingleDeletePressing] = useState(null);
@@ -1183,6 +1184,7 @@ function App() {
         .then((settings) => {
           if (!appMountedRef.current) return;
           setMergeToExcerptDefault(settings?.mergeToExcerptDefault === true);
+          setShowImageExcerptText(settings?.showImageExcerptText === true);
           setMergeDefaultLoadError("");
         })
         .catch((error) => {
@@ -2187,12 +2189,13 @@ function App() {
     const openingToken = "settings";
     overlayOpeningRef.current = openingToken;
     setOpeningOverlay(openingToken);
-    notifyStatus("正在打开动作按钮设置…");
+    notifyStatus("正在打开评论管理设置…");
     const sessionId = actionButtonSettingsSessionRef.current + 1;
     actionButtonSettingsSessionRef.current = sessionId;
     try {
       const settings = await MNBridge.send("getActionButtonSettings");
       if (!appMountedRef.current || actionButtonSettingsSessionRef.current !== sessionId) return;
+      setShowImageExcerptText(settings?.showImageExcerptText === true);
       setActionButtonSettings({ values: settings, returnFocusTarget, sessionId });
     } catch (error) {
       if (appMountedRef.current && actionButtonSettingsSessionRef.current === sessionId) notifyStatus(normalizeError(error));
@@ -2206,12 +2209,14 @@ function App() {
 
   const updateActionButtonSettings = async (changes, sessionId) => {
     const settings = await MNBridge.send("updateActionButtonSettings", changes);
+    if (appMountedRef.current) setShowImageExcerptText(settings?.showImageExcerptText === true);
     setActionButtonSettings((current) => applyActionButtonSettingsForSession(current, sessionId, settings));
     return settings;
   };
 
   const reloadActionButtonSettings = async (sessionId) => {
     const settings = await MNBridge.send("getActionButtonSettings");
+    if (appMountedRef.current) setShowImageExcerptText(settings?.showImageExcerptText === true);
     setActionButtonSettings((current) => applyActionButtonSettingsForSession(current, sessionId, settings));
     return settings;
   };
@@ -2308,7 +2313,7 @@ function App() {
           <Button className={rangePicking ? "active" : "secondary"} aria-pressed={rangePicking ? "true" : "false"} disabled={loading || (!excerptPresent && comments.length === 0)} onClick={startRangeSelection} title={rangePicking ? "退出范围选择（Esc）" : "选择连续范围"}>选范围</Button>
           <Button className="secondary" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel}>刷新</Button>
           <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</Button>
-          <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="设置卡片操作按钮">{openingOverlay === "settings" ? "打开中…" : "设置"}</Button>
+          <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置">{openingOverlay === "settings" ? "打开中…" : "设置"}</Button>
           <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel}>{closingPanel ? "关闭中…" : "关闭"}</Button>
         </div>
       </header>
@@ -2474,7 +2479,7 @@ function App() {
               </div>
               <div className="comment-body excerpt-body">
                 {normalizeImageSource(excerpt) ? <img src={normalizeImageSource(excerpt)} alt="当前卡片的原生摘录" /> : null}
-                {excerpt.text && excerpt.textMarkdown ? (
+                {excerpt.type === "image" && !showImageExcerptText ? null : excerpt.text && excerpt.textMarkdown ? (
                   <MarkdownCommentBody source={excerpt.text} />
                 ) : excerpt.text ? (
                   <PlainTextPreview
@@ -3380,7 +3385,7 @@ function ActionButtonSettingsDialog({
           keepFocusWithinDialog(event, dialogRef.current);
         }}
       >
-        <h2 id="action-button-settings-title">卡片操作按钮</h2>
+        <h2 id="action-button-settings-title">评论管理设置</h2>
         <p id="action-button-settings-description">这些设置会立即保存，并在下次打开笔记本时继续生效。</p>
         {feedback ? (
           <p
@@ -3414,6 +3419,18 @@ function ActionButtonSettingsDialog({
           <span>
             <strong>单卡时显示“评”按钮</strong>
             <small>点按打开评论管理器；长按打开单选处理菜单。</small>
+          </span>
+        </label>
+        <label className={savingKey === "showImageExcerptText" ? "dialog-check saving" : "dialog-check"}>
+          <input
+            type="checkbox"
+            checked={settings?.showImageExcerptText === true}
+            disabled={busy}
+            onChange={(event) => saveSetting("showImageExcerptText", event.target.checked, "显示图片摘录文本")}
+          />
+          <span>
+            <strong>显示图片摘录文本</strong>
+            <small>默认关闭。开启后，在图片摘录下方显示其文本内容；关闭只隐藏显示，原文仍会保留。</small>
           </span>
         </label>
         <div className="dialog-actions">

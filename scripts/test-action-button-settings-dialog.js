@@ -260,7 +260,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
   assert.ok(app.includes("onStatus={notifyStatus}"));
   assert.ok(app.includes("returnFocusTarget={actionButtonSettings.returnFocusTarget}"));
   assert.ok(app.includes("onClose={closeActionButtonSettings}"));
-  assert.ok(app.includes('onClick={openActionButtonSettings} title="设置卡片操作按钮"'), "the top-level settings button must retain its opener");
+  assert.ok(app.includes('onClick={openActionButtonSettings} title="评论管理设置"'), "the top-level settings button must retain its opener");
   assert.ok(app.includes('{openingOverlay === "settings" ? "打开中…" : "设置"}'), "the settings button must expose its opening state");
   assert.ok(app.includes('disabled={loading || !!openingOverlay || closingPanel}'), "overlay openers must share the same duplicate-open gate");
 

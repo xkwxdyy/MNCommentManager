@@ -2,6 +2,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
   const BATCH_BUTTON_VISIBLE_KEY = "mncommentmanager_show_batch_button";
   const DYNAMIC_BUTTON_ENABLED_KEY = "mncommentmanager_enable_dynamic_single_card_button";
   const MERGE_TO_EXCERPT_DEFAULT_KEY = "mncommentmanager_merge_to_excerpt_default";
+  const SHOW_IMAGE_EXCERPT_TEXT_KEY = "mncommentmanager_show_image_excerpt_text";
 
   function defaults() {
     return NSUserDefaults.standardUserDefaults();
@@ -35,6 +36,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
       showBatchButton: readBoolean(BATCH_BUTTON_VISIBLE_KEY, true),
       enableDynamicSingleCardButton: readBoolean(DYNAMIC_BUTTON_ENABLED_KEY, true),
       mergeToExcerptDefault: readBoolean(MERGE_TO_EXCERPT_DEFAULT_KEY, false),
+      showImageExcerptText: readBoolean(SHOW_IMAGE_EXCERPT_TEXT_KEY, false),
     };
   }
 
@@ -44,6 +46,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
     if (typeof next.showBatchButton === "boolean") writeBoolean(BATCH_BUTTON_VISIBLE_KEY, next.showBatchButton);
     if (typeof next.enableDynamicSingleCardButton === "boolean") writeBoolean(DYNAMIC_BUTTON_ENABLED_KEY, next.enableDynamicSingleCardButton);
     if (typeof next.mergeToExcerptDefault === "boolean") writeBoolean(MERGE_TO_EXCERPT_DEFAULT_KEY, next.mergeToExcerptDefault);
+    if (typeof next.showImageExcerptText === "boolean") writeBoolean(SHOW_IMAGE_EXCERPT_TEXT_KEY, next.showImageExcerptText);
     return getSettings();
   }
 
