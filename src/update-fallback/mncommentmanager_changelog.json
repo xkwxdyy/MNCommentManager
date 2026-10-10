@@ -1,8 +1,43 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-01T00:00:00+08:00",
+  "updatedAt": "2026-10-10T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.24",
+      "channel": "stable",
+      "date": "2026-10-10",
+      "items": [
+        {
+          "zh": "在提供批注折叠接口的宿主中，评论管理器支持读取和修改每条批注的折叠状态。左侧按钮支持展开或折叠，折叠后保留两行摘要、图片缩略图和状态标签，搜索仍匹配完整内容。",
+          "en": "On hosts exposing comment folding APIs, the manager reads and changes each comment's fold state. Left-side disclosure buttons toggle previews; folded comments retain two-line summaries, image thumbnails, and state labels, while search still matches the full content."
+        },
+        {
+          "zh": "所选批注支持批量展开或折叠，多卡片编辑器和工作流新增对应动作。成功后保留选区，筛选隐藏项仍参与处理，原生摘录不参与折叠；每张卡片每次最多处理 200 条批注。",
+          "en": "Selected comments can be folded or unfolded in bulk, with matching actions in the multi-card editor and workflows. Successful writes preserve selection, including hidden selected comments, and exclude native excerpts. Each host call handles up to 200 comments per card."
+        },
+        {
+          "zh": "多选时点击已选批注的左侧按钮，整个选区统一采用该条批注切换后的状态；未选批注仍单独处理。按钮提供操作范围提示并支持键盘操作。",
+          "en": "Clicking a selected comment's disclosure applies its toggled state to the entire selection. Unselected comments are toggled individually. Tooltips and accessible names describe the affected selection, with keyboard support."
+        },
+        {
+          "zh": "原顶栏继续提供选择和全局操作，底栏固定显示选区状态与批量折叠按钮。移动、转换、合并和删除等操作集中在“更多选区操作”面板，正文独立滚动。",
+          "en": "The existing header retains selection and global commands. A fixed bottom bar shows selection state and folding controls, while move, convert, merge, and delete actions are available in More selection actions. Comments scroll independently."
+        },
+        {
+          "zh": "折叠操作由宿主管理保存、读回校验和撤销。工作流分别管理宿主折叠操作与其余连续步骤的撤销；版本冲突或保存失败时重新读取状态并提示错误。",
+          "en": "The host manages folding persistence, readback verification, and undo. Workflows keep host folding transactions separate from undo groups for other consecutive steps. Revision conflicts and failed saves trigger a state readback and an error message."
+        },
+        {
+          "zh": "短窗口压缩固定栏布局并保留可滚动的顶部操作入口。切换批注后保持点击项头部可见，避免操作栏挤压正文或遮挡按钮。",
+          "en": "Short windows use compact fixed bars and a scrollable header action row. Disclosure toggles keep the clicked comment header visible, preventing controls from squeezing the reading area or obscuring buttons."
+        },
+        {
+          "zh": "“更多选区操作”面板支持 Esc 关闭和焦点返回。进入插入位置选择时关闭菜单，编辑窗口关闭后返回可见控件。",
+          "en": "More selection actions supports Escape dismissal and focus return. Entering insertion mode closes the menu, and closing an editor returns focus to a visible control."
+        }
+      ]
+    },
     {
       "version": "0.1.23",
       "channel": "stable",
