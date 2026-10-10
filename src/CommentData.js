@@ -504,6 +504,17 @@ var __MN_COMMENT_DATA__ = (function () {
     const comments = rawComments.map((comment, index) => (
       serializeComment(note, comment, detailedComments[index] || null, index)
     ));
+    const foldState = __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.read(note);
+    if (foldState.supported && foldState.comments.length !== comments.length) {
+      foldState.supported = false;
+      foldState.error = "批注显示列表已变化，请刷新后重试";
+    }
+    if (foldState.supported) {
+      comments.forEach((comment, index) => {
+        comment.collapsed = foldState.comments[index].collapsed;
+        comment.capabilities.canSetCollapsed = true;
+      });
+    }
     const handwritingPendingCount = comments.filter((comment) => comment.drawingPreviewPending === true).length;
 
     return {
@@ -511,6 +522,7 @@ var __MN_COMMENT_DATA__ = (function () {
       noteTitle: toStringValue(note.noteTitle || "未命名卡片"),
       excerpt: getExcerptState(note),
       comments,
+      commentFold: { supported: foldState.supported, revision: foldState.revision, error: foldState.error || "" },
       handwritingPendingCount,
       error: "",
     };

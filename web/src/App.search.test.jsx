@@ -90,8 +90,10 @@ describe("comment search and filter recovery", () => {
   it("clears only the query with the clear button or Escape and retains focus", async () => {
     await filterBy("文本");
     host.querySelector("#comment-list").scrollTop = 240;
+    host.querySelector("#comment-pane").scrollTop = 360;
     await searchFor("计划");
     expect(host.querySelector("#comment-list").scrollTop).toBe(0);
+    expect(host.querySelector("#comment-pane").scrollTop).toBe(0);
     expect(host.querySelector(".list-context-summary strong").textContent).toBe("1 / 3 条评论");
     expect(host.querySelector(".list-context-summary p").textContent).toBe("文本 · 搜索「计划」");
     await click(host.querySelector('[aria-label="清空搜索"]'));

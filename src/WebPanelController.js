@@ -202,6 +202,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     return {
       message: error && error.message ? error.message : String(error),
       command: command || "unknown",
+      code: error && error.code ? String(error.code) : "",
     };
   }
 

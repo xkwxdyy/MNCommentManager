@@ -7,6 +7,9 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 - Load the focused card and list its comments with type, index, lifecycle stage, and link metadata.
 - Filter and search comments by text, image, link, HTML, audio, or other comment types.
 - Select single comments, multi-select comments, or pick a continuous range.
+- Read and change Comment-level fold state on hosts exposing `commentState()`
+  and `setCommentsCollapsed()`. Folded comments retain a two-line preview and
+  a small image thumbnail. Search still uses the full content.
 - Move selected comments up, down, or to an insertion point.
 - Delete selected comments, including long-press bidirectional deletion for pure MarginNote card links.
 - Edit supported text comments.
@@ -14,8 +17,9 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 - Extract selected comments into a child note.
 - Copy text, copy images, and focus linked notes when supported.
 - Select multiple cards and run a saved comment-processing workflow; each step
-  is applied to each card separately and the complete workflow is grouped into
-  one undo operation.
+  is applied to each card separately. Workflows use one undo group unless a
+  fold action is included; the host manages fold transactions independently,
+  while other consecutive actions keep their own shared undo group.
 - Build, reorder, and edit workflow steps from the WebView panel. Workflow
   definitions are stored as native JSON under the MarginNote document folder.
 - Extend the action catalog with independent Patch addons. See
@@ -29,6 +33,30 @@ Install and enable MN Utils first, then download or build
 
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
+
+## Comment Folding
+
+The disclosure button is at the left of each comment, before its selection
+checkbox. The existing header keeps its selection and global commands. Fold
+and unfold buttons stay in a separate bottom row while comments scroll.
+Hidden selected comments participate, and successful writes preserve selection.
+Clicking a selected comment's disclosure applies the inverse of that comment's
+current state to the entire selection, including hidden comments. Clicking an
+unselected comment's disclosure changes only that comment.
+Native excerpts are excluded. Disclosure toggles keep the clicked comment header
+visible. The bottom bar's More actions menu reuses existing move, processing
+and delete controls, and offers Select all comments including hidden comments.
+
+In the multi-card editor or workflow manager, use `foldSelectedComments` or
+`unfoldSelectedComments` with the existing comment selector. Each card uses a
+fresh projection revision. Each host call accepts at most 200 comments; larger
+selections are rejected without splitting them into partially committed writes.
+
+The plugin detects host capabilities at runtime. Older hosts remain usable but
+show an unavailable message for folding. The plugin converts its zero-based
+indices to the host's one-based indices, checks the expected revision, and
+delegates persistence, rollback, refresh and undo to the host. Failed writes
+trigger a readback; stale selections are cleared before another write.
 
 Minimum MarginNote version:
 

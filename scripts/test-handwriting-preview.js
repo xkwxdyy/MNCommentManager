@@ -107,6 +107,7 @@ const context = vm.createContext({
 });
 
 vm.runInContext(previewSource, context, { filename: "HandwritingPreview.js" });
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentFoldState.js"), "utf8"), context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
 
 const rendered = context.__MN_HANDWRITING_PREVIEW_MNCommentManagerAddon.renderMediaDataURI("drawing");

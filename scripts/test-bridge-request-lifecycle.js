@@ -209,6 +209,7 @@ function assertSinglePending(harness) {
       "updateLinkCommentFromClipboard",
       "clearInvalidLinks",
       "updateActionButtonSettings",
+      "setCommentsCollapsed",
       "runBatchWorkflow",
       "saveWorkflow",
       "deleteWorkflow",

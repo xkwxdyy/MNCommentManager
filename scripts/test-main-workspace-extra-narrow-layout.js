@@ -50,7 +50,7 @@ function matchingBrace(text, openIndex) {
 function extractBlock(text, marker) {
   const start = text.indexOf(marker);
   assert.notStrictEqual(start, -1, `${marker} must exist`);
-  const open = text.indexOf("{", start + marker.length);
+  const open = text.indexOf("{", start);
   assert.notStrictEqual(open, -1, `${marker} must have a block`);
   return text.slice(open + 1, matchingBrace(text, open));
 }
@@ -85,31 +85,16 @@ assert.ok(extractBlock(phone, ".left-pane .wide").includes("width: auto;"), "the
 const commentList = extractBlock(phone, ".comment-list");
 assert.ok(commentList.includes("width: 100%;"), "the comment body must use the full single-column width");
 
-const rightPane = extractBlock(phone, ".right-pane");
-assert.ok(rightPane.includes("display: flex;"), "the action area must become a horizontal rail");
-assert.ok(rightPane.includes("flex-direction: row;"), "action groups must not form a tall narrow column");
-assert.ok(rightPane.includes("overflow-x: auto;"), "all action groups must remain horizontally reachable");
-assert.ok(rightPane.includes("overflow-y: hidden;"), "the action rail must preserve comment-body height");
-assert.ok(rightPane.includes("border-top: 1px solid var(--border-light);"), "the action rail needs a visible boundary from comments");
 
-const rightSection = extractBlock(phone, ".right-pane .pane-section");
-assert.ok(rightSection.includes("flex: 0 0 auto;"), "each action group must remain intact while the rail scrolls");
-assert.ok(!rightSection.includes("display: none;"), "action groups must not be hidden on extra-narrow screens");
-assert.ok(extractBlock(phone, ".right-pane .selection-summary").includes("display: none;"), "the duplicated selection summary must stay hidden on narrow screens");
-const rightGroups = extractBlock(phone, ".right-pane .button-grid,");
-assert.ok(rightGroups.includes("display: flex;"), "move and process commands must stay on the action rail");
-assert.ok(rightGroups.includes("flex-wrap: nowrap;"), "commands must scroll horizontally rather than disappear");
-const rightButtons = extractBlock(phone, ".right-pane button,");
-assert.ok(rightButtons.includes("min-width: 88px;"), "action buttons must remain readable and independently reachable");
-assert.ok(rightButtons.includes("min-height: 36px;"), "action buttons must retain a usable compact height");
-
-const tablet = extractBlock(styles, "@media (max-width: 1180px)");
-assert.ok(extractBlock(tablet, ".move-section").includes("order: 10;"), "the responsive action column must start with the DOM-first move group");
-assert.ok(extractBlock(tablet, ".process-section").includes("order: 20;"), "the responsive action column must keep processing after movement");
-assert.ok(extractBlock(tablet, ".delete-section").includes("order: 30;"), "the destructive group must remain last above the extra-narrow breakpoint");
-assert.ok(extractBlock(phone, ".right-pane .move-section").includes("order: 10;"), "the extra-narrow rail must start with the DOM-first move group");
-assert.ok(extractBlock(phone, ".right-pane .process-section").includes("order: 20;"), "the extra-narrow rail must keep processing after movement");
-assert.ok(extractBlock(phone, ".right-pane .delete-section").includes("order: 30;"), "the destructive group must remain last in the extra-narrow rail");
+const rightPane = extractBlock(styles, ".right-pane {");
+assert.ok(rightPane.includes("display: flex;"), "the fixed selection bar must keep controls on one row");
+assert.ok(!rightPane.includes("overflow: auto;") && !rightPane.includes("overflow-x: auto;"), "fold actions must not leave view when other actions are browsed");
+assert.ok(rightPane.includes("border-top: 1px solid var(--border-light);"), "the selection bar must have a boundary from scrolling content");
+const menu = extractBlock(styles, ".selection-actions-panel {");
+assert.ok(menu.includes("position: fixed;"), "the menu must escape workspace clipping in short windows");
+assert.ok(menu.includes("overflow-y: auto;"), "all existing actions must remain reachable in short windows");
+const summary = extractBlock(styles, ".right-pane .selection-summary {");
+assert.ok(summary.includes("display: block;"), "selection state must remain visible in the fixed bar");
 
 const workspaceStart = app.indexOf('<main className="workspace">');
 const workspaceEnd = app.indexOf("</main>", workspaceStart);

@@ -117,7 +117,7 @@ describe("range and insertion selection modes", () => {
     await click(button("选择插入位置"));
     await click(host.querySelector('[aria-label="退出插入位置选择"]'));
     await act(async () => new Promise((resolve) => setTimeout(resolve, 30)));
-    expect(document.activeElement).toBe(button("选择插入位置"));
+    expect(document.activeElement).toBe(host.querySelector("#selection-actions-toggle"));
     expect(button("选择插入位置").getAttribute("aria-pressed")).toBe("false");
     expect(selectedIds()).toEqual(["comment-0"]);
     expect(MNBridge.send).not.toHaveBeenCalled();

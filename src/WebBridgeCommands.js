@@ -38,6 +38,11 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     return __MN_COMMENT_MUTATIONS__.moveComments(payload.noteId, payload.indices, payload.targetIndex);
   }
 
+  function setCommentsCollapsed(context, payload) {
+    if (!payload || typeof payload.noteId !== "string" || !payload.noteId) throw new Error("未读取到有效的卡片标识");
+    return __MN_COMMENT_MUTATIONS__.setCommentsCollapsed(payload.noteId, payload.indices, payload.collapsed, payload.expectedRevision);
+  }
+
   function moveContentSelection(context, payload) {
     return __MN_COMMENT_MUTATIONS__.moveContentSelection(
       payload.noteId,
@@ -313,6 +318,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     closePanel,
     getCurrentNoteComments,
     refreshCurrentNote,
+    setCommentsCollapsed,
     moveComments,
     moveContentSelection,
     deleteComments,

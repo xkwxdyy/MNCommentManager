@@ -12,6 +12,7 @@
     "test:comment-move-refresh": "node scripts/test-comment-move-refresh.js",
     "test:comment-action-settings": "node scripts/test-comment-action-settings.js",
     "test:content-selection": "vitest run web/src/lib/contentSelection.test.js",
+    "test:comment-fold": "node scripts/test-comment-fold.js && vitest run web/src/App.fold.test.jsx",
     "test:dynamic-comment-actions": "node scripts/test-dynamic-comment-actions.js",
     "test:invalid-link-cleanup": "node scripts/test-invalid-link-cleanup.js",
     "test:handwriting-preview": "node scripts/test-handwriting-preview.js",

@@ -117,6 +117,7 @@ var __MN_COMMENT_WORKFLOW_REGISTRY__ = (function () {
       run: definition.run,
       ownerId: text(ownerId || definition.ownerId).trim() || (builtin ? "core" : "extension"),
       builtin: builtin === true,
+      managesUndo: builtin === true && definition.managesUndo === true,
     };
   }
 

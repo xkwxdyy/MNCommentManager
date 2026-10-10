@@ -123,6 +123,19 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
         return __MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptForNotes(context.notes);
       },
     });
+    [true, false].forEach((collapsed) => {
+      __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
+        id: collapsed ? "foldSelectedComments" : "unfoldSelectedComments",
+        title: collapsed ? "折叠选中的批注" : "展开选中的批注",
+        scope: "both",
+        input: "selection",
+        managesUndo: true,
+        description: "仅处理批注；每张卡片最多 200 条，由宿主独立保存并管理撤销。",
+        run(context) {
+          return __MN_COMMENT_BATCH_EDITOR__.setSelectedCollapsed(context.notes, context.selector || {}, collapsed);
+        },
+      });
+    });
   }
 
   function getBatchContext(addon, token) {
@@ -326,7 +339,10 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       "",
       labels.map((label, index) => `${index + 1}. ${label}`).join("\n"),
       "",
-      "危险步骤会在一个撤销分组中执行；如有需要，可以一次撤销整个工作流。",
+      (workflow.steps || []).some((step) => {
+        const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
+        return action && action.managesUndo;
+      }) ? "批注折叠步骤由宿主独立管理撤销；其余连续步骤使用同一撤销分组。" : "危险步骤会在一个撤销分组中执行；如有需要，可以一次撤销整个工作流。",
     ].join("\n");
     return !!(await MNUtil.confirm("确认执行工作流？", message, ["取消", "确认执行"]));
   }
@@ -334,8 +350,8 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
   function executeSync(workflow, context, actions) {
     const stepResults = [];
     let failedStep = null;
-    __MN_UNDO_GROUPING_MNCommentManagerAddon.run(`工作流：${workflow.name}`, { notes: context.notes }, () => {
-      for (let index = 0; index < actions.length; index += 1) {
+    const executeRange = (start, end) => {
+      for (let index = start; index < end; index += 1) {
         const action = actions[index];
         const step = workflow.steps[index];
         try {
@@ -384,7 +400,18 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
           break;
         }
       }
-    });
+    };
+    for (let start = 0; start < actions.length && !failedStep;) {
+      if (actions[start].kind === "select" || actions[start].managesUndo) {
+        executeRange(start, start + 1);
+        start += 1;
+      } else {
+        let end = start + 1;
+        while (end < actions.length && !actions[end].managesUndo) end += 1;
+        __MN_UNDO_GROUPING_MNCommentManagerAddon.run(`工作流：${workflow.name}`, { notes: context.notes }, () => executeRange(start, end));
+        start = end;
+      }
+    }
     return { stepResults, failedStep };
   }
 

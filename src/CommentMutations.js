@@ -52,6 +52,19 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return __MN_UNDO_GROUPING_MNCommentManagerAddon.run(actionName, options, block);
   }
 
+  function setCommentsCollapsed(noteId, indices, collapsed, expectedRevision) {
+    const note = getNoteOrThrow(noteId);
+    // This host method commits, verifies persistence, refreshes and manages its own Undo group.
+    const result = __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.setCollapsed(note, indices, collapsed, expectedRevision);
+    return {
+      persisted: result.persisted,
+      changedCount: result.changedCount,
+      changed: result.changedCount > 0,
+      snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
+      statusMessage: result.changedCount ? `已${collapsed ? "折叠" : "展开"} ${result.changedCount} 条批注` : "所选批注已处于目标状态",
+    };
+  }
+
   function refreshNote(note) {
     try {
       if (note && typeof note.refresh === "function") note.refresh();
@@ -2362,6 +2375,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   return {
+    setCommentsCollapsed,
     moveComments,
     reverseCommentIndices,
     moveContentSelection,

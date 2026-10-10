@@ -2,6 +2,8 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import CommentTypeSelector from "./components/CommentTypeSelector";
 import WorkflowParameters from "./components/WorkflowParameters";
+import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
+import SelectionActionsPanel from "./components/SelectionActionsPanel";
 import {
   getMoveState,
   getVirtualPositionForComment,
@@ -381,9 +383,9 @@ function prefersReducedMotion() {
   }
 }
 
-function scrollElementIntoView(element) {
+function scrollElementIntoView(element, block = "start") {
   if (!element || typeof element.scrollIntoView !== "function") return false;
-  element.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+  element.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block });
   return true;
 }
 
@@ -586,7 +588,7 @@ function restoreFocusAfterDialogClose(target, fallbackTarget = null) {
       ? target.closest(".comment-card")
       : null;
     const fallback = explicitFallbackCanFocus ? fallbackTarget : closestFallback;
-    const focusTarget = targetCanFocus && target.isConnected !== false && target.disabled !== true
+    const focusTarget = targetCanFocus && target.isConnected !== false && target.disabled !== true && !target.closest?.("[hidden]")
       ? target
       : fallback;
     if (!focusTarget || focusTarget.isConnected === false || typeof focusTarget.focus !== "function") return;
@@ -863,6 +865,7 @@ function App() {
   const [rangePicking, setRangePicking] = useState(false);
   const [rangeAnchor, setRangeAnchor] = useState(null);
   const [insertMode, setInsertMode] = useState(false);
+  const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const selectionModeTriggerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
@@ -892,6 +895,17 @@ function App() {
   const panelCloseRef = useRef(false);
   const mergeDefaultPersistenceRef = useRef({ busy: false, queued: null, latest: false });
   const appMountedRef = useRef(true);
+  const currentNoteIdRef = useRef(snapshot.noteId);
+  useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
+  useEffect(() => {
+    if (dialog || openingOverlay || closingPanel) setSelectionActionsOpen(false);
+  }, [dialog, openingOverlay, closingPanel]);
+  const closeSelectionActions = () => {
+    setSelectionActionsOpen(false);
+    document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
+  };
+  const currentViewRef = useRef(null);
+  currentNoteIdRef.current = snapshot.noteId;
 
   const comments = snapshot.comments || [];
   const excerpt = snapshot.excerpt || makeEmptySnapshot().excerpt;
@@ -911,6 +925,7 @@ function App() {
     () => makeContentSelection(excerptSelected, selectedIndices),
     [excerptSelected, selectedIndices],
   );
+  currentViewRef.current = { snapshot, selection: contentSelection };
   const filterCounts = useMemo(() => (
     comments.reduce((counts, comment) => {
       const key = getTypeMeta(comment).filter;
@@ -993,6 +1008,8 @@ function App() {
 
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
+    currentNoteIdRef.current = normalizedSnapshot.noteId;
+    currentViewRef.current = { snapshot: normalizedSnapshot, selection: nextSelection };
     setSnapshot(normalizedSnapshot);
     setNoteViewState(snapshotViewState(normalizedSnapshot));
     setExpandedPreviews(new Set());
@@ -1005,7 +1022,7 @@ function App() {
   };
 
   const runCommand = async (command, payload, options = {}) => {
-    const { message = "已完成", keepSelection = false } = options;
+    const { message = "已完成", keepSelection = false, selectionAfter = null, refreshOnError = false, expectedNoteId = "" } = options;
     if (commandInFlightRef.current) {
       const error = new Error("正在处理上一项操作，请稍候");
       error.code = "MNCM_WEB_BUSY";
@@ -1019,15 +1036,16 @@ function App() {
     try {
       const result = await MNBridge.send(command, payload);
       if (!appMountedRef.current) return result;
+      if (expectedNoteId && currentNoteIdRef.current !== expectedNoteId) return result;
       const resultMessage = result?.statusMessage || message;
       if (result?.snapshot) {
-        applySnapshot(result.snapshot, resultMessage, Array.isArray(result.selectedIndices)
+        applySnapshot(result.snapshot, resultMessage, selectionAfter || (Array.isArray(result.selectedIndices)
           ? makeContentSelection(false, result.selectedIndices)
-          : null);
+          : null));
       } else if (result?.comments) {
-        applySnapshot(result, resultMessage, Array.isArray(result.selectedIndices)
+        applySnapshot(result, resultMessage, selectionAfter || (Array.isArray(result.selectedIndices)
           ? makeContentSelection(false, result.selectedIndices)
-          : null);
+          : null));
       } else if (!keepSelection) {
         notifyStatus(resultMessage);
       } else if (result?.statusMessage) {
@@ -1035,6 +1053,17 @@ function App() {
       }
       return result;
     } catch (error) {
+      if (refreshOnError && appMountedRef.current && currentNoteIdRef.current === expectedNoteId) {
+        try {
+          const refreshed = await MNBridge.send("refreshCurrentNote");
+          if (appMountedRef.current && currentNoteIdRef.current === expectedNoteId && refreshed?.noteId === expectedNoteId) {
+            // A failed revision check can change the meaning of selected indices.
+            applySnapshot(refreshed, normalizeError(error));
+          }
+        } catch (_) {
+          // Preserve the original mutation error if the readback also fails.
+        }
+      }
       if (appMountedRef.current) notifyStatus(normalizeError(error));
       throw error;
     } finally {
@@ -1042,6 +1071,30 @@ function App() {
         commandInFlightRef.current = null;
         if (appMountedRef.current) setLoading(false);
       }
+    }
+  };
+
+  const setCommentsCollapsed = async (indices, collapsed, revealIndex = null) => {
+    if (!snapshot.commentFold?.supported || indices.length === 0) return;
+    await runCommand("setCommentsCollapsed", {
+      noteId: snapshot.noteId,
+      indices,
+      collapsed,
+      expectedRevision: snapshot.commentFold.revision,
+    }, {
+      message: collapsed ? "所选评论已折叠" : "所选评论已展开",
+      selectionAfter: contentSelection,
+      refreshOnError: true,
+      expectedNoteId: snapshot.noteId,
+    });
+    if (revealIndex !== null && appMountedRef.current && currentNoteIdRef.current === snapshot.noteId) {
+      const revealHeader = () => {
+        if (appMountedRef.current && currentNoteIdRef.current === snapshot.noteId) {
+          scrollElementIntoView(document.querySelector(`#comment-${revealIndex} .comment-head`), "nearest");
+        }
+      };
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(revealHeader);
+      else revealHeader();
     }
   };
 
@@ -1284,7 +1337,11 @@ function App() {
             : payload.reason === "handwriting-preview-retry"
               ? "手写内容转换完成，页面已自动刷新"
               : "已切换到当前卡片";
-        applySnapshot(payload.snapshot, syncMessage);
+        const previous = currentViewRef.current;
+        const unchangedProjection = previous?.snapshot.noteId === payload.snapshot.noteId &&
+          previous.snapshot.commentFold?.supported === true && payload.snapshot.commentFold?.supported === true &&
+          previous.snapshot.commentFold.revision === payload.snapshot.commentFold.revision;
+        applySnapshot(payload.snapshot, syncMessage, unchangedProjection ? previous.selection : null);
       } catch (error) {
         notifyStatus(normalizeError(error));
       }
@@ -1333,6 +1390,8 @@ function App() {
   useEffect(() => {
     const list = document.getElementById("comment-list");
     if (list) list.scrollTop = 0;
+    const pane = document.getElementById("comment-pane");
+    if (pane) pane.scrollTop = 0;
   }, [filter, search]);
 
   const setContentSelection = (selection, keepRangePicking = false) => {
@@ -2162,8 +2221,11 @@ function App() {
   const scrollToComment = (index) => scrollElementIntoView(document.getElementById(`comment-${index}`));
 
   const scrollToTop = () => {
-    if (excerptPresent) return scrollElementIntoView(document.getElementById("native-excerpt"));
-    return scrollToComment(visibleComments[0]?.index);
+    const pane = document.getElementById("comment-pane");
+    if (!pane) return false;
+    if (typeof pane.scrollTo === "function") pane.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    else pane.scrollTop = 0;
+    return true;
   };
 
   const rangeHint = rangePicking
@@ -2409,7 +2471,7 @@ function App() {
           </section>
         </aside>
 
-        <div className="comment-pane">
+        <div className="comment-pane" id="comment-pane">
           {hasActiveFilter || rangePicking || insertMode ? (
             <div className="list-context" role="group" aria-label={rangePicking || insertMode ? "选择操作" : "筛选结果"}>
               {rangePicking || insertMode ? (
@@ -2534,7 +2596,7 @@ function App() {
                 ) : null}
                 <article
                   id={`comment-${comment.index}`}
-                  className={`comment-card comment-kind-${meta.filter} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
+                  className={`comment-card comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
                   }}
@@ -2551,6 +2613,12 @@ function App() {
                   }}
                 >
                   <div className="comment-head">
+                    <CommentFoldButton
+                      comment={comment}
+                      selectionCount={selectedNow ? selectedIndices.length : 1}
+                      disabled={loading}
+                      onToggle={(target, collapsed) => setCommentsCollapsed(selectedNow ? selectedIndices : [target.index], collapsed, target.index)}
+                    />
                     <SelectionCheckbox
                       checked={selectedNow}
                       label={selectedNow ? `取消选择评论 #${comment.index}` : `选择评论 #${comment.index}`}
@@ -2565,6 +2633,7 @@ function App() {
                         {LINK_DIRECTION_LABELS[comment.linkDirection] || comment.linkDirection}
                       </span>
                     ) : null}
+                    <CommentFoldStatus comment={comment} />
                     <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
                       {linkedDisplay ? (
@@ -2662,7 +2731,10 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="comment-body">
+                  <div className="comment-body" id={`comment-${comment.index}-body`}>
+                    {comment.collapsed === true ? (
+                      <CollapsedCommentPreview comment={comment} text={commentText(comment)} mediaSources={mediaSources} linkedDisplay={linkedDisplay} />
+                    ) : <>
                     {mediaSources.length > 0 ? (
                       <div className={`comment-media-previews media-count-${mediaSources.length}`}>
                         {mediaSources.map((media) => (
@@ -2714,6 +2786,7 @@ function App() {
                         onEdit={openMarkdownLinkEditDialog}
                       />
                     ) : null}
+                    </>}
                   </div>
                 </article>
               </div>
@@ -2728,11 +2801,13 @@ function App() {
 
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
-            <h2>当前选择</h2>
-            <p>{hasSelection
-              ? [excerptSelected ? "原生摘录" : "", selectedIndices.length ? `${getSelectionHint(selectedComments)}：${selectedIndices.map((index) => `#${index}`).join(" ")}` : ""].filter(Boolean).join(" / ")
-              : "尚未选择"}</p>
+            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? `已选 ${excerptSelected ? "摘录 + " : ""}${selectedIndices.length} 条评论` : "尚未选择"}</p>
+            {hiddenSelectedCount > 0 ? <small title="被筛选隐藏的已选评论仍会参与操作">含隐藏 {hiddenSelectedCount} 条评论</small> : null}
           </section>
+          <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
+          <Button id="selection-actions-toggle" className="selection-actions-toggle ghost" aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
+          <SelectionActionsPanel open={selectionActionsOpen} onClose={closeSelectionActions}>
+          <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选批注</Button></section>
 
           {hasMoveActions ? (
             <section className="pane-section move-section">
@@ -2745,7 +2820,7 @@ function App() {
                 </div>
               ) : null}
               {canPickInsertPosition ? (
-                <Button className={insertMode ? "active wide" : "secondary wide"} aria-pressed={insertMode ? "true" : "false"} disabled={loading} onClick={toggleInsertMode} title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}>选择插入位置</Button>
+                <Button className={insertMode ? "active wide" : "secondary wide"} aria-pressed={insertMode ? "true" : "false"} disabled={loading} onClick={(event) => { toggleInsertMode(event); selectionModeTriggerRef.current = document.getElementById("selection-actions-toggle"); closeSelectionActions(); }} title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}>选择插入位置</Button>
               ) : null}
             </section>
           ) : null}
@@ -2782,6 +2857,7 @@ function App() {
             </button>
             <p>点按删除当前卡片中的所选内容。按住只处理纯卡片链接；包含原生摘录时不会进入双向删除。</p>
           </section>
+          </SelectionActionsPanel>
         </aside>
       </main>
 

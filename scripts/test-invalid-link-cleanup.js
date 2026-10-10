@@ -40,6 +40,7 @@ const context = {
 };
 vm.createContext(context);
 const root = path.join(__dirname, "..");
+vm.runInContext(fs.readFileSync(path.join(root, "src", "CommentFoldState.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(root, "src", "CommentData.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(root, "src", "CommentMutations.js"), "utf8"), context);
 

@@ -192,6 +192,7 @@ function makeRunContext(send) {
       appMountedRef: { current: true },
       MNBridge: { send: () => { sends += 1; return response.promise; } },
       setOpeningOverlay: (value) => states.push(["opening", value]),
+      setShowImageExcerptText: (value) => states.push(["imageExcerptText", value]),
       setActionButtonSettings: (value) => states.push(["settings", value]),
       notifyStatus: (value) => states.push(["status", value]),
       normalizeError: (error) => String(error?.message || error),
@@ -204,6 +205,7 @@ function makeRunContext(send) {
     response.resolve({ showSingleButton: true });
     await Promise.all([first, second]);
     assert.strictEqual(context.overlayOpeningRef.current, "");
+    assert.ok(states.some((item) => item[0] === "imageExcerptText" && item[1] === false));
     assert.ok(states.some((item) => item[0] === "settings" && item[1].returnFocusTarget === trigger));
   }
 

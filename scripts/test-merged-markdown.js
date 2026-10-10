@@ -44,6 +44,7 @@ const context = vm.createContext({
   },
 });
 
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentFoldState.js"), "utf8"), context);
 vm.runInContext(source, context, { filename: "CommentData.js" });
 
 const snapshot = context.__MN_COMMENT_DATA__.getNoteSnapshot({
@@ -159,6 +160,7 @@ const editContext = vm.createContext({
     },
   },
 });
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentFoldState.js"), "utf8"), editContext);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentData.js"), "utf8"), editContext, { filename: "CommentData.js" });
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentMutations.js"), "utf8"), editContext, { filename: "CommentMutations.js" });
 

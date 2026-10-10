@@ -220,6 +220,7 @@ const context = {
 const addonWindow = { id: "addon-window" };
 
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentFoldState.js"), "utf8"), context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
 vm.runInContext(mutationsSource, context, { filename: "CommentMutations.js" });
 

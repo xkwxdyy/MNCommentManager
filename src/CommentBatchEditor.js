@@ -250,6 +250,13 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
     });
   }
 
+  function setSelectedCollapsed(notes, selector, collapsed) {
+    return runForNotes(notes, selector, (note, snapshot, indices) => {
+      if (!snapshot.commentFold || !snapshot.commentFold.supported) throw new Error(snapshot.commentFold && snapshot.commentFold.error || "当前宿主未提供批注折叠接口");
+      return __MN_COMMENT_MUTATIONS__.setCommentsCollapsed(note.noteId, indices, collapsed, snapshot.commentFold.revision);
+    });
+  }
+
   return {
     normalizeSelector,
     selectCommentIndices,
@@ -259,5 +266,6 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
     convertHtml,
     deleteSelected,
     reverseSelected,
+    setSelectedCollapsed,
   };
 })();
