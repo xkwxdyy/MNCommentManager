@@ -1,0 +1,121 @@
+{
+  "kind": "synthetic-existing-engine-diagnostics",
+  "realDeviceMeasurement": false,
+  "results": [
+    {
+      "name": "coherent-pan-with-finger-drift",
+      "before": {
+        "selected": [
+          "outside",
+          0,
+          1
+        ],
+        "writes": 1,
+        "hits": 2,
+        "paneRectReads": 0,
+        "pendingFrames": 1,
+        "active": true,
+        "statuses": [
+          "已检测双指，纵向滑动后开始多选",
+          "双指连续选择 · 抬手保留选区"
+        ]
+      },
+      "after": {
+        "selected": [
+          "outside"
+        ],
+        "writes": 2,
+        "hits": 2,
+        "paneRectReads": 0,
+        "pendingFrames": 0,
+        "active": false,
+        "statuses": [
+          "已检测双指，纵向滑动后开始多选",
+          "双指连续选择 · 抬手保留选区",
+          "捏合已取消多选，请抬手后重新缩放"
+        ]
+      },
+      "trace": "centroid +170px, separation +18px after recognition"
+    },
+    {
+      "name": "start-in-row-gap",
+      "prevented": false,
+      "after": {
+        "selected": [
+          "outside"
+        ],
+        "writes": 0,
+        "hits": 1,
+        "paneRectReads": 0,
+        "pendingFrames": 0,
+        "active": false,
+        "statuses": []
+      }
+    },
+    {
+      "name": "start-in-link",
+      "prevented": false,
+      "after": {
+        "selected": [
+          "outside"
+        ],
+        "writes": 0,
+        "hits": 0,
+        "paneRectReads": 0,
+        "pendingFrames": 0,
+        "active": false,
+        "statuses": []
+      }
+    },
+    {
+      "name": "early-diagonal-then-vertical",
+      "after": {
+        "selected": [
+          "outside"
+        ],
+        "writes": 1,
+        "hits": 1,
+        "paneRectReads": 0,
+        "pendingFrames": 0,
+        "active": false,
+        "statuses": [
+          "已检测双指，纵向滑动后开始多选",
+          "横向滑动已取消多选"
+        ]
+      }
+    },
+    {
+      "name": "300-moves-within-one-row-before-a-frame",
+      "beforeIdle": {
+        "selected": [
+          "outside",
+          1
+        ],
+        "writes": 300,
+        "hits": 301,
+        "paneRectReads": 0,
+        "pendingFrames": 1,
+        "active": true,
+        "statuses": [
+          "已检测双指，纵向滑动后开始多选",
+          "双指连续选择 · 抬手保留选区"
+        ]
+      },
+      "after120StationaryFrames": {
+        "selected": [
+          "outside",
+          1
+        ],
+        "writes": 300,
+        "hits": 301,
+        "paneRectReads": 120,
+        "pendingFrames": 1,
+        "active": true,
+        "statuses": [
+          "已检测双指，纵向滑动后开始多选",
+          "双指连续选择 · 抬手保留选区"
+        ]
+      }
+    }
+  ]
+}

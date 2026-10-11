@@ -159,4 +159,30 @@ assert.strictEqual(store.remove(saved.id), true);
 assert.strictEqual(JSON.stringify(store.list()), "[]");
 assert.strictEqual(store.remove(saved.id), false);
 
+for (const actionId of ["foldSelectedComments", "unfoldSelectedComments"]) {
+  const folded = store.save({ name: actionId, scope: "both", steps: [
+    { kind: "select", selector: { types: ["text"], position: { mode: "single", index: 0 } } },
+    { kind: "action", actionId, options: {} },
+  ] });
+  assert.strictEqual(store.get(folded.id).steps[1].actionId, actionId);
+}
+const beforeInvalid = files.get(expectedPath);
+assert.throws(() => store.save({ name: "空动作", steps: [{ kind: "select", selector: {} }, { kind: "action", actionId: "" }] }), /空动作/);
+assert.strictEqual(files.get(expectedPath), beforeInvalid, "invalid new steps must not silently disappear or overwrite the file");
+
+const originalWrite = MockData.prototype.writeToFileAtomically;
+let writeAttempts = 0;
+MockData.prototype.writeToFileAtomically = function (filePath) {
+  writeAttempts += 1;
+  const document = JSON.parse(this.value);
+  document.workflows.at(-1).steps.pop();
+  files.set(filePath, JSON.stringify(document));
+  return true;
+};
+assert.throws(() => store.save({ name: "回读丢失动作", steps: [
+  { kind: "select", selector: {} }, { actionId: "foldSelectedComments" },
+] }), (error) => error.code === "WORKFLOW_SAVE_UNCONFIRMED");
+assert.strictEqual(writeAttempts, 1, "a write reporting true but dropping a step must not be retried or acknowledged");
+MockData.prototype.writeToFileAtomically = originalWrite;
+
 console.log("comment workflow store tests passed");

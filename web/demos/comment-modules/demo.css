@@ -1,0 +1,127 @@
+.demo-root { height: 100%; display: grid; grid-template-rows: auto auto auto minmax(0,1fr) auto; overflow: hidden; }
+.demo-root button { transition: background-color .15s, border-color .15s; }
+.demo-root button:hover { transform: none; }
+.demo-root .topbar { flex-wrap: nowrap; gap: 12px; padding: 10px 16px; }
+.demo-badge { color: var(--accent-blue); font-size: 11px; padding-left: 5px; }
+.demo-root .topbar-actions { flex: none; flex-wrap: nowrap; gap: 4px; max-width: none; }
+.demo-root .demo-icon { min-width: 36px; min-height: 36px; width: 36px; padding: 8px; border-color: transparent; background: transparent; }
+.demo-root .demo-icon svg, .demo-dialog .demo-icon svg { width: 20px; height: 20px; }
+.demo-root input[type=checkbox], .demo-dialog input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent-blue); flex: none; cursor: pointer; }
+.demo-card-picker { max-width: 280px; width: 30%; padding: 7px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-panel); color: var(--text-primary); font-size: 12px; }
+.demo-root .statusbar { min-height: 28px; padding: 4px 16px; }
+.demo-root .quick-nav { min-height: 40px; padding: 4px 16px; }
+.demo-workspace { display: grid; grid-template-columns: 200px minmax(0,1fr); grid-template-rows: minmax(0,1fr); grid-template-areas: "nav main"; min-height: 0; overflow: hidden; }
+.demo-sidebar { padding: 16px 12px; }
+.demo-sidebar::before { display: none; }
+.demo-profile-summary { display: grid; gap: 8px; margin-bottom: 22px; }
+.demo-profile-summary span { font-weight: 650; font-size: 14px; }
+.demo-profile-summary small { color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
+.demo-search { display: grid; gap: 7px; font-size: 12px; }
+.demo-search input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-panel); color: var(--text-primary); }
+.demo-filters { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; }
+.demo-filters button { font-size: 12px; min-height: 32px; padding: 6px 9px; }
+.demo-sidebar-note { color: var(--text-secondary); font-size: 12px; line-height: 1.7; margin-top: 24px; }
+.demo-pane { grid-area: main; overscroll-behavior: contain; position: relative; scroll-behavior: auto; touch-action: auto; }
+.demo-list { padding: 18px; }
+.demo-root .demo-module { margin-bottom: 14px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-panel); overflow: hidden; scroll-margin-top: 10px; }
+.demo-module.is-selected { border-color: var(--accent-blue); }
+.demo-module-head { display: flex; align-items: center; gap: 7px; padding: 7px 9px; min-height: 49px; background: var(--bg-control); }
+.demo-module-title { text-align: left; justify-content: flex-start; flex: 1; min-width: 0; border: 0; background: none; box-shadow: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 2px; font-size: 14px; }
+.demo-root .demo-module-visibility { flex: none; width: 32px; min-width: 32px; min-height: 32px; padding: 6px; }
+.demo-root .demo-module-comment-fold { flex: none; width: 32px; min-width: 32px; height: 32px; margin: 0; padding: 6px; }
+.demo-module-count { flex: none; color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+.demo-module-actions { display: flex; gap: 0; }
+.demo-module-contents { padding: 10px; }
+.demo-module-contents > .demo-module:last-child { margin-bottom: 0; }
+.demo-root .demo-comment { margin: 0 0 9px; border-radius: 6px; box-shadow: none; overflow: hidden; }
+.demo-root .demo-comment:last-child { margin-bottom: 0; }
+.demo-root .demo-comment.selected { border-color: var(--accent-blue); background: var(--accent-blue-soft); }
+.demo-root .comment-head { min-height: 38px; padding: 5px 10px; gap: 8px; }
+.demo-root .comment-index { font-size: 11px; }
+.demo-comment-body { padding: 10px 14px 14px; cursor: pointer; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.demo-comment-body p { margin: 5px 0; }
+.demo-image { max-height: 165px; max-width: 100%; display: block; object-fit: contain; border-radius: 6px; margin-bottom: 8px; }
+.demo-title-content { padding: 10px 14px; border-bottom: 1px solid var(--border-light); overflow-wrap: anywhere; }
+.demo-empty-module, .demo-module-summary { margin: 0; color: var(--text-secondary); padding: 12px 16px; font-size: 12px; line-height: 1.6; }
+.demo-module-summary { display: grid; gap: 3px; }
+.demo-module-summary small { font-size: 11px; }
+.demo-empty { padding: 40px 18px; text-align: center; color: var(--text-secondary); font-size: 14px; }
+.demo-root .list-context { margin: 10px 18px 0; font-size: 12px; line-height: 1.6; }
+.demo-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 14px; border-top: 1px solid var(--border-light); background: var(--bg-chrome); min-height: 52px; }
+.demo-selection-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.demo-hidden-count { color: var(--accent-orange); }
+.demo-footer-actions { display: flex; gap: 3px; flex: none; }
+.demo-backdrop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.32); z-index: 100; padding: 16px; }
+.demo-dialog { width: min(520px,100%); max-height: 100%; overflow: auto; overscroll-behavior: contain; background: var(--bg-panel); border: 1px solid var(--border-light); box-shadow: var(--shadow-lg); border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.65; }
+.demo-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.demo-dialog h2 { margin: 0; font-size: 17px; }
+.demo-dialog .demo-icon { width: 36px; height: 36px; padding: 8px; }
+.demo-dialog form { display: grid; gap: 14px; }
+.demo-dialog form > label:not(.demo-check-label) { display: grid; gap: 6px; }
+.demo-dialog input:not([type=checkbox]), .demo-dialog select { width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: var(--bg-panel); }
+.demo-dialog p { margin: 4px 0; }
+.demo-note { color: var(--text-secondary); font-size: 12px; }
+.demo-warning { color: var(--accent-orange); line-height: 1.65; }
+.demo-check-label { display: flex; align-items: center; gap: 8px; }
+.demo-dialog fieldset { border: 1px solid var(--border-light); border-radius: 6px; min-width: 0; }
+.demo-levels { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0; }
+.demo-levels label { display: flex; gap: 4px; align-items: center; }
+.demo-dialog-buttons { display: flex; justify-content: space-between; gap: 8px; }
+.demo-menu-actions { display: grid; gap: 10px; }
+.demo-menu-actions button { justify-content: flex-start; }
+.demo-dialog-status { color: var(--text-secondary); font-size: 11px; border-top: 1px solid var(--border-light); padding-top: 12px; margin-top: 16px !important; }
+.demo-help p { margin-bottom: 14px; }
+.demo-loading { padding: 28px; font-size: 14px; }
+@media (max-width: 700px) {
+  .demo-root .topbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; padding: 8px 10px; min-height: 0; }
+  .demo-root .topbar-title { grid-column: 1; min-width: 0; }
+  .demo-root .topbar-title p { display: none; }
+  .demo-badge { display: none; }
+  .demo-root .topbar-actions { grid-column: 2; grid-row: 1 / 3; }
+  .demo-root .topbar-actions .demo-icon { width: 32px; min-width: 32px; padding: 6px; }
+  .demo-card-picker { width: 100%; max-width: none; grid-column: 1; padding: 5px; }
+  .demo-root .statusbar { padding: 4px 10px; gap: 8px; font-size: 11px; }
+  .demo-root .statusbar > span:nth-child(2) { display: none; }
+  .demo-root .quick-nav { padding: 3px 10px; min-height: 36px; }
+  .demo-workspace { display: flex; flex-direction: column; }
+  .demo-sidebar { flex: none; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--border-light); display: grid; grid-template-columns: 1fr; gap: 6px; overflow: visible; }
+  .demo-profile-summary, .demo-sidebar-note { display: none; }
+  .demo-search { font-size: 0; gap: 0; }
+  .demo-search input { font-size: 12px; padding: 7px 9px; }
+  .demo-filters { margin: 0; gap: 5px; flex-wrap: nowrap; overflow-x: auto; }
+  .demo-filters button { min-height: 28px; padding: 5px 9px; flex: none; }
+  .demo-sidebar > .compact { display: none; }
+  .demo-pane { flex: 1 1 auto; }
+  .demo-list { padding: 10px; }
+  .demo-module-contents { padding: 7px; }
+  .demo-module-head { padding: 5px 6px; gap: 5px; }
+  .demo-module-title { font-size: 13px; }
+  .demo-module-actions { display: none; }
+  .demo-footer { padding: 6px 8px; display: grid; gap: 4px; }
+  .demo-selection-summary { font-size: 11px; }
+  .demo-footer-actions { justify-content: space-between; }
+  .demo-root .demo-footer-actions .demo-icon { width: 34px; min-width: 34px; padding: 6px; }
+  .demo-root .demo-footer-actions .compact { padding: 5px 7px; }
+  .demo-backdrop { padding: 10px; }
+  .demo-dialog { padding: 14px; }
+  .demo-root .list-context { margin: 8px 10px 0; }
+}
+@media (pointer: coarse) {
+  .demo-root .demo-icon, .demo-root .topbar-actions .demo-icon, .demo-root .demo-footer-actions .demo-icon { min-height: 42px; }
+  .demo-module-title { min-height: 42px; }
+  .demo-root .demo-module-visibility { min-width: 42px; width: 42px; min-height: 42px; }
+  .demo-root .demo-module-comment-fold { width: 42px; min-width: 42px; height: 42px; min-height: 42px; padding: 11px; }
+  .demo-root input[type=checkbox] { min-width: 22px; min-height: 22px; }
+}
+@media (max-width: 700px) and (max-height: 420px) {
+  .demo-root .topbar { grid-template-rows: auto; padding: 6px 10px; }
+  .demo-root .topbar-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .demo-root .topbar-actions { grid-row: 1; }
+  .demo-card-picker { grid-column: 1; grid-row: 1; }
+  .demo-sidebar { display: flex; align-items: center; padding: 6px 10px; }
+  .demo-search { flex: 1 1 50%; min-width: 0; }
+  .demo-filters { flex: 0 1 50%; min-width: 0; }
+  .demo-root .quick-nav-label { display: none; }
+  .demo-filter-context { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .demo-root * { scroll-behavior: auto !important; transition: none !important; } }

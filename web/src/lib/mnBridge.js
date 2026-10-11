@@ -8,6 +8,7 @@ const READ_ONLY_COMMAND_TIMEOUTS = Object.freeze({
   countReverseLinks: 30000,
   previewInvalidLinkCleanup: 30000,
   getActionButtonSettings: 30000,
+  getCommentModuleSettings: 30000,
   getWorkflowActionCatalog: 30000,
   listWorkflows: 30000,
   getBatchCommentEditorState: 30000,

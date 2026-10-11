@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./generated/katex.css";
 import "./styles.css";
+import "./components/PanelControls.css";
 
 function renderStartupError(error) {
   const root = document.getElementById("root");

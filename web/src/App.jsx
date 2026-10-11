@@ -1,9 +1,13 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import HtmlSelect from "./components/HtmlSelect";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
+import useTwoFingerCommentSelection from "./lib/useTwoFingerCommentSelection";
 import CommentTypeSelector from "./components/CommentTypeSelector";
 import WorkflowParameters from "./components/WorkflowParameters";
 import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
 import SelectionActionsPanel from "./components/SelectionActionsPanel";
+import { ModuleCommentList, ModuleSettingsDialog } from "./components/CommentModules";
+import { buildModules, effectiveSettings, structureSignature, validateSettings } from "./lib/commentModules.mjs";
 import {
   getMoveState,
   getVirtualPositionForComment,
@@ -89,7 +93,8 @@ function getTypeMeta(comment) {
 function normalizeError(error) {
   if (!error) return "操作失败，请重试";
   if (typeof error === "string") return error;
-  return error.message || JSON.stringify(error);
+  const message = error.message || JSON.stringify(error);
+  return error.code ? `${message}（${error.code}）` : message;
 }
 
 function nonNegativeCount(value) {
@@ -855,6 +860,7 @@ function App() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const searchInputRef = useRef(null);
+  const commentPaneRef = useRef(null);
   const [status, setStatus] = useState("正在读取当前卡片...");
   const [statusKey, setStatusKey] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -885,6 +891,9 @@ function App() {
   const [actionButtonSettings, setActionButtonSettings] = useState(null);
   const actionButtonSettingsSessionRef = useRef(0);
   const [workflowManager, setWorkflowManager] = useState(null);
+  const [moduleSettingsOpen, setModuleSettingsOpen] = useState(false);
+  const [hiddenModules, setHiddenModules] = useState(() => new Set());
+  const [moduleResult, setModuleResult] = useState(null);
   const [batchEditor, setBatchEditor] = useState(null);
   const [invalidLinkCleanup, setInvalidLinkCleanup] = useState(null);
   const invalidLinkCleanupSessionRef = useRef(0);
@@ -908,6 +917,13 @@ function App() {
   currentNoteIdRef.current = snapshot.noteId;
 
   const comments = snapshot.comments || [];
+  const moduleSettings = snapshot.moduleSettings || null;
+  const moduleEffective = useMemo(() => moduleSettings ? effectiveSettings(moduleSettings, snapshot.noteId) : null, [moduleSettings, snapshot.noteId]);
+  const moduleTree = useMemo(() => moduleEffective ? buildModules(comments, moduleEffective.profile) : null, [comments, moduleEffective]);
+  const moduleStructure = useMemo(() => structureSignature(comments), [comments]);
+  const moduleViewKey = `${snapshot.noteId}:${moduleStructure}:${JSON.stringify(moduleEffective)}`;
+  useEffect(() => { setHiddenModules(new Set()); }, [moduleViewKey]);
+  useEffect(() => { setModuleSettingsOpen(false); setModuleResult(null); }, [snapshot.noteId]);
   const excerpt = snapshot.excerpt || makeEmptySnapshot().excerpt;
   const excerptPresent = excerpt.present === true;
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -943,7 +959,7 @@ function App() {
     comments.forEach((comment) => index.set(comment.index, commentSearchText(comment)));
     return index;
   }, [comments]);
-  const visibleComments = useMemo(() => (
+  const matchingComments = useMemo(() => (
     comments.filter((comment) => {
       if (filter !== "all" && getTypeMeta(comment).filter !== filter) return false;
       const query = search.trim().toLowerCase();
@@ -951,6 +967,12 @@ function App() {
       return String(commentSearchIndex.get(comment.index) || "").includes(query);
     })
   ), [commentSearchIndex, comments, filter, search]);
+  const visibleComments = useMemo(() => {
+    if (!moduleTree || hiddenModules.size === 0) return matchingComments;
+    const hiddenPositions = new Set();
+    moduleTree.flat.filter(n => hiddenModules.has(n.id)).forEach(n => comments.slice(n.start,n.end).forEach(c => hiddenPositions.add(c.index)));
+    return matchingComments.filter(c => !hiddenPositions.has(c.index));
+  }, [matchingComments, comments, moduleTree, hiddenModules]);
   const hiddenSelectedCount = selectedIndices.length - visibleComments.filter((comment) => selected.has(comment.index)).length;
   const hasActiveFilter = filter !== "all" || search.trim().length > 0;
   const filterDescription = [
@@ -958,6 +980,12 @@ function App() {
     search.trim() ? `搜索「${search.trim()}」` : "",
   ].filter(Boolean).join(" · ");
   const fieldGroups = useMemo(() => buildFieldGroups(visibleComments), [visibleComments]);
+  const commentPresentation = useMemo(() => new Map(visibleComments.map(comment => [comment.index, {
+    meta: getTypeMeta(comment), mediaSources: getCommentMediaSources(comment),
+    linkedDisplay: getLinkedNoteDisplay(comment), markdownLinks: getMarkdownLinks(comment),
+  }])), [visibleComments]);
+  const commentPositions = useMemo(() => new Map(comments.map((comment, position) => [comment.index, position])), [comments]);
+  const visibleCommentIndices = useMemo(() => visibleComments.map(comment => comment.index), [visibleComments]);
   const selectedContentCount = selectedIndices.length + (excerptSelected ? 1 : 0);
   const hasSelection = selectedContentCount > 0;
   const hasOneSelection = selectedContentCount === 1;
@@ -1006,7 +1034,20 @@ function App() {
     setStatusKey((current) => current + 1);
   };
 
+  const twoFingerSelection = useTwoFingerCommentSelection({
+    paneRef: commentPaneRef,
+    selected,
+    visibleIndices: visibleCommentIndices,
+    projectionKey: `${snapshot.noteId}:${moduleStructure}`,
+    visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
+    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen,
+    onSelection: setSelected,
+    onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
+    onStatus: notifyStatus,
+  });
+
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
+    twoFingerSelection.cancel(undefined, { restore: false });
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
     currentNoteIdRef.current = normalizedSnapshot.noteId;
     currentViewRef.current = { snapshot: normalizedSnapshot, selection: nextSelection };
@@ -1022,7 +1063,7 @@ function App() {
   };
 
   const runCommand = async (command, payload, options = {}) => {
-    const { message = "已完成", keepSelection = false, selectionAfter = null, refreshOnError = false, expectedNoteId = "" } = options;
+    const { message = "已完成", keepSelection = false, selectionAfter = null, refreshOnError = false, expectedNoteId = "", validateResult = null } = options;
     if (commandInFlightRef.current) {
       const error = new Error("正在处理上一项操作，请稍候");
       error.code = "MNCM_WEB_BUSY";
@@ -1035,6 +1076,8 @@ function App() {
     setLoading(true);
     try {
       const result = await MNBridge.send(command, payload);
+      // Validate persistence receipts before announcing success or accepting a snapshot.
+      validateResult?.(result);
       if (!appMountedRef.current) return result;
       if (expectedNoteId && currentNoteIdRef.current !== expectedNoteId) return result;
       const resultMessage = result?.statusMessage || message;
@@ -1054,6 +1097,13 @@ function App() {
       return result;
     } catch (error) {
       if (refreshOnError && appMountedRef.current && currentNoteIdRef.current === expectedNoteId) {
+        // Invalidate the old selection and receipt even if readback fails.
+        const current = currentViewRef.current.snapshot;
+        applySnapshot({
+          ...current,
+          commentFold: { supported: false, revision: "", error: "批注状态尚未重新核实，请刷新卡片后重新选择" },
+          comments: current.comments.map((comment) => ({ ...comment, capabilities: { ...comment.capabilities, canSetCollapsed: false } })),
+        }, normalizeError(error));
         try {
           const refreshed = await MNBridge.send("refreshCurrentNote");
           if (appMountedRef.current && currentNoteIdRef.current === expectedNoteId && refreshed?.noteId === expectedNoteId) {
@@ -1354,6 +1404,37 @@ function App() {
     };
   }, []);
 
+  const saveModuleSettings = async (settings, expectedRevision) => {
+    const noteId = snapshot.noteId;
+    let saved;
+    await runCommand("saveCommentModuleSettings", { settings, expectedRevision }, {
+      message: "模块设置已保存", expectedNoteId: noteId,
+      validateResult(result) {
+        if (result?.persisted !== true || !result.moduleSettings) throw new Error("模块配置未确认保存，设置草稿已保留");
+        saved = validateSettings(result.moduleSettings);
+        if (saved.revision !== expectedRevision + 1 || JSON.stringify(saved) !== JSON.stringify({ ...validateSettings(settings), revision: expectedRevision + 1 })) throw new Error("模块配置保存回执不一致，请刷新后核对");
+      },
+    });
+    if (appMountedRef.current) setSnapshot(current => (current.moduleSettings?.revision > saved.revision ? current : { ...current, moduleSettings: saved, moduleSettingsError: "" }));
+  };
+  const runModuleAction = async (kind, payload) => {
+    const noteId = snapshot.noteId;
+    const commands = { reorder: "reorderCommentModule", body: "moveCommentModuleBody", extract: "extractCommentModule" };
+    const result = await runCommand(commands[kind], { ...payload, noteId, expectedRevision: moduleSettings.revision, expectedStructure: moduleStructure }, {
+      message: kind === "extract" ? "模块已提取为子卡片" : "模块位置已更新", expectedNoteId: noteId, refreshOnError: true,
+    });
+    if (kind === "extract" && result?.createdNoteId && appMountedRef.current && currentNoteIdRef.current === noteId) setModuleResult({ noteId: result.createdNoteId, title: result.createdNoteTitle });
+    return result;
+  };
+  const locateModule = node => {
+    setHiddenModules(current => {
+      const next = new Set(current); let parent = node;
+      while (parent) { next.delete(parent.id); parent = moduleTree.flat.find(n => n.id === parent.parentId); }
+      return next;
+    });
+    requestAnimationFrame(() => scrollElementIntoView(document.getElementById(node.id), "start"));
+  };
+
   const execute = async (callback) => {
     try {
       await callback();
@@ -1481,7 +1562,7 @@ function App() {
     });
   };
 
-  const getCommentPosition = (index) => comments.findIndex((comment) => comment.index === index);
+  const getCommentPosition = (index) => commentPositions.get(index) ?? -1;
 
   const moveSingleComment = async (commentIndex, direction, toEdge = false) => {
     const position = getCommentPosition(commentIndex);
@@ -1862,8 +1943,14 @@ function App() {
   };
 
   const handleSelectionModeKeyDown = (event) => {
+    if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing && twoFingerSelection.isActive()) {
+      event.preventDefault();
+      event.stopPropagation();
+      twoFingerSelection.cancel();
+      return;
+    }
     if ((!rangePicking && !insertMode) || loading || commandInFlightRef.current) return;
-    if (dialog || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
+    if (dialog || moduleSettingsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
     if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     const target = event.target;
     if (target.closest?.('textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
@@ -2134,6 +2221,9 @@ function App() {
     }
     await locateLinkedNote(noteId, mode);
   };
+  const markdownLocateRef = useRef(locateMarkdownLink);
+  markdownLocateRef.current = locateMarkdownLink;
+  const locateMarkdownHref = useCallback(url => markdownLocateRef.current({ url }, "mindmap"), []);
 
   const updateLinkCommentFromClipboard = async (comment) => {
     if (!comment || !canComment(comment, "canUpdateLink")) return;
@@ -2354,29 +2444,34 @@ function App() {
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
-          <Button
-            className="secondary"
-            disabled={!excerptPresent && visibleComments.length === 0}
-            onClick={() => setContentSelection(makeContentSelection(excerptPresent, visibleComments.map((comment) => comment.index)))}
-          >
-            全选
-          </Button>
-          <Button
-            className="secondary"
-            disabled={!excerptPresent && visibleComments.length === 0}
-            onClick={() => setContentSelection(makeContentSelection(
-              excerptPresent && !excerptSelected,
-              visibleComments.map((comment) => comment.index).filter((index) => !selected.has(index)),
-            ))}
-          >
-            反选
-          </Button>
-          <Button className="secondary" disabled={!hasSelection} onClick={() => setContentSelection(makeContentSelection(false, []))}>清空</Button>
-          <Button className={rangePicking ? "active" : "secondary"} aria-pressed={rangePicking ? "true" : "false"} disabled={loading || (!excerptPresent && comments.length === 0)} onClick={startRangeSelection} title={rangePicking ? "退出范围选择（Esc）" : "选择连续范围"}>选范围</Button>
-          <Button className="secondary" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel}>刷新</Button>
-          <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</Button>
-          <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置">{openingOverlay === "settings" ? "打开中…" : "设置"}</Button>
-          <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel}>{closingPanel ? "关闭中…" : "关闭"}</Button>
+          <div className="topbar-selection-actions" role="group" aria-label="选区操作">
+            <Button
+              className="secondary"
+              disabled={!excerptPresent && visibleComments.length === 0}
+              onClick={() => setContentSelection(makeContentSelection(excerptPresent, visibleComments.map((comment) => comment.index)))}
+            >
+              全选
+            </Button>
+            <Button
+              className="secondary"
+              disabled={!excerptPresent && visibleComments.length === 0}
+              onClick={() => setContentSelection(makeContentSelection(
+                excerptPresent && !excerptSelected,
+                visibleComments.map((comment) => comment.index).filter((index) => !selected.has(index)),
+              ))}
+            >
+              反选
+            </Button>
+            <Button className="secondary" disabled={!hasSelection} onClick={() => setContentSelection(makeContentSelection(false, []))}>清空</Button>
+            <Button className={rangePicking ? "active" : "secondary"} aria-pressed={rangePicking ? "true" : "false"} disabled={loading || (!excerptPresent && comments.length === 0)} onClick={startRangeSelection} title={rangePicking ? "退出范围选择（Esc）" : "选择连续范围"}>选范围</Button>
+          </div>
+          <div className="topbar-utility-actions" role="group" aria-label="面板操作">
+            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
+            <Button className="secondary" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel}>刷新</Button>
+            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</Button>
+            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置">{openingOverlay === "settings" ? "打开中…" : "设置"}</Button>
+            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel}>{closingPanel ? "关闭中…" : "关闭"}</Button>
+          </div>
         </div>
       </header>
 
@@ -2385,6 +2480,8 @@ function App() {
         <span>评论 {comments.length} 条</span>
         <span>已选 {excerptSelected ? "摘录 + " : ""}{selectedIndices.length} 条评论</span>
         <span>当前显示 {visibleComments.length} 条评论</span>
+        {moduleResult ? <button type="button" title={moduleResult.title} onClick={() => execute(() => runCommand("focusLinkedNote", { noteId: moduleResult.noteId, mode: "focus" }, { message: "已定位提取结果" }))}>查看提取结果</button> : null}
+        {snapshot.moduleSettingsError ? <span role="alert">{snapshot.moduleSettingsError}</span> : null}
         <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
       </div>
 
@@ -2398,7 +2495,7 @@ function App() {
           >
             顶部
           </Button>
-          {fieldGroups.map((field) => (
+          {moduleTree ? moduleTree.flat.map(node => <Button key={node.id} className="quick-nav-item" onClick={() => locateModule(node)} title={`定位模块：${node.title}`}><span>{node.title}</span><b>{node.end-node.start}</b></Button>) : fieldGroups.map((field) => (
             <Button
               key={field.id}
               className="quick-nav-item"
@@ -2471,7 +2568,7 @@ function App() {
           </section>
         </aside>
 
-        <div className="comment-pane" id="comment-pane">
+        <div ref={commentPaneRef} className="comment-pane" id="comment-pane">
           {hasActiveFilter || rangePicking || insertMode ? (
             <div className="list-context" role="group" aria-label={rangePicking || insertMode ? "选择操作" : "筛选结果"}>
               {rangePicking || insertMode ? (
@@ -2560,7 +2657,7 @@ function App() {
               </div>
             </article>
           ) : null}
-          {visibleComments.length === 0 ? (
+          {matchingComments.length === 0 ? (
             noteViewState.phase === "loading" ? (
               <EmptyState title="正在读取当前卡片" body="正在等待 MarginNote 返回摘录和评论…" />
             ) : noteViewState.phase === "unselected" ? (
@@ -2572,12 +2669,13 @@ function App() {
             ) : (
               <EmptyState title="没有匹配的评论" body="当前类型或搜索条件没有结果。" actionText="清除筛选" onAction={clearSearchAndFilter} />
             )
-          ) : visibleComments.map((comment, visiblePosition) => {
-            const meta = getTypeMeta(comment);
+          ) : <ModuleCommentList key={moduleViewKey} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
+            onHide={id => setHiddenModules(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })}
+            onSelect={(next, hiddenCount) => { setContentSelection(makeContentSelection(excerptSelected, [...next])); notifyStatus(hiddenCount ? `模块选择包含 ${hiddenCount} 条筛选隐藏评论` : "模块选择已更新"); }}
+            loading={loading} foldSupported={snapshot.commentFold?.supported} onFold={(indices,collapsed) => execute(() => setCommentsCollapsed(indices,collapsed))} onAction={runModuleAction} onModalOpen={() => twoFingerSelection.cancel()}
+          >{visibleComments.map((comment, visiblePosition) => {
             const selectedNow = selected.has(comment.index);
-            const mediaSources = getCommentMediaSources(comment);
-            const linkedDisplay = getLinkedNoteDisplay(comment);
-            const markdownLinks = getMarkdownLinks(comment);
+            const { meta, mediaSources, linkedDisplay, markdownLinks } = commentPresentation.get(comment.index);
             const commentPosition = getCommentPosition(comment.index);
             const isFirstComment = commentPosition === 0;
             const isLastComment = commentPosition >= comments.length - 1;
@@ -2596,6 +2694,7 @@ function App() {
                 ) : null}
                 <article
                   id={`comment-${comment.index}`}
+                  data-comment-index={comment.index}
                   className={`comment-card comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
@@ -2755,7 +2854,7 @@ function App() {
                     ) : commentText(comment) && comment.capabilities?.isMarkdown ? (
                       <MarkdownCommentBody
                         source={commentText(comment)}
-                        onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}
+                        onLocateLink={locateMarkdownHref}
                       />
                     ) : commentText(comment) ? (
                       <PlainTextPreview
@@ -2791,7 +2890,7 @@ function App() {
                 </article>
               </div>
             );
-          })}
+          })}</ModuleCommentList>}
           {insertMode && canPickInsertPosition && canInsertAtEnd && visibleComments.length > 0 ? (
             <Button className="insert-end" disabled={loading || !hasSelection} onClick={(event) => moveSelection(moveState.totalCount, "已移动到最后", event.currentTarget)}>移动到最后</Button>
           ) : null}
@@ -2861,6 +2960,7 @@ function App() {
         </aside>
       </main>
 
+        {moduleSettingsOpen && moduleSettings ? <ModuleSettingsDialog key={snapshot.noteId} settings={moduleSettings} noteId={snapshot.noteId} readError={snapshot.moduleSettingsError} onSave={saveModuleSettings} onClose={() => { if (currentNoteIdRef.current === snapshot.noteId) setModuleSettingsOpen(false); }} /> : null}
       {dialog ? (
         <Dialog dialog={dialog} loading={loading} onClose={() => setDialog(null)} />
       ) : null}
@@ -3225,9 +3325,9 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
             <CommentTypeSelector types={selectorTypes} disabled={busy} onChange={(types) => { setSelectorTypes(types); invalidateBatchPreview(); }} />
             <label>
               位置
-              <select disabled={busy} value={positionMode} onChange={(event) => { setPositionMode(event.target.value); invalidateBatchPreview(); }}>
+              <HtmlSelect disabled={busy} value={positionMode} onChange={(event) => { setPositionMode(event.target.value); invalidateBatchPreview(); }}>
                 {WORKFLOW_POSITION_MODES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-              </select>
+              </HtmlSelect>
             </label>
             {positionMode === "single" ? (
               <label>
@@ -3244,10 +3344,10 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
             <small className={selectorError ? "workflow-input-error" : "workflow-options-hint"}>{selectorError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small>
             <label>
               排列顺序
-              <select disabled={busy} value={order} onChange={(event) => { setOrder(event.target.value); invalidateBatchPreview(); }}>
+              <HtmlSelect disabled={busy} value={order} onChange={(event) => { setOrder(event.target.value); invalidateBatchPreview(); }}>
                 <option value="forward">正序</option>
                 <option value="reverse">倒序</option>
-              </select>
+              </HtmlSelect>
             </label>
             <label className="dialog-check"><input type="checkbox" disabled={busy} checked={mergeableOnly} onChange={(event) => { setMergeableOnly(event.target.checked); invalidateBatchPreview(); }} /><span>仅可合并文本</span></label>
             <label className="dialog-check"><input type="checkbox" disabled={busy} checked={includeExcerpt} onChange={(event) => { setIncludeExcerpt(event.target.checked); invalidateBatchPreview(); }} /><span>包含原生摘录</span></label>
@@ -3256,16 +3356,16 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
           </section>
           <section>
             <h3>动作</h3>
-            <select disabled={busy || savingRecording} value={action} onChange={(event) => { setAction(event.target.value); invalidateBatchPreview(); }}>
+            <HtmlSelect disabled={busy || savingRecording} value={action} onChange={(event) => { setAction(event.target.value); invalidateBatchPreview(); }}>
               {(state.catalog || []).filter((item) => item.compatible !== false).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-            </select>
+            </HtmlSelect>
             {action === "mergeSelectedComments" ? (
               <label>
                 目标
-                <select disabled={busy || savingRecording} value={destination} onChange={(event) => { setDestination(event.target.value); invalidateBatchPreview(); }}>
+                <HtmlSelect disabled={busy || savingRecording} value={destination} onChange={(event) => { setDestination(event.target.value); invalidateBatchPreview(); }}>
                   <option value="comment">合并为评论</option>
                   <option value="excerpt">合并到摘录</option>
-                </select>
+                </HtmlSelect>
               </label>
             ) : null}
             <Button className="primary wide" disabled={busy || savingRecording || !!selectorError} onClick={execute}>{batchOperationKind === "execute" ? "执行中…" : "执行当前操作"}</Button>
@@ -3565,12 +3665,12 @@ function SelectorEditor({ selector, onChange, disabled = false }) {
   return (
     <div className="workflow-visual-options">
       <CommentTypeSelector types={value.types} disabled={disabled} onChange={(types) => onChange({ ...value, types })} />
-      <label><span>处理顺序</span><select value={value.order === "reverse" ? "reverse" : "forward"} disabled={disabled} onChange={(event) => onChange({ ...value, order: event.target.value })}>
+      <label><span>处理顺序</span><HtmlSelect value={value.order === "reverse" ? "reverse" : "forward"} disabled={disabled} onChange={(event) => onChange({ ...value, order: event.target.value })}>
         <option value="forward">正序</option><option value="reverse">倒序</option>
-      </select></label>
-      <label><span>位置</span><select value={positionMode} disabled={disabled} onChange={(event) => onChange(selectorWithPosition(value, event.target.value, position))}>
+      </HtmlSelect></label>
+      <label><span>位置</span><HtmlSelect value={positionMode} disabled={disabled} onChange={(event) => onChange(selectorWithPosition(value, event.target.value, position))}>
         {WORKFLOW_POSITION_MODES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-      </select></label>
+      </HtmlSelect></label>
       {positionMode === "single" ? <label><span>评论索引</span><input disabled={disabled} inputMode="numeric" value={position?.index ?? "0"} placeholder="例如 0 或 -1" onChange={(event) => onChange(selectorWithPosition(value, "single", { index: event.target.value }))} /></label> : null}
       {positionMode === "range" ? <div className="workflow-position-range"><label><span>范围起点</span><input disabled={disabled} inputMode="numeric" value={position?.start ?? "0"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: event.target.value, end: position?.end ?? "-1" }))} /></label><label><span>范围终点</span><input disabled={disabled} inputMode="numeric" value={position?.end ?? "-1"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: position?.start ?? "0", end: event.target.value }))} /></label></div> : null}
       <small className={positionError ? "workflow-input-error" : "workflow-options-hint"}>{positionError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small>
@@ -3584,7 +3684,7 @@ function ActionOptionsEditor({ actionId, descriptor, options, onChange, disabled
   if (Array.isArray(descriptor?.parameterSchema)) {
     return <WorkflowParameters schema={descriptor.parameterSchema} options={options} onChange={onChange} disabled={disabled} />;
   }
-  if (["convertSelectedHtmlToMarkdown", "deleteSelectedComments", "reverseSelectedComments", "convertSelectedCardsToNoExcerpt", "keepFirstContent", "convertHtmlCommentsToMarkdown", "convertNotesToNoExcerpt", "removeAllLinkComments", "clearAllComments", "clearAllTitles"].includes(actionId)) {
+  if (["foldSelectedComments", "unfoldSelectedComments", "convertSelectedHtmlToMarkdown", "deleteSelectedComments", "reverseSelectedComments", "convertSelectedCardsToNoExcerpt", "keepFirstContent", "convertHtmlCommentsToMarkdown", "convertNotesToNoExcerpt", "removeAllLinkComments", "clearAllComments", "clearAllTitles"].includes(actionId)) {
     return <small className="workflow-options-hint">此动作没有需要配置的参数。</small>;
   }
   return <small className="workflow-options-hint">此扩展动作没有可视化参数；已有配置会原样保留。</small>;
@@ -3614,7 +3714,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   const mutationCloseDialogRef = useRef(null);
   const workflowMutationRef = useRef(null);
   const workflowMountedRef = useRef(true);
-  const hasUnsavedChanges = workflowDraftSignature(draft) !== savedDraftSignature;
+  const hasUnsavedChanges = !!newActionId || workflowDraftSignature(draft) !== savedDraftSignature;
 
   useEffect(() => {
     workflowMountedRef.current = true;
@@ -3648,6 +3748,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     const next = cloneWorkflowDraft(workflow);
     setSelectedId(next.id || "");
     setDraft(next);
+    setNewActionId("");
     setSavedDraftSignature(workflowDraftSignature(next));
     setConfirmDelete(false);
     setWorkflowFeedback(null);
@@ -3830,23 +3931,25 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
 
   const save = async () => {
     if (workflowMutationRef.current) return;
+    const pendingAction = catalog.find((item) => item.id === newActionId);
+    const stepsToSave = [...(draft.steps || []), ...(pendingAction ? [{ kind: "action", actionId: pendingAction.id, options: {} }] : [])];
     if (!String(draft.name || "").trim()) {
       onStatus?.("请填写工作流名称");
       setWorkflowFeedback({ kind: "error", message: "请填写工作流名称" });
       return;
     }
-    if (!Array.isArray(draft.steps) || draft.steps.length === 0) {
+    if (stepsToSave.length === 0) {
       onStatus?.("至少添加一个工作流动作");
       setWorkflowFeedback({ kind: "error", message: "至少添加一个工作流动作" });
       return;
     }
-    const invalidSelector = (draft.steps || []).map(invalidSelectorMessage).find(Boolean);
+    const invalidSelector = stepsToSave.map(invalidSelectorMessage).find(Boolean);
     if (invalidSelector) {
       onStatus?.(invalidSelector);
       setWorkflowFeedback({ kind: "error", message: invalidSelector });
       return;
     }
-    const incompatibleAction = (draft.steps || []).map((step) => {
+    const incompatibleAction = stepsToSave.map((step) => {
       if (!step || step.kind === "select") return "";
       const descriptor = actionDescriptor(step.actionId);
       if (!descriptor || descriptor.compatible !== false) {
@@ -3864,9 +3967,9 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       return;
     }
     const normalizedSteps = [];
-    for (let index = 0; index < draft.steps.length; index += 1) {
-      const step = draft.steps[index];
-      normalizedSteps.push(draft.steps[index].kind === "select"
+    for (let index = 0; index < stepsToSave.length; index += 1) {
+      const step = stepsToSave[index];
+      normalizedSteps.push(step.kind === "select"
         ? { kind: "select", selector: step.selector || {} }
         : { kind: "action", actionId: step.actionId, options: step.options || {} });
     }
@@ -3892,10 +3995,10 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
         || typeof savedWorkflow.name !== "string" || !savedWorkflow.name.trim()
         || !["single", "batch", "both"].includes(savedWorkflow.scope)
         || !Array.isArray(savedWorkflow.steps) || savedWorkflow.steps.length !== normalizedSteps.length
-        || !savedWorkflow.steps.every((step) => step && (
+        || !savedWorkflow.steps.every((step, index) => step && step.kind === normalizedSteps[index].kind && (
           step.kind === "select"
             ? step.selector && typeof step.selector === "object" && !Array.isArray(step.selector)
-            : step.kind === "action" && typeof step.actionId === "string" && step.actionId.trim()
+            : step.kind === "action" && step.actionId === normalizedSteps[index].actionId
               && step.options && typeof step.options === "object" && !Array.isArray(step.options)
         ))) {
         const receiptError = new Error("保存结果未确认：收到的工作流回执不完整或不匹配，请先核对实际保存状态，再决定是否重试");
@@ -3904,6 +4007,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       }
       if (workflowMountedRef.current && savedWorkflow?.id) {
         const nextDraft = cloneWorkflowDraft(savedWorkflow);
+        setNewActionId("");
         setWorkflows((current) => {
           const exists = current.some((workflow) => workflow.id === savedWorkflow.id);
           return exists
@@ -3922,7 +4026,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       onStatus?.(message);
       if (workflowMountedRef.current) setWorkflowFeedback({
         kind: "error",
-        message: error?.saveUnconfirmed
+        message: error?.saveUnconfirmed || error?.code === "WORKFLOW_SAVE_UNCONFIRMED"
           ? `${message}。当前草稿已保留。`
           : `保存失败：${message}。草稿仍保留，请检查后手动重试。`,
       });
@@ -4087,11 +4191,11 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
             </label>
             <label className="workflow-name-field">
               <span>支持范围</span>
-              <select value={draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch"} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, scope: event.target.value }))}>
+              <HtmlSelect value={draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch"} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, scope: event.target.value }))}>
                 <option value="both">单卡和多卡</option>
                 <option value="single">仅单卡</option>
                 <option value="batch">仅多卡</option>
-              </select>
+              </HtmlSelect>
               <small className="workflow-options-hint">单卡菜单和多选菜单会按此范围显示工作流。</small>
             </label>
             <div className="workflow-step-header">
@@ -4132,14 +4236,14 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
                 pendingStepFocusRef.current = (draft.steps || []).length;
                 setDraft((current) => ({ ...current, steps: [...(current.steps || []), { kind: "select", selector: { subject: "comments", types: [], includeExcerpt: false, order: "forward" } }] }));
               }}>添加选择器</Button>
-              <select aria-label="添加工作流动作" value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
+              <HtmlSelect aria-label="添加工作流动作" value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
                 <option value="">选择一个动作…</option>
                 {catalog.filter((item) => item.compatible !== false).map((action) => (
                   <option value={action.id} key={action.id}>
                     {action.title} · {action.scope === "both" ? "单卡/多卡" : action.scope === "single" ? "单卡" : "多卡"}{action.dangerous ? " · 危险" : " · 安全"}
                   </option>
                 ))}
-              </select>
+              </HtmlSelect>
               <Button className="secondary" disabled={busy || !newActionId} onClick={addStep}>添加步骤</Button>
             </div>
             {draft.missingActions?.length ? <p className="workflow-warning">缺失动作：{draft.missingActions.join(", ")}。安装对应 Patch 后才能运行。</p> : null}
@@ -4155,7 +4259,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
           {draft.id ? <Button data-workflow-delete className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
           <span className={hasUnsavedChanges ? "workflow-save-state unsaved" : "workflow-save-state"} aria-live="polite">{draftStatusText}</span>
           <Button className="secondary" onClick={requestWorkflowManagerClose}>关闭</Button>
-          <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || !(draft.steps || []).length} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
+          <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || (!(draft.steps || []).length && !newActionId)} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
         </div>
         {confirmDelete ? (
           <div className="dialog-backdrop workflow-confirm-backdrop" role="presentation" onClick={cancelDeleteConfirmation}>
@@ -4451,7 +4555,7 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
 }
 
 const MarkdownCommentBody = memo(function MarkdownCommentBody({ source, onLocateLink }) {
-  const html = useMemo(() => renderMarkdownToHtml(source), [source]);
+  const html = useMemo(() => ({ __html: renderMarkdownToHtml(source) }), [source]);
 
   const preventEmbeddedNavigation = (event) => {
     const anchor = event.target.closest?.("a");
@@ -4466,7 +4570,7 @@ const MarkdownCommentBody = memo(function MarkdownCommentBody({ source, onLocate
     <div
       className="markdown-content"
       onClick={preventEmbeddedNavigation}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={html}
     />
   );
 });

@@ -507,6 +507,7 @@ var __MN_COMMENT_DATA__ = (function () {
     const foldState = __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.read(note);
     if (foldState.supported && foldState.comments.length !== comments.length) {
       foldState.supported = false;
+      foldState.code = "COMMENT_CHANGED";
       foldState.error = "批注显示列表已变化，请刷新后重试";
     }
     if (foldState.supported) {
@@ -522,7 +523,8 @@ var __MN_COMMENT_DATA__ = (function () {
       noteTitle: toStringValue(note.noteTitle || "未命名卡片"),
       excerpt: getExcerptState(note),
       comments,
-      commentFold: { supported: foldState.supported, revision: foldState.revision, error: foldState.error || "" },
+      ...(typeof __MN_COMMENT_MODULE_STORE__ !== "undefined" ? __MN_COMMENT_MODULE_STORE__.snapshot() : {}),
+      commentFold: { supported: foldState.supported, revision: foldState.revision, code: foldState.code || "", error: foldState.error || "", details: foldState.details },
       handwritingPendingCount,
       error: "",
     };

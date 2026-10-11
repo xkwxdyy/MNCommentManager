@@ -1,8 +1,47 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-10T00:00:00+08:00",
+  "updatedAt": "2026-10-12T00:00:00+08:00",
   "entries": [
+    {
+      "version": "0.1.25",
+      "channel": "stable",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "zh": "支持按 HTML、Markdown、HtmlMD、嵌套标题及指定文本划分评论模块，提供全局默认和单卡片覆盖，设置由插件层保存并回读确认。",
+          "en": "Comment modules support HTML, Markdown, HtmlMD, nested headings, and specified text rules. Global defaults and per-card overrides are persisted and verified by the addon."
+        },
+        {
+          "zh": "支持模块定位、内容显隐、整组选择、同级移动、正文移动和提取为子卡片；整组选择可配置是否包含结构标题，并包含筛选隐藏成员。模块全选后可批量折叠或展开评论。",
+          "en": "Modules support navigation, visibility, group selection, sibling reordering, body moves, and extraction to child notes. Group selection optionally includes structural headings and includes filtered members. Fully selected modules expose bulk comment folding controls."
+        },
+        {
+          "zh": "支持正文链接和评论窄间隙起点，容忍轻微斜向启动及同向移动时的自然间距变化；拖动回缩依据初始选区恢复，单指保留原生滚动。",
+          "en": "Two-finger range selection can start on body links and narrow comment gaps, tolerates slightly diagonal starts and natural finger spacing changes during a pan, restores the initial selection on backtracking, and preserves native one-finger scrolling."
+        },
+        {
+          "zh": "缓存评论位置和渲染结果，按动画帧合并移动事件，仅更新变化的选区；边缘滚动速度渐进变化，抬手处理最后一帧，列表中部静止时停止连续计算。",
+          "en": "Long lists reuse comment geometry and rendered content, coalesce movement per animation frame, and update only changed selections. Edge scrolling accelerates progressively, release flushes the final frame, and stationary gestures away from edges stop continuous processing."
+        },
+        {
+          "zh": "下拉框统一采用面板样式的 HTML 控件，支持键盘选择、关闭及焦点恢复；移动端压缩工具栏和按钮布局，底栏避让原生缩放手柄。",
+          "en": "Dropdowns use HTML controls matching the panel, with keyboard selection, dismissal, and focus return. Compact mobile toolbars and buttons reserve footer space for the native resize handle."
+        },
+        {
+          "zh": "修复未使用标识的过严校验导致 macOS 和 iPad 折叠入口消失及错误提示的问题，继续核验必需状态、版本和保存回执；操作失败时重新读取状态并提供具体错误信息。",
+          "en": "Fixed excessive validation of unused identifiers that disabled folding and displayed errors on macOS and iPad. Required state, revisions, and persistence receipts remain validated; failed operations trigger a readback and detailed diagnostics."
+        },
+        {
+          "zh": "修复选择折叠或展开动作后直接保存遗漏动作的问题；空动作和保存回读异常会明确提示，保存失败时保留草稿。",
+          "en": "Fixed fold or unfold actions being omitted when saving immediately after selection. Empty actions and failed persistence readbacks produce explicit errors, and failed saves retain the draft."
+        },
+        {
+          "zh": "修复 Markdown 触摸节点在选区更新后断开、手势中断及外部操作被旧选区覆盖的问题；模块设置未收到一致保存回执时保留草稿并提示错误。",
+          "en": "Fixed Markdown touch targets disconnecting on selection updates, gesture interruption handling, and stale gesture selections overwriting external actions. Module settings retain the draft and report an error when a consistent persistence receipt is missing."
+        }
+      ]
+    },
     {
       "version": "0.1.24",
       "channel": "stable",

@@ -312,7 +312,21 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     };
   }
 
+  function saveCommentModuleSettings(context, payload) {
+    const settings = __MN_COMMENT_MODULE_STORE__.save(payload.settings, payload.expectedRevision);
+    return { moduleSettings: settings, moduleSettingsError: '', persisted: true };
+  }
+  function getCommentModuleSettings() { return __MN_COMMENT_MODULE_STORE__.snapshot(); }
+  function reorderCommentModule(context, payload) { return __MN_COMMENT_MODULE_OPERATIONS__.reorder(payload); }
+  function moveCommentModuleBody(context, payload) { return __MN_COMMENT_MODULE_OPERATIONS__.moveBody(payload); }
+  function extractCommentModule(context, payload) { return __MN_COMMENT_MODULE_OPERATIONS__.extract(payload); }
+
   const commands = {
+    saveCommentModuleSettings,
+    getCommentModuleSettings,
+    reorderCommentModule,
+    moveCommentModuleBody,
+    extractCommentModule,
     ping,
     echo,
     closePanel,

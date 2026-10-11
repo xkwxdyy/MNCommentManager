@@ -1,0 +1,9 @@
+.html-select { display:block; position:relative; width:100%; min-width:0; }
+.html-select .html-select-trigger { display:flex; justify-content:space-between; width:100%; min-height:44px; padding:8px 10px; background:var(--bg-control,var(--bg-app)); border:1px solid var(--border-light); border-radius:var(--radius-sm,6px); color:var(--text-primary); text-align:left; transform:none; }
+.html-select-trigger svg { flex-shrink:0; }
+.html-select-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.html-select .html-select-trigger:focus { border-color:var(--accent-blue); box-shadow:0 0 0 3px var(--focus); outline:none; }
+.html-select .html-select-list { display:block; position:absolute; left:0; right:0; z-index:120; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:4px; border:1px solid var(--border-strong); border-radius:var(--radius-sm,6px); box-shadow:var(--shadow-lg); background:var(--bg-panel); color:var(--text-primary); }
+.html-select .html-select-list button { display:flex; justify-content:flex-start; width:100%; min-height:44px; padding:8px; border:0; background:transparent; box-shadow:none; transform:none; text-align:left; font-weight:400; white-space:normal; }
+.html-select .html-select-list button.is-active,.html-select .html-select-list button:hover:not(:disabled) { background:var(--accent-blue-soft); }
+.html-select-check { flex:0 0 18px; color:var(--accent-blue); }

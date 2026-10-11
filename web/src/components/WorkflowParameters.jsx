@@ -1,3 +1,4 @@
+import HtmlSelect from "./HtmlSelect";
 import React from "react";
 
 export default function WorkflowParameters({ schema, options, onChange, disabled = false }) {
@@ -11,10 +12,10 @@ export default function WorkflowParameters({ schema, options, onChange, disabled
         control = <input type="checkbox" disabled={disabled} checked={value === true} onChange={(event) => update(event.target.checked)} />;
       } else if (field.type === "enum") {
         const index = field.choices.findIndex((choice) => choice.value === value);
-        control = <select disabled={disabled} value={index < 0 ? "" : String(index)} onChange={(event) => update(field.choices[Number(event.target.value)].value)}>
+        control = <HtmlSelect disabled={disabled} value={index < 0 ? "" : String(index)} onChange={(event) => update(field.choices[Number(event.target.value)].value)}>
           {index < 0 ? <option value="" disabled>{value === undefined ? "请选择…" : "当前选项无效，请重新选择"}</option> : null}
           {field.choices.map((choice, choiceIndex) => <option key={choice.value} value={String(choiceIndex)}>{choice.label}</option>)}
-        </select>;
+        </HtmlSelect>;
       } else if (field.type === "number") {
         control = <input type="number" disabled={disabled} value={value ?? ""} min={field.min} max={field.max} step={field.integer ? 1 : "any"} onChange={(event) => update(event.target.value === "" ? "" : Number(event.target.value))} />;
       } else {

@@ -87,6 +87,8 @@ function makeSaveContext(send) {
     String,
     draft,
     catalog: [{ id: "copySelectedText", title: "复制文本", compatible: true, scope: "both" }],
+    newActionId: "",
+    setNewActionId: (value) => events.push(["pending-action", value]),
     workflowMutationRef: { current: null },
     workflowMountedRef: { current: true },
     MNBridge: { send },

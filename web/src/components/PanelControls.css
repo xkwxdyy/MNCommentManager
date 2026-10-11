@@ -1,0 +1,161 @@
+/* Compact surfaces keep the full touch target; this stylesheet is panel-only. */
+.comment-manager {
+  --quick-action-visual-size: 26px;
+  --panel-control-hit-size: 44px;
+  --panel-control-surface-height: 28px;
+  --panel-resize-clearance: 48px;
+}
+
+.comment-manager .topbar {
+  gap: 8px;
+  min-height: 52px;
+  padding: 4px 12px;
+}
+
+.comment-manager .topbar-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+  max-width: none;
+}
+
+.topbar-selection-actions,
+.topbar-utility-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.comment-manager .topbar-actions button,
+.comment-manager .quick-nav-item,
+.comment-manager .left-pane .segmented button {
+  position: relative;
+  isolation: isolate;
+  min-width: var(--panel-control-hit-size);
+  min-height: var(--panel-control-hit-size);
+  padding: 6px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+  transform: none;
+}
+
+.comment-manager .topbar-actions button::before,
+.comment-manager .quick-nav-item::before,
+.comment-manager .left-pane .segmented button::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 3px;
+  right: 3px;
+  top: 50%;
+  height: var(--panel-control-surface-height);
+  border-radius: 5px;
+  background: var(--bg-control);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.comment-manager .topbar-utility-actions button::before { background: transparent; }
+.comment-manager .topbar-actions button.active::before,
+.comment-manager .left-pane .segmented button.active::before { background: var(--accent-blue); }
+
+.comment-manager .topbar-actions button:hover:not(:disabled)::before,
+.comment-manager .quick-nav-item:hover:not(:disabled)::before,
+.comment-manager .left-pane .segmented button:hover:not(:disabled)::before { background: var(--bg-control-strong); }
+.comment-manager .topbar-actions button.active:hover:not(:disabled)::before,
+.comment-manager .left-pane .segmented button.active:hover:not(:disabled)::before { background: var(--accent-blue-hover); }
+
+.comment-manager .topbar-utility-actions svg { width: 18px; height: 18px; }
+.comment-manager .quick-nav { min-height: 44px; padding: 0 12px; gap: 6px; }
+.comment-manager .quick-nav-track { padding: 0; gap: 2px; }
+.comment-manager .quick-nav-item { max-width: 160px; }
+
+.comment-manager .right-pane {
+  min-height: 52px;
+  padding: 4px var(--panel-resize-clearance) 4px 12px;
+  gap: 2px;
+}
+.comment-manager .comment-fold-toolbar { gap: 0; }
+.comment-manager .right-pane .comment-fold-toolbar button,
+.comment-manager .right-pane .selection-actions-toggle {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background: transparent;
+  padding: 13px;
+  box-shadow: none;
+  transform: none;
+}
+.comment-manager .right-pane .comment-fold-toolbar button::before,
+.comment-manager .right-pane .selection-actions-toggle::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  border-radius: 6px;
+  background: var(--accent-blue-soft);
+  pointer-events: none;
+}
+.comment-manager .right-pane .selection-actions-toggle::before { background: var(--bg-control); }
+.comment-manager .right-pane .comment-fold-toolbar button:hover:not(:disabled)::before,
+.comment-manager .right-pane .selection-actions-toggle:hover:not(:disabled)::before { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.comment-manager .comment-fold-toolbar svg,
+.comment-manager .selection-actions-toggle svg { width: 18px; height: 18px; }
+.comment-manager .selection-actions-panel { bottom: 60px; max-height: min(480px, calc(100vh - 72px)); }
+.comment-manager .comment-card { padding: 12px; gap: 6px; }
+.comment-manager .comment-head { gap: 4px; }
+.comment-manager .comment-inline-actions { gap: 0; }
+
+@media (max-width: 760px) {
+  .comment-manager .topbar { position: relative; display: flex; min-height: 0; padding: 0 8px; gap: 0; }
+  .comment-manager .topbar-title {
+    position: absolute;
+    top: 0;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    width: calc(100% - 244px);
+    min-width: 0;
+    height: 44px;
+  }
+  .comment-manager .topbar-title h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .comment-manager .topbar-title p { margin: 0; font-size: 12px; }
+  .comment-manager .topbar-actions { display: flex; flex-direction: column; width: 100%; gap: 0; }
+  .comment-manager .topbar-utility-actions { order: -1; justify-content: flex-end; width: 100%; height: 44px; gap: 0; }
+  .comment-manager .topbar-utility-actions button { flex: 0 0 44px; width: 44px; padding: 4px; font-size: 11px; }
+  .comment-manager .topbar-selection-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 2px; }
+  .comment-manager .topbar-selection-actions button { width: 100%; padding: 6px; }
+  .comment-manager .statusbar { display: flex; flex-wrap: wrap; min-height: 24px; padding: 3px 12px; }
+  .comment-manager .statusbar > span:not(.status-message):not([role="alert"]) { display: none; }
+  .comment-manager .statusbar > [role="alert"] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .comment-manager .quick-nav { padding: 0 8px; }
+  .comment-manager .right-pane { padding-left: 10px; }
+}
+
+@media (max-width: 520px) {
+  .comment-manager .left-pane { padding: 0 8px; }
+  .comment-manager .left-pane .pane-section { gap: 4px; }
+  .comment-manager .left-pane .pane-section h2 { display: none; }
+  .comment-manager .left-pane .search-box { flex-basis: 136px; }
+  /* Keep search text readable in a compact phone toolbar. */
+  .comment-manager .left-pane .search-box input { font-size: 16px; min-height: 36px; padding-top: 6px; padding-bottom: 6px; }
+  .comment-manager .left-pane .segmented { gap: 0; }
+  .comment-manager .left-pane .segmented button { min-width: 60px; padding: 6px 8px; }
+  .comment-manager .comment-list { padding: 8px; }
+  .comment-manager .comment-fold-status { font-size: 10px; }
+}
+
+@media (max-width: 760px) and (max-height: 480px) {
+  .comment-manager .topbar-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .comment-manager .topbar-actions { flex-direction: row; justify-content: flex-start; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .comment-manager .topbar-selection-actions { display: flex; flex: 0 0 auto; width: auto; gap: 0; }
+  .comment-manager .topbar-selection-actions button { flex: 0 0 auto; width: auto; min-width: 52px; }
+  .comment-manager .topbar-utility-actions { order: 0; flex: 0 0 auto; width: auto; }
+}

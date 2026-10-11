@@ -192,6 +192,19 @@ function deferred() {
     syncFailure() {
       throw new Error("sync failure");
     },
+    foldFailure() {
+      const error = new Error("save failed");
+      error.code = "SAVE_FAILED";
+      error.details = { rollbackRestored: false, owners: ["original-note"] };
+      throw error;
+    },
+    circularFailure() {
+      const error = new Error("diagnostic serialization failed");
+      error.code = "SAVE_FAILED";
+      error.details = {};
+      error.details.loop = error.details;
+      return Promise.reject(error);
+    },
     asyncSuccess() {
       return Promise.resolve({ ok: true, mode: "async" });
     },
@@ -221,6 +234,15 @@ function deferred() {
   assert.strictEqual(syncError.message, "sync failure");
   assert.strictEqual(syncError.command, "syncFailure");
   assert.deepStrictEqual(pendingIds(harness), [], "sync failures must settle their originating request");
+
+  const foldError = await rejectionOf(harness.bridge.send("foldFailure"));
+  assert.strictEqual(foldError.code, "SAVE_FAILED");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(foldError.details)), { rollbackRestored: false, owners: ["original-note"] });
+  const circularError = await rejectionOf(harness.bridge.send("circularFailure"));
+  assert.strictEqual(circularError.code, "SAVE_FAILED");
+  assert.strictEqual(circularError.message, "diagnostic serialization failed");
+  assert.strictEqual(circularError.details, undefined);
+  assert.deepStrictEqual(pendingIds(harness), []);
 
   const unknownError = await rejectionOf(harness.bridge.send("missingCommand"));
   assert.match(unknownError.message, /Unknown bridge command: missingCommand/);

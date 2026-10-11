@@ -1,6 +1,8 @@
 JSB.require("WebDevServerConfig");
 JSB.require("HandwritingPreview");
 JSB.require("CommentFoldState");
+JSB.require("CommentModuleRules");
+JSB.require("CommentModuleStore");
 JSB.require("CommentData");
 JSB.require("UndoGroupingHelper");
 JSB.require("CommentWorkflowStore");
@@ -13,6 +15,7 @@ JSB.require("CommentWorkflowMenu");
 JSB.require("CommentActionSettings");
 JSB.require("BatchCommentActions");
 JSB.require("DynamicCommentActions");
+JSB.require("CommentModuleOperations");
 JSB.require("WebBridgeCommands");
 JSB.require("WebPanelController");
 JSB.require("MNCommentManagerAddon");

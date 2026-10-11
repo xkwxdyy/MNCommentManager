@@ -1565,7 +1565,8 @@ button.pressing {
   gap: 8px;
   min-width: 0;
   min-height: 60px;
-  padding: 8px 12px;
+  /* Keep footer controls outside the native 40px resize handle, with an 8px gap. */
+  padding: 8px 48px 8px 12px;
   background: var(--bg-panel);
   border-top: 1px solid var(--border-light);
   z-index: 20;
@@ -2595,7 +2596,7 @@ button.pressing {
     padding: 10px;
   }
 
-  .right-pane { padding: 6px 10px; gap: 6px; }
+  .right-pane { padding: 6px 48px 6px 10px; gap: 6px; }
   .right-pane .selection-actions-panel button:not(.selection-actions-close) { min-height: 44px; }
 }
 

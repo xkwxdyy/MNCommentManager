@@ -1,3 +1,4 @@
+import { chooseHtmlOption } from '../test/chooseHtmlOption';
 // @vitest-environment jsdom
 import React, { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -22,7 +23,7 @@ it('renders the Native schema and preserves unrelated stored options',async()=>{
   await mount({legacy:'kept'});
   expect(host.querySelector('input[type=checkbox]').checked).toBe(true);
   expect(host.querySelector('input:not([type])').value).toBe('\\n\\n');
-  await change(host.querySelector('select'),'1');
+  await chooseHtmlOption(host.querySelector('[role=combobox]'),'1');
   await change(host.querySelector('input:not([type])'),' / \\n');
   await act(async()=>host.querySelector('input[type=checkbox]').click());
   expect(values()).toEqual({legacy:'kept',destination:'excerpt',separator:' / \n',markdown:false});
@@ -36,7 +37,7 @@ it('restores saved values and lets an explicit value return to its Native defaul
 });
 it('displays invalid stored enums and blocks controls during a mutation',async()=>{
   await mount({destination:'removed'},true);
-  expect(host.querySelector('select').selectedOptions[0].textContent).toContain('无效');
+  expect(host.querySelector('[role=combobox]').textContent).toContain('无效');
   for(const control of host.querySelectorAll('input,select,button')) expect(control.disabled).toBe(true);
 });
 it('stores numbers as numbers and keeps incomplete input invalid for Native validation',async()=>{

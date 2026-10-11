@@ -821,7 +821,8 @@ assert(webAppSource.includes('persistActionButtonSetting('));
 assert(webAppSource.includes('(changes) => MNBridge.send("updateActionButtonSettings", changes)'));
 assert(webAppSource.includes('"mergeToExcerptDefault"'));
 assert(webAppSource.includes('() => MNBridge.send("getActionButtonSettings")'), 'default merge persistence must verify the Native readback rather than assuming success');
-assert(webAppSource.includes('onLocateLink={(url) => locateMarkdownLink({ url }, "mindmap")}'));
+assert(webAppSource.includes('onLocateLink={locateMarkdownHref}'));
+assert(webAppSource.includes('markdownLocateRef.current({ url }, "mindmap")'));
 assert(webAppSource.includes('runCommand("updateLinkCommentFromClipboard"'));
 
 console.log("batch no-excerpt conversion tests passed");

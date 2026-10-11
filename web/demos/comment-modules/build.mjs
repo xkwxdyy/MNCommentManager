@@ -1,0 +1,24 @@
+import { build } from 'vite';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const output = path.resolve(process.env.MN_MODULE_DEMO_OUTPUT || path.join(here, '../../..', 'dist/comment-modules-demo'));
+await build({ configFile: path.join(here, 'vite.config.mjs'), logLevel: 'warn' });
+await mkdir(path.join(output, 'preview'), { recursive: true });
+for (const name of ['server.mjs', 'store.mjs', 'model.mjs', 'engine.mjs', 'fixtures.mjs']) await copyFile(path.join(here, name), path.join(output, 'preview', name));
+await copyFile(path.join(here, 'README.md'), path.join(output, 'README.md'));
+await copyFile(path.join(here, 'VALIDATION.md'), path.join(output, 'VALIDATION.md'));
+await writeFile(path.join(output, 'start.mjs'), `import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createDemoServer } from './preview/server.mjs';
+const root = path.dirname(fileURLToPath(import.meta.url));
+const filename = path.resolve(process.env.MN_MODULE_DEMO_STORE || path.join(root, '..', 'comment-modules-state.json'));
+const host = process.env.MN_MODULE_DEMO_HOST || '127.0.0.1';
+const port = Number(process.env.MN_MODULE_DEMO_PORT || 5187);
+const server = await createDemoServer({ root, filename });
+server.on('error', error => { console.error(error.message); process.exitCode = 1; });
+server.listen(port, host, () => console.log('评论模块演示：http://' + host + ':' + port + '\\n模拟存储：' + filename));
+`, 'utf8');
+console.log(`独立演示已生成：${output}\n启动：node ${path.join(output, 'start.mjs')}`);

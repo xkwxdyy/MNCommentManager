@@ -215,7 +215,7 @@ assert.notStrictEqual(managerEnd, -1, "WorkflowManagerDialog boundary must exist
 const manager = source.slice(managerStart, managerEnd);
 
 assert.ok(manager.includes("const [pendingDraftTransition, setPendingDraftTransition] = useState(null)"));
-assert.ok(manager.includes("const hasUnsavedChanges = workflowDraftSignature(draft) !== savedDraftSignature"));
+assert.ok(manager.includes("const hasUnsavedChanges = !!newActionId || workflowDraftSignature(draft) !== savedDraftSignature"));
 assert.ok(manager.includes("const pendingDraftTransitionRef = useRef(null)"), "the discard prompt needs a synchronous re-entry guard");
 assert.ok(manager.includes("if (workflowMutationRef.current || busy || confirmDelete || pendingMutationCloseRef.current || pendingDraftTransitionRef.current || !transition) return"), "navigation must not stack while saving or another confirmation is open");
 assert.ok(manager.includes('transition.kind === "select" && transition.workflow?.id === selectedId'), "reselecting the current workflow must not discard its draft");

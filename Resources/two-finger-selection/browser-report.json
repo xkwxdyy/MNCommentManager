@@ -1,0 +1,29 @@
+{
+  "environment": "desktop Chromium, trusted CDP touch, simulated native Bridge",
+  "realIPadMeasurement": false,
+  "browserVersion": "154.0.8037.98",
+  "commentCount": 500,
+  "checks": [
+    "coherent pan tolerates 18px separation drift and reordered contacts",
+    "diagonal launch continues into a vertical range",
+    "staggered pair 0ms before movement",
+    "staggered pair 30ms before movement",
+    "staggered pair 60ms before movement",
+    "staggered pair 90ms before movement",
+    "staggered pair 120ms before movement",
+    "narrow gap starts selection",
+    "body link starts selection without navigation",
+    "true pinch before recognition stays out of selection",
+    "30 stationary-row touch frames perform zero extra row geometry reads",
+    "edge scroll advances selection and stops on release",
+    "one-finger native scrolling remains available"
+  ],
+  "extraRowReads": 0,
+  "latency": {
+    "samples": 12,
+    "p50Ms": 11.399999999441206,
+    "p95Ms": 27.59999999962747,
+    "maxMs": 27.59999999962747
+  },
+  "errors": []
+}

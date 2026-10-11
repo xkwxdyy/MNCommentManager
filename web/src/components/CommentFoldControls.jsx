@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { renderMarkdownToHtml } from "../lib/markdownRenderer";
 
 function FoldIcon({ collapsed }) {
@@ -45,8 +46,10 @@ export function CommentFoldStatus({ comment }) {
   return <span className={`comment-fold-status ${comment.collapsed ? "is-collapsed" : ""}`}>{comment.collapsed ? "已折叠" : "已展开"}</span>;
 }
 
-export function CollapsedCommentPreview({ comment, text, mediaSources, linkedDisplay }) {
+export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ comment, text, mediaSources, linkedDisplay }) {
   const source = linkedDisplay?.title || text;
+  const useMarkdown = !!source && !!comment.capabilities?.isMarkdown && !linkedDisplay;
+  const html = useMemo(() => useMarkdown ? { __html: renderMarkdownToHtml(source) } : null, [source, useMarkdown]);
   return (
     <div className="comment-fold-preview">
       {mediaSources[0] ? <img className="comment-fold-thumbnail" src={mediaSources[0].src} alt={mediaSources[0].alt} loading="lazy" /> : null}
@@ -58,19 +61,20 @@ export function CollapsedCommentPreview({ comment, text, mediaSources, linkedDis
             event.preventDefault();
             event.stopPropagation();
           }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(source) }}
+          dangerouslySetInnerHTML={html}
         />
       ) : (
         <p className="comment-fold-summary">{source || (comment.capabilities?.hasAudio ? "音频评论" : comment.drawingPreviewPending ? "手写内容正在转换" : comment.drawingPreviewError || (comment.capabilities?.hasImage ? "图片／手写评论" : "无文本内容"))}</p>
       )}
     </div>
   );
-}
+});
 
 export function CommentFoldToolbar({ loading, canFold, capability, onSetCollapsed }) {
   if (!capability) return null;
   if (!capability.supported) {
-    const message = capability.error || "当前宿主未提供批注折叠接口";
+    const reason = capability.error || "当前宿主未提供批注折叠接口";
+    const message = capability.code ? `${reason}（${capability.code}）` : reason;
     return <p className="comment-fold-unavailable" role="status" title={message}>{message}</p>;
   }
   const invoke = (collapsed) => {

@@ -190,8 +190,14 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
         stats.perNote.push({ noteId, status: result.changed === false ? "skipped" : "changed", matched: indices.length });
       } catch (error) {
         stats.failed += 1;
-        stats.errors.push({ noteId, message: error && error.message ? error.message : String(error) });
-        stats.perNote.push({ noteId, status: "failed", matched: 0, message: error && error.message ? error.message : String(error) });
+        const diagnostic = { noteId, message: error && error.message ? error.message : String(error) };
+        if (error && error.code) {
+          diagnostic.code = String(error.code);
+          diagnostic.message = `${diagnostic.message}（${diagnostic.code}）`;
+        }
+        if (error && error.details !== undefined) diagnostic.details = error.details;
+        stats.errors.push(diagnostic);
+        stats.perNote.push(Object.assign({ status: "failed", matched: 0 }, diagnostic));
       }
     });
     return stats;
@@ -252,7 +258,12 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
 
   function setSelectedCollapsed(notes, selector, collapsed) {
     return runForNotes(notes, selector, (note, snapshot, indices) => {
-      if (!snapshot.commentFold || !snapshot.commentFold.supported) throw new Error(snapshot.commentFold && snapshot.commentFold.error || "当前宿主未提供批注折叠接口");
+      if (!snapshot.commentFold || !snapshot.commentFold.supported) {
+        const error = new Error(snapshot.commentFold && snapshot.commentFold.error || "当前宿主未提供批注折叠接口");
+        error.code = snapshot.commentFold && snapshot.commentFold.code || "COMMENT_STATE_UNSUPPORTED";
+        error.details = snapshot.commentFold && snapshot.commentFold.details;
+        throw error;
+      }
       return __MN_COMMENT_MUTATIONS__.setCommentsCollapsed(note.noteId, indices, collapsed, snapshot.commentFold.revision);
     });
   }

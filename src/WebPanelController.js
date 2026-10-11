@@ -199,11 +199,16 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function normalizeBridgeError(error, command) {
-    return {
+    const result = {
       message: error && error.message ? error.message : String(error),
       command: command || "unknown",
       code: error && error.code ? String(error.code) : "",
     };
+    // Diagnostics must not prevent the original error from reaching the panel.
+    try {
+      if (error && error.details !== undefined) result.details = JSON.parse(JSON.stringify(error.details));
+    } catch (_) {}
+    return result;
   }
 
   function isPromiseLike(value) {

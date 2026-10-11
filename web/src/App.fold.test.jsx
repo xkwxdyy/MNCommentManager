@@ -234,6 +234,26 @@ it("reads back after a failed write and clears stale indices instead of showing 
   expect(card(0).classList.contains("comment-is-collapsed")).toBe(false);
   expect(selected(0)).toBe(false);
   expect(host.querySelector(".status-message").textContent).toContain("保存失败");
+  expect(host.querySelector(".status-message").textContent).toContain("SAVE_FAILED");
+});
+
+it("invalidates fold controls and selection when both writing and readback fail", async () => {
+  await click(card(0).querySelector("input"));
+  MNBridge.send.mockImplementation(async (command) => {
+    if (command === "setCommentsCollapsed") throw { code: "COMMENT_CHANGED", message: "批注已变化" };
+    if (command === "refreshCurrentNote") throw new Error("回读失败");
+    return {};
+  });
+  await click(button("折叠所选"));
+  expect(selected(0)).toBe(false);
+  expect(host.querySelector(".comment-fold-button")).toBeNull();
+  expect(host.querySelector(".comment-fold-toolbar")).toBeNull();
+  expect(host.querySelector(".comment-fold-unavailable").textContent).toContain("重新核实");
+  expect(host.querySelector(".status-message").textContent).toContain("COMMENT_CHANGED");
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "setCommentsCollapsed")).toHaveLength(1);
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot }));
+  expect(foldButton(0)).not.toBeNull();
+  expect(selected(0)).toBe(false);
 });
 
 it("preserves selection on repeated native pushes of the saved fold revision", async () => {

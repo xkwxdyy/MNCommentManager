@@ -112,14 +112,14 @@ const phone = extractBlock(styles, "@media (max-width: 599px)");
 assert.ok(extractBlock(phone, ".topbar-actions").includes("repeat(4, minmax(0, 1fr))"), "phone actions must form two balanced rows of four");
 
 const topbarStart = app.indexOf('<div className="topbar-actions">');
-const topbarEnd = app.indexOf("</div>", topbarStart);
+const topbarEnd = app.indexOf("</header>", topbarStart);
 assert.notStrictEqual(topbarStart, -1, "topbar actions must exist");
 assert.notStrictEqual(topbarEnd, -1, "topbar actions must close");
 const topbarSource = app.slice(topbarStart, topbarEnd);
 const labels = ["全选", "反选", "清空", "选范围", "刷新", "工作流", "设置", "关闭"];
 let previous = -1;
 for (const label of labels) {
-  const index = topbarSource.indexOf(label);
+  const index = topbarSource.indexOf(label, previous + 1);
   assert.ok(index > previous, `topbar command ${label} must remain present and ordered`);
   previous = index;
 }

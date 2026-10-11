@@ -1556,6 +1556,32 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return snapshot;
   }
 
+  // Module body selections can straddle the destination. Preserve their source order
+  // and every unselected comment rather than treating the entire span as selected.
+  function moveModuleBodyComments(noteId, indices, targetIndex) {
+    const note = getNoteOrThrow(noteId);
+    const selected = normalizeIndexArray(indices), count = getCommentCount(note);
+    selected.forEach(index => requireComment(note, index));
+    if (!selected.length || !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex > count) throw new Error("正文移动位置无效");
+    const order = Array.from({ length: count }, (_, index) => index);
+    const remaining = order.filter(index => selected.indexOf(index) < 0);
+    const destination = targetIndex - selected.filter(index => index < targetIndex).length;
+    const targetOrder = remaining.slice(0, destination).concat(selected, remaining.slice(destination));
+    withUndoGrouping("移动模块正文", { note }, () => {
+      targetOrder.forEach((token, destinationIndex) => {
+        const sourceIndex = order.indexOf(token);
+        if (sourceIndex === destinationIndex) return;
+        moveSingleComment(note, sourceIndex, destinationIndex);
+        order.splice(destinationIndex, 0, order.splice(sourceIndex, 1)[0]);
+      });
+      refreshNote(note);
+    });
+    refreshNotebookAfterCommentMutation(note);
+    const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+    snapshot.selectedIndices = selected.map((_, index) => destination + index);
+    return snapshot;
+  }
+
   function reverseCommentIndices(noteId, indices) {
     const note = getNoteOrThrow(noteId);
     const selected = Array.from(new Set(normalizeIndexArray(indices))).sort((a, b) => a - b);
@@ -2378,6 +2404,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     setCommentsCollapsed,
     moveComments,
     reverseCommentIndices,
+    moveModuleBodyComments,
     moveContentSelection,
     deleteComments,
     deleteContentSelection,

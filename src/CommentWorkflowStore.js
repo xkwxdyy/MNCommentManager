@@ -211,6 +211,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   function validate(raw) {
     const workflow = normalizeWorkflow(raw);
     if (!workflow) return { valid: false, errors: ["工作流必须包含名称和至少一个动作"] };
+    if (workflow.steps.length !== raw.steps.length) return { valid: false, errors: ["工作流包含空动作或无效步骤，草稿已保留，请修正后保存"] };
     if (workflow.invalidSelectors && workflow.invalidSelectors.length > 0) {
       return { valid: false, errors: workflow.invalidSelectors.map((item) => `第 ${item.step + 1} 个选择步骤无效：${item.message}`) };
     }
@@ -236,7 +237,29 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       document.workflows.push(next);
     }
     writeDocument(document.workflows);
+    // Verify the actual file instead of trusting the write boolean or echoing the draft.
+    try {
+      const stored = readDocument(true).workflows.find((item) => item.id === next.id);
+      if (!stored || JSON.stringify(canonicalValue(stored)) !== JSON.stringify(canonicalValue(next))) {
+        throw new Error("工作流回读内容与保存请求不一致");
+      }
+    } catch (cause) {
+      const error = new Error("保存结果未确认：工作流文件未通过回读校验，请核对保存状态；当前草稿已保留");
+      error.code = "WORKFLOW_SAVE_UNCONFIRMED";
+      error.details = { message: cause && cause.message ? cause.message : String(cause) };
+      throw error;
+    }
     return next;
+  }
+
+  function canonicalValue(value) {
+    if (Array.isArray(value)) return value.map(canonicalValue);
+    if (value && typeof value === "object") {
+      const result = {};
+      Object.keys(value).sort().forEach((key) => { result[key] = canonicalValue(value[key]); });
+      return result;
+    }
+    return value;
   }
 
   function remove(id) {
