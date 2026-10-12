@@ -1,0 +1,15 @@
+{
+  "version": "0.1.26",
+  "releaseURL": "https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.26",
+  "releaseCommit": "6a2dde2f0eb64953508ac6ea046c92ccdad5f064",
+  "branchSHAAtPublication": "6a2dde2f0eb64953508ac6ea046c92ccdad5f064",
+  "tagSHA": "6a2dde2f0eb64953508ac6ea046c92ccdad5f064",
+  "asset": "mn-comment-manager-v0.1.26.mnaddon",
+  "assetId": 634368384,
+  "assetSize": 650938,
+  "sha256": "1100e240f36beb121097c771c901e0bd300a159b9970f6c1765ad770a51c9aa1",
+  "remoteDownloadMatchesLocal": true,
+  "notesMatchChangelog": true,
+  "latestStable": true,
+  "publishedAt": "2026-10-12T16:46:45Z"
+}
