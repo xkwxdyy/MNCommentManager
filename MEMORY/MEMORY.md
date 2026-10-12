@@ -1,6 +1,8 @@
 # 项目记忆索引
 
-- 发版（2026-10-13）：[v0.1.26](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.26) 已发布，包含轻量输入、Markdown 类型与偏好、提交去重和连续动画处理。发布提交及标签为 `6a2dde2`；本轮完整回归、最终包内检查、远端附件摘要核验通过，正式包已备份安装并正常重启 MarginNote。完整设备验收保持开放，123 网盘与真实下载清单仍待手动更新。见 [发布验证](../Resources/releases/v0.1.26.md)。
+- 构建与网盘后处理（2026-10-13）：项目固定 pnpm 10.34.7，修复 Corepack 0.34 与 pnpm 12 入口不兼容；真实 stable 分支构建通过。MN Comment Manager 已沿用 MNPinner 的文件名长链接规则，用户已上传的 v0.1.26 包摘要核验通过；正式及旧版清单和日志已同步至 0.1.26。原包与标签保持，构建修复与相关记录纳入本次提交，跟踪 [Issue #70](https://github.com/xkwxdyy/MNCommentManager/issues/70)。见 [验证记录](../Resources/build-corepack/fix.md)。
+
+- 发版（2026-10-13）：[v0.1.26](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.26) 已发布，包含轻量输入、Markdown 类型与偏好、提交去重和连续动画处理。发布提交及标签为 `6a2dde2`；本轮完整回归、最终包内检查、远端附件摘要核验通过，正式包已备份安装并正常重启 MarginNote。完整设备验收保持开放；123 网盘包与更新源已在后续构建修复阶段完成核验和同步。见 [发布验证](../Resources/releases/v0.1.26.md)。
 
 - 连续转场审查（2026-10-13）：用户确认入场改善；进一步修正旧窗口复用与焦点回调、关闭回执丢失、早提交透明度重置及旧恢复定时器问题。完整前端 214 项、专项与 48 轮隔离连续操作通过；正文、草稿、类型与提交次数一致。修正版已备份安装并正常重启，实机持续快速操作待验收，见 [审查记录](../Resources/quick-input/transition-review.md)。
 - 平缓入场（2026-10-12）：用户确认退场明显改善，并要求解决打开时白底突然出现。覆盖层加入视图前保持透明，页面恢复完成后与输入框同步淡入约 300 毫秒，重复与迟到请求有保护。原生模拟、前端、生产逐帧和保存回归通过，测试包已安装并正常重启，入场随后已获用户反馈确认。见 [入场验证记录](../Resources/quick-input/smooth-opening.md)。

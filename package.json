@@ -2,6 +2,7 @@
   "name": "mn-comment-manager",
   "version": "0.1.26",
   "private": true,
+  "packageManager": "pnpm@10.34.7",
   "scripts": {
     "build": "node scripts/build-release.js",
     "dev": "node scripts/dev-web.js",

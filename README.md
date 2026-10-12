@@ -78,6 +78,8 @@ marginnote.extension.mncommentmanager
 
 ## Development
 
+The project pins pnpm 10.34.7 for compatibility with the existing Corepack launcher.
+
 Install dependencies:
 
 ```bash

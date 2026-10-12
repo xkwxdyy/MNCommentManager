@@ -1,0 +1,78 @@
+{
+  "node": "24.3.0",
+  "corepack": "0.34.0",
+  "before": "pnpm 12.11.2 bin/pnpm.cjs does not exist",
+  "projectPackageManager": "pnpm@10.34.7",
+  "pnpmVersion": "10.34.7",
+  "actualStableBranchPassed": true,
+  "sharedBuildPath": [
+    "mncommentmanager_stable",
+    "mncommentmanager_publish_manual"
+  ],
+  "zipIntegrity": true,
+  "fileCount": 35,
+  "allContentsMatchPublishedPackage": true,
+  "publishedPackagePreserved": true,
+  "globalCorepackDefaultPreserved": true,
+  "officialIntegrityVerified": true,
+  "jsSyntaxFiles": 25,
+  "manifestRegressionPassed": true,
+  "userReported123UploadCompleted": true,
+  "filenameLinkProtocolAlreadyAdapted": true,
+  "pan123DownloadMatchesPublishedPackage": true,
+  "pan123URL": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.26.mnaddon",
+  "serverUpdateSources": [
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.26",
+      "bytesMatchLocal": true,
+      "sha256": "0fa30e0a6f9ac7788f619e9b0807c42c1d55485bb6f4096bb84bee5622c7cc97"
+    },
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.26",
+      "bytesMatchLocal": true,
+      "sha256": "a4d7257c7c319ac263e3bade8ba970634802b6ce929392440653c0003dc33d96"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.26",
+      "bytesMatchLocal": true,
+      "sha256": "0fa30e0a6f9ac7788f619e9b0807c42c1d55485bb6f4096bb84bee5622c7cc97"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.26",
+      "bytesMatchLocal": true,
+      "sha256": "a4d7257c7c319ac263e3bade8ba970634802b6ce929392440653c0003dc33d96"
+    }
+  ],
+  "serverBackups": [
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.26-20261013-010647/0-mncommentmanager.json",
+      "sha256": "602c0786c2d267edc1232e5161122dc62d130685ddea755fdfd507509ef76712"
+    },
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.26-20261013-010647/1-mncommentmanager_changelog.json",
+      "sha256": "404891058d78760a6c5c5f1b69f32275657c5964d3a47b258b125d640e0edc19"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.26-20261013-010647/2-mncommentmanager.json",
+      "sha256": "602c0786c2d267edc1232e5161122dc62d130685ddea755fdfd507509ef76712"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.26-20261013-010647/3-mncommentmanager_changelog.json",
+      "sha256": "404891058d78760a6c5c5f1b69f32275657c5964d3a47b258b125d640e0edc19"
+    }
+  ],
+  "downloadManifestPreservedBeforeUpdate": true,
+  "downloadManifestUpdatedTo": "0.1.26",
+  "contentsComparedBeforeManifestUpdate": true,
+  "sourceFixCommitted": false,
+  "issueURL": "https://github.com/xkwxdyy/MNCommentManager/issues/70",
+  "recordedAtPhase": "validation-before-git-commit"
+}
