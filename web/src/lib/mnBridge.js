@@ -1,7 +1,12 @@
 const BRIDGE_SCHEME = "mnaddon://bridge?payload=";
 
-const READ_ONLY_COMMAND_TIMEOUTS = Object.freeze({
+const COMMAND_TIMEOUTS = Object.freeze({
+  // UI acknowledgements may expire; comment writes remain pending until reconciled.
+  closeQuickComment: 1500,
+  presentQuickComment: 1500,
+  setQuickCommentExit: 1500,
   ping: 30000,
+  getQuickCommentState: 30000,
   echo: 30000,
   getCurrentNoteComments: 30000,
   refreshCurrentNote: 30000,
@@ -92,8 +97,8 @@ function send(command, payload = null) {
 
     let iframe = null;
     try {
-      if (Object.prototype.hasOwnProperty.call(READ_ONLY_COMMAND_TIMEOUTS, command)) {
-        const timeoutMs = READ_ONLY_COMMAND_TIMEOUTS[command];
+      if (Object.prototype.hasOwnProperty.call(COMMAND_TIMEOUTS, command)) {
+        const timeoutMs = COMMAND_TIMEOUTS[command];
         pending.timeoutId = setTimeout(() => {
           const activePending = takePending(requestId);
           if (!activePending) {

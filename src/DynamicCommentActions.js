@@ -1,8 +1,11 @@
 var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   const BUTTON_TAG = 9304102;
+  const ADD_BUTTON_TAG = 9304103;
   const MNPINNER_FOLLOW_BUTTON_TAG = 9205101;
+  const MNPINNER_EXTRA_BUTTON_TAG = 9205103;
   const MNLITERATURE_FOLLOW_BUTTON_TAG = 762041;
-  const BUTTON_SIZE = 36;
+  const BUTTON_SIZE = 44;
+  const GROUP_GAP = 4;
   const BUTTON_GAP = 10;
   const INITIAL_SHOW_DELAY = 0.02;
   const POPUP_CLOSE_HIDE_DELAY = 0.18;
@@ -64,8 +67,13 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function rectFromView(view, hostView) {
     try {
-      if (!view || view.hidden === true || view.enabled === false || view.userInteractionEnabled === false) return null;
-      if (view.layer && Number(view.layer.opacity) > 0 && Number(view.layer.opacity) < 0.01) return null;
+      if (!view) return null;
+      let ancestor = view;
+      for (let depth = 0; ancestor && depth < 12; depth += 1, ancestor = ancestor.superview) {
+        if (ancestor.hidden === true || ancestor.alpha !== undefined && Number(ancestor.alpha) < 0.01 ||
+            ancestor.layer && ancestor.layer.opacity !== undefined && Number(ancestor.layer.opacity) < 0.01) return null;
+        if (ancestor === hostView) break;
+      }
       if (hostView && typeof view.convertRectToView === "function") {
         const converted = view.convertRectToView(view.bounds, hostView);
         if (converted && Number(converted.width || 0) > 0 && Number(converted.height || 0) > 0) return converted;
@@ -165,9 +173,15 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       const rect = rectFromView(view, hostView);
       if (rect) views.push(view);
     };
-    try { if (typeof pinnerUtils !== "undefined" && pinnerUtils && pinnerUtils.pinnerController) push(pinnerUtils.pinnerController.followModeButton); } catch (_) {}
+    try {
+      if (typeof pinnerUtils !== "undefined" && pinnerUtils && pinnerUtils.pinnerController) {
+        ["followModeButton", "followModeExtraButton", "pinActionMenuWebView", "actionMenuWebView"].forEach((name) => push(pinnerUtils.pinnerController[name]));
+      }
+    } catch (_) {}
     try { push(findSubviewByTag(hostView, MNPINNER_FOLLOW_BUTTON_TAG)); } catch (_) {}
+    try { push(findSubviewByTag(hostView, MNPINNER_EXTRA_BUTTON_TAG)); } catch (_) {}
     try { push(findSubviewByTag(hostView, MNLITERATURE_FOLLOW_BUTTON_TAG)); } catch (_) {}
+    try { if (typeof PopupMenu !== "undefined" && PopupMenu && typeof PopupMenu.currentMenu === "function") push(PopupMenu.currentMenu()); } catch (_) {}
     try {
       const chatDynamic = (typeof chatAIUtils !== "undefined" && chatAIUtils && chatAIUtils.dynamicController)
         ? chatAIUtils.dynamicController
@@ -177,9 +191,14 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
         ["addButton", "aiButton", "chatButton", "sourceButton", "modelButton"].forEach((name) => push(chatDynamic[name]));
       }
     } catch (_) {}
-    toArrayLike(hostView && hostView.subviews).forEach((view) => {
-      try { if (view && "mntoolbar" in Object(view)) push(view); } catch (_) {}
-    });
+    const collectToolbars = (parent, depth) => {
+      if (!parent || parent.hidden === true || depth > 3) return;
+      toArrayLike(parent.subviews).forEach((view) => {
+        try { if (view && view.mntoolbar === true) push(view); } catch (_) {}
+        collectToolbars(view, depth + 1);
+      });
+    };
+    collectToolbars(hostView, 0);
     return views.map((view) => rectFromView(view, hostView)).filter(Boolean);
   }
 
@@ -187,45 +206,54 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const hostView = getHostView(addon);
     const bounds = hostView && hostView.bounds;
     if (!bounds || !context || !context.anchorRect) return null;
-    const anchor = context.anchorRect;
-    const maxX = Math.max(0, Number(bounds.width || 0) - BUTTON_SIZE);
+    let anchor = context.anchorRect;
+    try { if (typeof hostView.convertRectFromView === "function") anchor = hostView.convertRectFromView(anchor, addon.window); } catch (_) {}
+    if (!anchor) return null;
+    const groupWidth = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE;
+    if (Number(bounds.width || 0) < groupWidth || Number(bounds.height || 0) < BUTTON_SIZE) return null;
+    const maxX = Math.max(0, Number(bounds.width || 0) - groupWidth);
     const maxY = Math.max(0, Number(bounds.height || 0) - BUTTON_SIZE);
-    const occupied = collectOccupiedRects(hostView);
+    const occupied = collectOccupiedRects(hostView).map((rect) => ({ x: rect.x - 6, y: rect.y - 6, width: rect.width + 12, height: rect.height + 12 }));
     const rightX = Number(anchor.x || 0) + Number(anchor.width || 0) + BUTTON_GAP;
-    const leftX = Number(anchor.x || 0) - BUTTON_SIZE - BUTTON_GAP;
+    const leftX = Number(anchor.x || 0) - groupWidth - BUTTON_GAP;
     const topY = Number(anchor.y || 0) - BUTTON_SIZE - BUTTON_GAP;
     const bottomY = Number(anchor.y || 0) + Number(anchor.height || 0) + BUTTON_GAP;
     const centerY = Number(anchor.y || 0) + Number(anchor.height || 0) * 0.5 - BUTTON_SIZE * 0.5;
-    const centerX = Number(anchor.x || 0) + Number(anchor.width || 0) * 0.5 - BUTTON_SIZE * 0.5;
+    const centerX = Number(anchor.x || 0) + Number(anchor.width || 0) * 0.5 - groupWidth * 0.5;
     const candidates = [
       { x: rightX, y: centerY, score: 0 }, { x: leftX, y: centerY, score: 20 },
       { x: centerX, y: bottomY, score: 40 }, { x: centerX, y: topY, score: 60 },
     ];
+    // Obstacle edges supply free positions when all four card-adjacent slots are blocked.
+    const xs = [rightX, leftX, centerX, 6, maxX - 6], ys = [centerY, topY, bottomY, 6, maxY - 6];
+    occupied.forEach((rect) => { xs.push(rect.x - groupWidth, rect.x + rect.width); ys.push(rect.y - BUTTON_SIZE, rect.y + rect.height); });
+    xs.forEach((x) => ys.forEach((y) => candidates.push({ x, y, score: 80 + Math.abs(x - rightX) + Math.abs(y - centerY) })));
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
     candidates.forEach((candidate) => {
       const x = Math.max(0, Math.min(maxX, Number(candidate.x || 0)));
       const y = Math.max(0, Math.min(maxY, Number(candidate.y || 0)));
-      const frame = { x, y, width: BUTTON_SIZE, height: BUTTON_SIZE };
+      const frame = { x, y, width: groupWidth, height: BUTTON_SIZE };
       let score = Number(candidate.score || 0) + Math.abs(x - Number(candidate.x || 0)) * 8 + Math.abs(y - Number(candidate.y || 0)) * 4;
-      score += rectOverlapArea(frame, anchor) * 50;
-      occupied.forEach((rect) => { score += rectOverlapArea(frame, rect) * 100; });
+      if (rectOverlapArea(frame, anchor) > 0 || occupied.some((rect) => rectOverlapArea(frame, rect) > 0)) return;
       if (score < bestScore) { bestScore = score; best = frame; }
     });
     return best;
   }
 
-  function ensureButton(addon) {
+  function ensureButton(addon, adding) {
     const hostView = getHostView(addon);
     if (!hostView) return null;
-    let button = addon.dynamicCommentButton;
+    const property = adding ? "dynamicAddCommentButton" : "dynamicCommentButton";
+    const tag = adding ? ADD_BUTTON_TAG : BUTTON_TAG;
+    let button = addon[property];
     if (!button) {
-      const staleButton = findSubviewByTag(hostView, BUTTON_TAG);
+      const staleButton = findSubviewByTag(hostView, tag);
       try { if (staleButton && staleButton.removeFromSuperview) staleButton.removeFromSuperview(); } catch (_) {}
     }
     if (!button) {
       button = UIButton.buttonWithType(0);
-      button.tag = BUTTON_TAG;
+      button.tag = tag;
       button.frame = { x: 0, y: 0, width: BUTTON_SIZE, height: BUTTON_SIZE };
       button.layer.cornerRadius = BUTTON_SIZE * 0.5;
       button.layer.shadowOffset = { width: 0, height: 2 };
@@ -235,21 +263,22 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       button.backgroundColor = MNUtil.hexColorAlpha("#ffffff", 0.96);
       button.layer.borderWidth = 1;
       button.layer.borderColor = MNUtil.hexColorAlpha("#d1d5db", 0.95);
-      button.setTitleForState("评", 0);
+      try { button.setImageForState(MNUtil.getImage(`${addon.mainPath}/${adding ? "comment-add" : "comment-manage"}.png`, 3), 0); }
+      catch (_) { button.setTitleForState(adding ? "＋" : "☷", 0); }
       button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1), 0);
       button.titleLabel.font = UIFont.boldSystemFontOfSize(15);
-      button.accessibilityLabel = "MN Comment Manager 评论";
+      button.accessibilityLabel = adding ? "添加评论" : "评论管理器";
       button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchDown:", 1 << 0);
-      button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTapped:", 1 << 6);
+      button.addTargetActionForControlEvents(addon, adding ? "dynamicAddCommentButtonTapped:" : "dynamicCommentButtonTapped:", 1 << 6);
       try {
-        MNButton.addLongPressGesture(button, addon, "dynamicCommentButtonLongPressed:", 0.45);
+        MNButton.addLongPressGesture(button, addon, adding ? "dynamicAddCommentButtonLongPressed:" : "dynamicCommentButtonLongPressed:", 0.45);
       } catch (error) {
         console.log(`[MN Comment Manager] dynamic long-press binding failed: ${error && error.message ? error.message : error}`);
       }
       hostView.addSubview(button);
     }
     button.hidden = true;
-    addon.dynamicCommentButton = button;
+    addon[property] = button;
     return button;
   }
 
@@ -257,6 +286,8 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     try {
       const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
+      const addButton = addon && addon.dynamicAddCommentButton;
+      if (addButton) { addButton.hidden = true; addButton.enabled = false; addButton.userInteractionEnabled = false; }
       if (addon) {
         addon.dynamicCommentContext = null;
         addon.dynamicCommentMenuPopoverController = null;
@@ -272,6 +303,9 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
       hideButton(addon, reason || "dispose");
       if (button && button.removeFromSuperview) button.removeFromSuperview();
+      const addButton = addon && addon.dynamicAddCommentButton;
+      if (addButton && addButton.removeFromSuperview) addButton.removeFromSuperview();
+      if (addon) addon.dynamicAddCommentButton = null;
       if (addon) addon.dynamicCommentButton = null;
       return !!button;
     } catch (error) {
@@ -285,17 +319,30 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     refreshAnchorRect(context);
     const button = ensureButton(addon);
     const frame = resolveButtonFrame(addon, context);
-    if (!button || !frame) return false;
-    button.frame = frame;
+    if (!button || !frame) {
+      if (addon.dynamicAddCommentButton) addon.dynamicAddCommentButton.hidden = true;
+      return false;
+    }
+    button.frame = { x: frame.x, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
     button.hidden = false;
     button.enabled = true;
     button.userInteractionEnabled = true;
     try { button.superview.bringSubviewToFront(button); } catch (_) {}
+    const adding = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false;
+    const addButton = ensureButton(addon, true);
+    if (addButton) {
+      addButton.frame = { x: frame.x + BUTTON_SIZE + GROUP_GAP, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
+      addButton.hidden = !adding;
+      addButton.enabled = adding;
+      addButton.userInteractionEnabled = adding;
+      try { if (adding) addButton.superview.bringSubviewToFront(addButton); } catch (_) {}
+    }
     return true;
   }
 
   function handlePopupMenuOnNote(addon, sender) {
     if (!isCurrentWindow(addon)) return false;
+    if (addon.quickCommentController && !addon.quickCommentController._quickClosePending && Number(addon.quickCommentController._quickExiting || 0) !== 1) return false;
     if (!__MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton) {
       hideButton(addon, "disabled");
       return false;
@@ -304,6 +351,13 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (!context) { hideButton(addon, "noSingleNote"); return false; }
     addon.dynamicCommentContext = context;
     delay(INITIAL_SHOW_DELAY, () => showForContext(addon, context));
+    // Other addons reveal their controls after the popup notification has finished.
+    [0.12, 0.3].forEach((seconds) => delay(seconds, () => {
+      if (isCurrentWindow(addon) && (!addon.quickCommentController || addon.quickCommentController._quickClosePending || Number(addon.quickCommentController._quickExiting || 0) === 1) && !addon.dynamicCommentMenuPopoverController &&
+          Number(addon.dynamicCommentInteractionUntil || 0) <= Date.now() &&
+          __MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton &&
+          addon.dynamicCommentContext && addon.dynamicCommentContext.token === context.token) showForContext(addon, context);
+    }));
     return true;
   }
 
@@ -638,7 +692,33 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     }
   }
 
-  return { handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, openSingleWorkflows, backSingleWorkflowMenu, showSingleWorkflowMissing, runSingleWorkflow, openSingleInvalidLinkMenu, backSingleInvalidLinkMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
+  function dispatchAction(addon, adding, holding, sender) {
+    if (!holding && consumeTapSuppression(addon)) return false;
+    if (holding) suppressTapAfterLongPress(addon);
+    const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings();
+    const key = `${adding ? "add" : "management"}${holding ? "Hold" : "Tap"}Action`;
+    const action = settings[key] || (holding ? "menu" : adding ? "quickInput" : "manager");
+    const context = addon.dynamicCommentContext;
+    if (action === "none") return false;
+    if (!context || !context.noteId) throw new Error("未读取到当前卡片");
+    if (action === "menu") return openMenu(addon, sender || addon.dynamicCommentButton);
+    if (action === "quickInput") {
+      __MN_QUICK_COMMENT_MNCommentManagerAddon.open(addon, context);
+      if (holding) suppressTapAfterLongPress(addon);
+      return true;
+    }
+    MNUtil.focusNoteInMindMapById(context.noteId, 0);
+    __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController);
+    addon.layoutViewController();
+    __MN_WEB_API_MNCommentManagerAddon.syncCurrentNote(addon.webController, "dynamic-single-card");
+    hideButton(addon, "tap.openPanel");
+    if (holding) suppressTapAfterLongPress(addon);
+    return true;
+  }
+  function refreshButtons(addon) {
+    if (addon && addon.dynamicCommentContext && !addon.quickCommentController) showForContext(addon, addon.dynamicCommentContext);
+  }
+  return { dispatchAction, refreshButtons, handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, openSingleWorkflows, backSingleWorkflowMenu, showSingleWorkflowMissing, runSingleWorkflow, openSingleInvalidLinkMenu, backSingleInvalidLinkMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
     runKeepFirstContent: (addon, sender) => runAction(addon, sender, "keepFirstContentForNotes"),
     runConvertHtmlToMarkdown: (addon, sender) => runAction(addon, sender, "convertHtmlCommentsToMarkdownForNotes"),
     runConvertToNoExcerpt: (addon, sender) => runAction(addon, sender, "convertNotesToNoExcerptForNotes"),

@@ -200,6 +200,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     const settings = __MN_COMMENT_ACTION_SETTINGS__.updateSettings(payload);
     if (settings.showBatchButton !== true) __MN_BATCH_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
     if (settings.enableDynamicSingleCardButton !== true) __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
+    else __MN_DYNAMIC_COMMENT_ACTIONS__.refreshButtons(context.addon);
     return settings;
   }
 
@@ -322,6 +323,12 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   function extractCommentModule(context, payload) { return __MN_COMMENT_MODULE_OPERATIONS__.extract(payload); }
 
   const commands = {
+    getQuickCommentState: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.getState(context.controller, payload),
+    presentQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.present(context.controller, payload),
+    appendQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.append(context.controller, payload),
+    setQuickCommentExit: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.setExit(context.controller, payload),
+    updateQuickCommentDraft: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.updateDraft(context.controller, payload),
+    closeQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.requestClose(context.controller, payload),
     saveCommentModuleSettings,
     getCommentModuleSettings,
     reorderCommentModule,

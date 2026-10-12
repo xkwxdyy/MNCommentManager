@@ -819,5 +819,9 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     ensureLayout,
     syncCurrentNote: scheduleCurrentNoteSnapshotPush,
     syncBatch: pushBatchEditorState,
+    // The quick-input controller uses the same transport, without panel UI or snapshot polling.
+    decodeBridgeMessage,
+    sendBridgeResponse,
+    normalizeBridgeError,
   };
 })();

@@ -224,6 +224,7 @@ function loadAddon({
     "CommentModuleOperations",
     "WebBridgeCommands",
     "WebPanelController",
+    "QuickCommentController",
     "MNCommentManagerAddon",
   ]);
   assert.strictEqual(result.addon.mainPath, "/addons/marginnote.extension.mncommentmanager");

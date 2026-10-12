@@ -1,5 +1,19 @@
 # 项目记忆索引
 
+- 连续转场审查（2026-10-13）：用户确认入场改善；进一步修正旧窗口复用与焦点回调、关闭回执丢失、早提交透明度重置及旧恢复定时器问题。完整前端 214 项、专项与 48 轮隔离连续操作通过；正文、草稿、类型与提交次数一致。修正版已备份安装并正常重启，实机持续快速操作待验收，见 [审查记录](../Resources/quick-input/transition-review.md)。
+- 平缓入场（2026-10-12）：用户确认退场明显改善，并要求解决打开时白底突然出现。覆盖层加入视图前保持透明，页面恢复完成后与输入框同步淡入约 300 毫秒，重复与迟到请求有保护。原生模拟、前端、生产逐帧和保存回归通过，测试包已安装并正常重启，入场随后已获用户反馈确认。见 [入场验证记录](../Resources/quick-input/smooth-opening.md)。
+- 录屏反馈与原生渐隐（2026-10-12）：用户录屏确认网页遮罩淡出后仍残留整窗白底，直到关闭才显示脑图；此前浏览器检查不足以证明宿主修复。已接入保存确认后的原生 UIView 覆盖层渐隐与关闭失败恢复，回归检查通过，测试包已安装并正常启动。退场改善随后已获用户反馈确认，原始证据与边界见 [视频验证记录](../Resources/quick-input/native-canvas-fade.md)。
+- 快速输入回执与提前淡出（2026-10-12）：会话和提交记录改为保留在 JavaScript 闭包，避免原生动态对象边界改变布尔表示。背景在退场过程的 78% 时完成淡出，生产逐帧及失败重试检查通过，最终测试包已安装并正常重启。未提交草稿继续保留，新输入不读取已有评论；实际宿主动画仍待验收。证据见 [验证记录](../Resources/quick-input/early-backdrop-and-receipt.md)。
+- 测试版自动安装流程（2026-10-12）：用户授权本项目每次更新并验证测试包后直接安装并正常重启 MarginNote；稳定规则已加入 AGENTS.md。最新 Markdown 记忆测试包已完成本机安装、文件核对和重启，备份与部署报告见 `Resources/quick-input/remember-markdown-review/local-install-report.json`。
+
+- Markdown 偏好记忆（2026-10-12）：用户要求沿用最近选择，已通过原生配置保存并接入新输入会话，替代固定恢复为 Text 的规则。测试包和本轮验证见 [记忆验证记录](../Resources/quick-input/remember-markdown.md)，真实宿主重启恢复待验收。
+
+- 快速输入 Markdown 与背景淡出（2026-10-12）：用户明确扩展评论类型范围；已加入 Markdown 图标开关，背景与面板同步退场，取消成功浮层提示。测试包、211 项前端测试及生产页面检查见 [验证记录](../Resources/quick-input/markdown-and-backdrop.md)。[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68)、[Issue #69](https://github.com/xkwxdyy/MNCommentManager/issues/69) 保持开放，实际宿主待验收。
+
+- 快速输入界面调整（2026-10-12）：设置标签、浮动按钮避让、连续退场动画和关闭失败提示已更新；当前测试包及验证见 [交互调整记录](../Resources/quick-input/interaction-adjustments.md)。[Issue #67](https://github.com/xkwxdyy/MNCommentManager/issues/67)、[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68) 保持开放，真实宿主待验收。
+
+- 轻量评论输入（2026-10-12）：双图标入口与纯文本输入已接入；数据处理审查已修复初始化关闭覆盖、乱序草稿、历史提交重放及迟到回执问题。前端 189 项、Node 54 个脚本、包内联合模拟与隔离构建通过；跟踪 [Issue #65](https://github.com/xkwxdyy/MNCommentManager/issues/65)、[Issue #66](https://github.com/xkwxdyy/MNCommentManager/issues/66)。真实 MarginNote 保存、键盘与撤销仍待验收；最新记录见 `Resources/quick-input/review-and-validation.md`，尚未提交或发布。
+
 - 发版与设备反馈（2026-10-12）：用户确认双指多选实际体验明显改善；[v0.1.25](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.25) 已完成稳定版发布，发布提交与标签为 `f29e80a`。回归、隔离构建、最终包内网页检查及远端附件摘要核验通过。量化设备指标和其他宿主操作仍待验收，123 网盘及真实下载清单仍待手动更新；说明见 `Resources/releases/v0.1.25.md`。
 
 - 双指多选优化（2026-10-12）：用户确认方案后，识别、命中缓存、按帧及差异更新、渐进边缘滚动和渲染缓存已接入。自动检查通过，实际体验改善已获用户测试确认；真实 iPad 的量化启动成功率、延迟和长列表指标仍待验收，跟踪 [Issue #64](https://github.com/xkwxdyy/MNCommentManager/issues/64)。调研与证据见 `Resources/two-finger-selection/`，相关源码已包含在 v0.1.25 发布中。

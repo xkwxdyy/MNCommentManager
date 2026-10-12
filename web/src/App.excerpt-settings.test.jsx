@@ -121,3 +121,18 @@ it("uses a safe readback to apply an enabled preference when the write response 
   expect(excerptBody().textContent).toContain(snapshot.excerpt.text);
   expect(host.querySelector(".action-button-settings [role=alert]").textContent).toContain("已生效");
 });
+
+it("persists per-button click and hold actions and the add-button visibility through Native", async () => {
+  await click(button("设置"));
+  const trigger = host.querySelector('[role="combobox"][aria-label="管理按钮单击"]');
+  await click(trigger);
+  await click(host.querySelector('[role="option"][data-value="quickInput"]'));
+  expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { managementTapAction: 'quickInput' });
+  expect(trigger.textContent).toContain('添加评论');
+  const visibility = [...host.querySelectorAll('.action-button-settings label')].find(node => node.textContent.includes('显示添加评论按钮')).querySelector('input');
+  await click(visibility);
+  expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { showQuickCommentButton: false });
+  const hold = host.querySelector('[role="combobox"][aria-label="添加按钮长按"]');
+  await click(hold); await click(host.querySelector('[role="option"][data-value="none"]'));
+  expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { addHoldAction: 'none' });
+});

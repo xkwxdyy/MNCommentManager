@@ -4,6 +4,12 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 
 ## Features
 
+- Append a native Text or Markdown comment from a lightweight floating input window.
+  Enter submits, Shift+Enter inserts a line break, and the last Markdown choice is
+  saved in native preferences. Unsubmitted drafts remain in the current window
+  session; uncertain saves retain the original submission for reconciliation.
+- Configure separate tap and long-press actions for the manage and add icons.
+
 - Load the focused card and list its comments with type, index, lifecycle stage, and link metadata.
 - Filter and search comments by text, image, link, HTML, audio, or other comment types.
 - Select single comments, multi-select comments, or pick a continuous range.
@@ -29,7 +35,7 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 ## Install
 
 Install and enable MN Utils first, then download or build
-`mn-comment-manager-v0.1.25.mnaddon` and install it in MarginNote 4.
+`mn-comment-manager-v0.1.26.mnaddon` and install it in MarginNote 4.
 
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
@@ -93,7 +99,7 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.25.mnaddon
+mn-comment-manager-v0.1.26.mnaddon
 ```
 
 Generate a stable update manifest after uploading the package into the 123pan

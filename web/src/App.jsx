@@ -3590,13 +3590,32 @@ function ActionButtonSettingsDialog({
             type="checkbox"
             checked={settings?.enableDynamicSingleCardButton === true}
             disabled={busy}
-            onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡时显示“评”按钮")}
+            onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡浮动按钮")}
           />
           <span>
-            <strong>单卡时显示“评”按钮</strong>
-            <small>点按打开评论管理器；长按打开单选处理菜单。</small>
+            <strong>单卡时显示浮动按钮</strong>
+            <small>管理与添加评论采用图标入口，单击和长按动作可以分别设置。</small>
           </span>
         </label>
+        <label className="dialog-check">
+          <input type="checkbox" checked={settings?.showQuickCommentButton !== false} disabled={busy}
+            onChange={(event) => saveSetting("showQuickCommentButton", event.target.checked, "添加评论按钮")} />
+          <span><strong>显示添加评论按钮</strong><small>关闭后只显示管理按钮，管理按钮仍可配置为快速输入入口。</small></span>
+        </label>
+        <div className="dynamic-action-settings">
+          {[
+            ["managementTapAction", "管理按钮单击", "manager"],
+            ["managementHoldAction", "管理按钮长按", "menu"],
+            ["addTapAction", "添加按钮单击", "quickInput"],
+            ["addHoldAction", "添加按钮长按", "menu"],
+          ].map(([key, label, fallback]) => <label key={key}><span>{label}</span>
+            <HtmlSelect aria-label={label} value={settings?.[key] || fallback} disabled={busy}
+              onChange={(event) => saveSetting(key, event.target.value, label)}>
+              <option value="manager">打开评论管理器</option><option value="quickInput">添加评论</option>
+              <option value="menu">打开处理菜单</option><option value="none">不执行操作</option>
+            </HtmlSelect>
+          </label>)}
+        </div>
         <label className={savingKey === "showImageExcerptText" ? "dialog-check saving" : "dialog-check"}>
           <input
             type="checkbox"

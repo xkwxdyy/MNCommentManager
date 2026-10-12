@@ -437,6 +437,24 @@ function assertSinglePending(harness) {
     await promise;
   }
 
+  for (const command of ["closeQuickComment", "presentQuickComment", "setQuickCommentExit"]) {
+    const harness = createHarness();
+    const promise = harness.bridge.send(command);
+    const rejected = promise.catch(error => error);
+    const requestId = assertSinglePending(harness);
+    harness.runTimer(harness.activeTimers(1500)[0]);
+    assert.strictEqual((await rejected).command, command);
+    assert.deepStrictEqual(harness.pendingIds(), []);
+    harness.respond(requestId, { closed: true });
+    assert.deepStrictEqual(harness.pendingIds(), [], "late UI acknowledgements cannot revive a timed-out request");
+  }
+  {
+    const harness = createHarness();
+    const promise = harness.bridge.send("appendQuickComment", { text: "immutable" });
+    const requestId = assertSinglePending(harness);
+    assert.strictEqual(harness.activeTimers(1500).length, 0, "comment writes must not inherit UI timeouts");
+    harness.respond(requestId, { saved: true }); await promise;
+  }
   console.log("bridge request lifecycle regression passed");
 })().catch((error) => {
   console.error(error);

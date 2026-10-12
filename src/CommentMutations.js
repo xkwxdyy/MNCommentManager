@@ -1702,6 +1702,57 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return snapshot;
   }
 
+  function quickCommentDatabase() {
+    const db = Database.sharedInstance();
+    if (!db || typeof db.savedb !== "function") throw new Error("当前宿主无法确认评论保存，请更新 MarginNote 后再试");
+    return db;
+  }
+
+  function confirmQuickTextComment(noteId, attempt, refresh) {
+    const db = quickCommentDatabase();
+    db.savedb();
+    const fresh = getNoteOrThrow(noteId);
+    const raw = fresh.note || fresh;
+    const comments = raw.comments || [];
+    const item = comments[attempt.index];
+    if (comments.length < attempt.index + 1 || !item || String(item.text || "") !== attempt.text || String(item.type || "") !== "TextNote" ||
+        !!item.markdown !== (attempt.markdown === true)) {
+      throw new Error("新增评论未通过回读校验，请检查目标卡片后再操作");
+    }
+    if (refresh !== false) {
+      refreshNote(fresh);
+      refreshNotebookAfterCommentMutation(fresh);
+    }
+    return { persisted: true, noteId, commentIndex: attempt.index, markdown: attempt.markdown === true };
+  }
+
+  function appendQuickTextComment(noteId, text, attempt) {
+    if (typeof text !== "string" || !text.trim()) throw new Error("请输入评论内容");
+    quickCommentDatabase(); // Fail before mutation if the host lacks a save boundary.
+    const note = getNoteOrThrow(noteId);
+    const raw = note.note || note;
+    const method = attempt.markdown === true ? "appendMarkdownComment" : "appendTextComment";
+    if (typeof raw[method] !== "function") throw new Error(attempt.markdown === true ? "当前宿主不支持新增 Markdown 评论" : "当前宿主不支持新增文本评论");
+    attempt.index = (raw.comments || []).length;
+    attempt.text = text;
+    attempt.mutationStarted = false;
+    let result;
+    withUndoGrouping("添加评论", { note }, () => {
+      attempt.mutationStarted = true;
+      try { raw[method](text); }
+      catch (error) {
+        // A synchronous rejection with an unchanged count is safe to retry.
+        if ((raw.comments || []).length === attempt.index) attempt.mutationStarted = false;
+        throw error;
+      }
+      result = confirmQuickTextComment(noteId, attempt, false);
+    });
+    // A refresh failure must not turn a committed append into a retryable failure.
+    refreshNote(note);
+    refreshNotebookAfterCommentMutation(note);
+    return result;
+  }
+
   function editCommentText(noteId, index, text, markdown) {
     const note = getNoteOrThrow(noteId);
     const commentIndex = parseInt(index, 10);
@@ -2401,6 +2452,8 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   return {
+    appendQuickTextComment,
+    confirmQuickTextComment,
     setCommentsCollapsed,
     moveComments,
     reverseCommentIndices,

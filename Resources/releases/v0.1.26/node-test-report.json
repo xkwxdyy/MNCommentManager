@@ -1,0 +1,222 @@
+[
+  {
+    "script": "test-action-button-settings-dialog.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-comment-selection-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-no-excerpt-conversion.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-operation-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-recording-close-guard.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-recording-save.js",
+    "passed": true
+  },
+  {
+    "script": "test-batch-workflow-partial-result.js",
+    "passed": true
+  },
+  {
+    "script": "test-bridge-error-correlation.js",
+    "passed": true
+  },
+  {
+    "script": "test-bridge-request-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-action-settings.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-batch-editor.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-edit-refresh.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-fold.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-move-refresh.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-quick-action-touch-target.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-workflow-menu.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-workflow-preview.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-workflow-registry.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-workflow-runner.js",
+    "passed": true
+  },
+  {
+    "script": "test-comment-workflow-store.js",
+    "passed": true
+  },
+  {
+    "script": "test-dynamic-comment-actions.js",
+    "passed": true
+  },
+  {
+    "script": "test-edit-dialog-focus.js",
+    "passed": true
+  },
+  {
+    "script": "test-edit-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "test-extra-narrow-action-order.js",
+    "passed": true
+  },
+  {
+    "script": "test-handwriting-preview.js",
+    "passed": true
+  },
+  {
+    "script": "test-html-conversion-fidelity.js",
+    "passed": true
+  },
+  {
+    "script": "test-html-conversion-integrity.js",
+    "passed": true
+  },
+  {
+    "script": "test-inline-merge-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "test-invalid-link-cleanup-dialog.js",
+    "passed": true
+  },
+  {
+    "script": "test-invalid-link-cleanup.js",
+    "passed": true
+  },
+  {
+    "script": "test-link-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "test-main-command-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "test-main-delete-button-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "test-main-shell-dark-narrow-layout.js",
+    "passed": true
+  },
+  {
+    "script": "test-main-workspace-extra-narrow-layout.js",
+    "passed": true
+  },
+  {
+    "script": "test-markdown-link-edit-dialog-focus.js",
+    "passed": true
+  },
+  {
+    "script": "test-markdown-link-edit-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "test-markdown-link-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "test-merged-markdown.js",
+    "passed": true
+  },
+  {
+    "script": "test-quick-comment-transitions.js",
+    "passed": true
+  },
+  {
+    "script": "test-quick-comment.js",
+    "passed": true
+  },
+  {
+    "script": "test-responsive-action-order.js",
+    "passed": true
+  },
+  {
+    "script": "test-runtime-dependency-isolation.js",
+    "passed": true
+  },
+  {
+    "script": "test-selection-main-state.js",
+    "passed": true
+  },
+  {
+    "script": "test-single-workflow-menu.js",
+    "passed": true
+  },
+  {
+    "script": "test-text-dialog-confirmation-focus.js",
+    "passed": true
+  },
+  {
+    "script": "test-undo-helper.js",
+    "passed": true
+  },
+  {
+    "script": "test-update-manifest.js",
+    "passed": true
+  },
+  {
+    "script": "test-web-entry-release-hygiene.js",
+    "passed": true
+  },
+  {
+    "script": "test-workflow-manager-delete-ui.js",
+    "passed": true
+  },
+  {
+    "script": "test-workflow-manager-focus.js",
+    "passed": true
+  },
+  {
+    "script": "test-workflow-manager-unsaved-draft.js",
+    "passed": true
+  },
+  {
+    "script": "test-workflow-mutation-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "test-workflow-parameters.js",
+    "passed": true
+  }
+]

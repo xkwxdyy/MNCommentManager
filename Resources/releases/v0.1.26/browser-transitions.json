@@ -1,0 +1,262 @@
+[
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1100,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 6,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1100,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 33,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1100,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1100,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "repeated-open-close-and-lost-close-recovery",
+    "width": 1100,
+    "theme": "light",
+    "reduced": false,
+    "cycles": 12,
+    "addedComments": 5,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "light",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "repeated-open-close-and-lost-close-recovery",
+    "width": 375,
+    "theme": "light",
+    "reduced": false,
+    "cycles": 12,
+    "addedComments": 5,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1024,
+    "theme": "dark",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1024,
+    "theme": "dark",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1024,
+    "theme": "dark",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 1024,
+    "theme": "dark",
+    "reduced": false,
+    "pose": {
+      "panel": 0.510349,
+      "backdrop": 0.03551
+    },
+    "maxPanel": 0.510349,
+    "maxBackdrop": 0.03551,
+    "frames": 43,
+    "passed": true
+  },
+  {
+    "scenario": "repeated-open-close-and-lost-close-recovery",
+    "width": 1024,
+    "theme": "dark",
+    "reduced": false,
+    "cycles": 12,
+    "addedComments": 5,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "dark",
+    "reduced": true,
+    "pose": {
+      "panel": 0.488349,
+      "backdrop": 0.488349
+    },
+    "maxPanel": 0.488349,
+    "maxBackdrop": 0.488349,
+    "frames": 10,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "dark",
+    "reduced": true,
+    "pose": {
+      "panel": 0.488349,
+      "backdrop": 0.488349
+    },
+    "maxPanel": 0.488349,
+    "maxBackdrop": 0.488349,
+    "frames": 10,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "dark",
+    "reduced": true,
+    "pose": {
+      "panel": 0.488349,
+      "backdrop": 0.488349
+    },
+    "maxPanel": 0.488349,
+    "maxBackdrop": 0.488349,
+    "frames": 10,
+    "passed": true
+  },
+  {
+    "scenario": "early-submit-opacity-continuity",
+    "width": 375,
+    "theme": "dark",
+    "reduced": true,
+    "pose": {
+      "panel": 0.488349,
+      "backdrop": 0.488349
+    },
+    "maxPanel": 0.488349,
+    "maxBackdrop": 0.488349,
+    "frames": 10,
+    "passed": true
+  },
+  {
+    "scenario": "repeated-open-close-and-lost-close-recovery",
+    "width": 375,
+    "theme": "dark",
+    "reduced": true,
+    "cycles": 12,
+    "addedComments": 5,
+    "passed": true
+  }
+]

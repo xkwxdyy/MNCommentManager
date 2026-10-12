@@ -232,6 +232,15 @@ function createMNCommentManagerAddon(mainPath) {
     return result;
   }
 
+  function dispatchDynamicButton(addon, adding, holding, sender) {
+    try { return __MN_DYNAMIC_COMMENT_ACTIONS__.dispatchAction(addon, adding, holding, sender); }
+    catch (error) {
+      MNUtil.showHUD(`浮动按钮操作失败：${error && error.message ? error.message : error}`);
+      console.log(`[MN Comment Manager] dynamic action failed: ${error && error.message ? error.message : error}`);
+      return false;
+    }
+  }
+
   return JSB.defineClass("MNCommentManagerAddon : JSExtension <UIPopoverControllerDelegate>", {
     sceneWillConnect: async function () {
       await initializeAddonWhenReady(self, false);
@@ -245,6 +254,7 @@ function createMNCommentManagerAddon(mainPath) {
         MNUtil.removeObserver(self, "PopupMenuOnNote");
         MNUtil.removeObserver(self, "ClosePopupMenuOnNote");
       }
+      if (typeof __MN_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
       __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "scene.disconnect");
 
       if (self.webController && self.webController.view && self.webController.view.superview) {
@@ -258,6 +268,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     notebookWillOpen: async function () {
       if (!(await initializeAddonWhenReady(self, true))) return;
+      if (self.quickCommentController) __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
       if (!self.webController) {
         throw new Error("webController not initialized");
       }
@@ -275,6 +286,7 @@ function createMNCommentManagerAddon(mainPath) {
       if (!self.mnCommentManagerInitialized) return;
       if (controller === Application.sharedInstance().studyController(self.window)) {
         self.layoutViewController();
+        if (self.quickCommentController) __MN_QUICK_COMMENT_MNCommentManagerAddon.layout(self.quickCommentController);
       }
     },
 
@@ -454,34 +466,19 @@ function createMNCommentManagerAddon(mainPath) {
       __MN_DYNAMIC_COMMENT_ACTIONS__.beginInteraction(self);
     },
 
-    dynamicCommentButtonTapped: function () {
-      try {
-        if (__MN_DYNAMIC_COMMENT_ACTIONS__.consumeTapSuppression(self)) return;
-        const context = self.dynamicCommentContext;
-        if (!context || !context.noteId) throw new Error("未读取到当前卡片");
-        MNUtil.focusNoteInMindMapById(context.noteId, 0);
-        __MN_WEB_API_MNCommentManagerAddon.showPanel(self.webController);
-        self.layoutViewController();
-        __MN_WEB_API_MNCommentManagerAddon.syncCurrentNote(self.webController, "dynamic-single-card");
-        __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "tap.openPanel");
-      } catch (error) {
-        __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "tap.failed");
-        MNUtil.showHUD(`打开评论管理器失败: ${error && error.message ? error.message : error}`);
-        console.log(`[MN Comment Manager] dynamic single-card tap failed: ${error && error.message ? error.message : error}`);
-      }
+    dynamicCommentButtonTapped: function (sender) {
+      return dispatchDynamicButton(self, false, false, sender);
     },
-
+    dynamicAddCommentButtonTapped: function (sender) {
+      return dispatchDynamicButton(self, true, false, sender);
+    },
     dynamicCommentButtonLongPressed: function (gesture) {
       if (!gesture || gesture.state !== 1) return;
-      try {
-        __MN_DYNAMIC_COMMENT_ACTIONS__.suppressTapAfterLongPress(self);
-        if (!__MN_DYNAMIC_COMMENT_ACTIONS__.openMenu(self, gesture.view)) {
-          throw new Error("未读取到当前卡片");
-        }
-      } catch (error) {
-        MNUtil.showHUD(`打开单选处理菜单失败: ${error && error.message ? error.message : error}`);
-        console.log(`[MN Comment Manager] dynamic single-card menu failed: ${error && error.message ? error.message : error}`);
-      }
+      return dispatchDynamicButton(self, false, true, gesture.view);
+    },
+    dynamicAddCommentButtonLongPressed: function (gesture) {
+      if (!gesture || gesture.state !== 1) return;
+      return dispatchDynamicButton(self, true, true, gesture.view);
     },
 
     popoverControllerDidDismissPopover: function (controller) {

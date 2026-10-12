@@ -79,6 +79,18 @@ function main() {
 `;
   fs.writeFileSync(distIndexPath, html);
 
+  execFileSync(viteBin, ["build", "--config", path.join(rootDir, "web", "vite.quick-comment.config.js")], {
+    cwd: rootDir, stdio: "inherit",
+  });
+  const quickAssets = path.join(distDirPath, "quick-assets");
+  const quickJS = resolveSingleBundle(quickAssets);
+  const quickJSPath = path.join(quickAssets, "quick-comment.js");
+  if (quickJS !== quickJSPath) fs.renameSync(quickJS, quickJSPath);
+  assertLegacyWebViewCompatibility(quickJSPath);
+  fs.writeFileSync(path.join(distDirPath, "quick-comment.html"), `<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" /><title>添加评论</title><link rel="stylesheet" href="./quick-assets/quick-comment.css" /></head>
+<body><div id="root"></div><script src="./quick-assets/quick-comment.js"></script></body></html>`);
+
   console.log(`Web build successful: ${distIndexPath}`);
 }
 

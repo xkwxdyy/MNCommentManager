@@ -11,6 +11,7 @@ const context = {
       return {
         objectForKey(key) { return store.get(key); },
         setBoolForKey(value, key) { store.set(key, value); },
+        setObjectForKey(value, key) { store.set(key, value); },
       };
     },
   },
@@ -24,24 +25,32 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
   enableDynamicSingleCardButton: true,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showQuickCommentButton: true,
+  managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showBatchButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: true,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showQuickCommentButton: true,
+  managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enableDynamicSingleCardButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showQuickCommentButton: true,
+  managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ mergeToExcerptDefault: true }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
   mergeToExcerptDefault: true,
   showImageExcerptText: false,
+  showQuickCommentButton: true,
+  managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
 assert.strictEqual(settings.updateSettings({ showImageExcerptText: true }).showImageExcerptText, true);
 assert.strictEqual(store.get("mncommentmanager_show_image_excerpt_text"), true);
@@ -53,3 +62,22 @@ assert.strictEqual(settings.updateSettings({ showImageExcerptText: false }).show
 assert.strictEqual(store.get("mncommentmanager_show_image_excerpt_text"), false);
 assert.strictEqual(settings.getSettings().mergeToExcerptDefault, true);
 console.log("comment action settings tests passed");
+
+assert.strictEqual(settings.updateSettings({ managementTapAction: "quickInput", addHoldAction: "none", showQuickCommentButton: false }).managementTapAction, "quickInput");
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentActionSettings.js"), "utf8"), context);
+assert.strictEqual(context.__MN_COMMENT_ACTION_SETTINGS__.getSettings().addHoldAction, "none");
+assert.strictEqual(context.__MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton, false);
+assert.throws(() => settings.updateSettings({ managementTapAction: "invalid" }), /动作无效/);
+store.set("mncommentmanager_addTapAction", "outdated");
+assert.strictEqual(settings.getSettings().addTapAction, "quickInput");
+
+assert.strictEqual(settings.getQuickCommentMarkdown(), false);
+settings.setQuickCommentMarkdown(true);
+assert.strictEqual(store.get('mncommentmanager_quick_comment_markdown'), true);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'CommentActionSettings.js'), 'utf8'), context);
+assert.strictEqual(context.__MN_COMMENT_ACTION_SETTINGS__.getQuickCommentMarkdown(), true);
+settings.setQuickCommentMarkdown(false);
+assert.strictEqual(settings.getQuickCommentMarkdown(), false);
+assert.throws(() => settings.setQuickCommentMarkdown('true'), /参数无效/);
+store.set('mncommentmanager_quick_comment_markdown', { boolValue() { return false; } });
+assert.strictEqual(settings.getQuickCommentMarkdown(), false);

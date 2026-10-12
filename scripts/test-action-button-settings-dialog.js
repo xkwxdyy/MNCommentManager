@@ -284,7 +284,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
   assert.ok(dialog.includes('role={feedback.kind === "error" || feedback.kind === "warning" ? "alert" : "status"}'));
   assert.ok(dialog.includes("关闭窗口不会取消本次保存"), "the pending state must not imply that closing cancels a Native mutation");
   assert.ok(dialog.includes('onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选时显示评论按钮")}'));
-  assert.ok(dialog.includes('onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡时显示“评”按钮")}'));
+  assert.ok(dialog.includes('onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡浮动按钮")}'));
   assert.strictEqual((dialog.match(/persistActionButtonSetting\(/g) || []).length, 1, "each user change must pass through one guarded save lifecycle");
   assert.ok(dialog.includes("if (loading || savingRef.current) return"), "same-tick duplicate settings mutations must be blocked synchronously");
   assert.ok(dialog.includes("disabled={busy}"), "both settings must be locked while one write/readback sequence is pending");

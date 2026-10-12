@@ -4,6 +4,11 @@ const path = require("path");
 const vm = require("vm");
 
 const timers = [];
+function takePrimaryTimer() {
+  const index = timers.findIndex(timer => ![0.12, 0.3].includes(timer.seconds));
+  assert(index >= 0, 'expected primary lifecycle timer');
+  return timers.splice(index, 1)[0];
+}
 const hostView = {
   bounds: { x: 0, y: 0, width: 600, height: 400 },
   subviews: [],
@@ -79,7 +84,7 @@ const actions = context.__MN_DYNAMIC_COMMENT_ACTIONS__;
 const addon = { window: addonWindow };
 const sender = { userInfo: { noteid: "single-note", winRect: { x: 100, y: 100, width: 100, height: 40 } } };
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true);
-const revealTimer = timers.shift();
+const revealTimer = takePrimaryTimer();
 assert.strictEqual(revealTimer.seconds, 0.02);
 revealTimer.callback();
 assert.strictEqual(addon.dynamicCommentButton.hidden, false);
@@ -92,10 +97,15 @@ const dynamicFrame = addon.dynamicCommentButton.frame;
 const overlap = Math.max(0, Math.min(dynamicFrame.x + dynamicFrame.width, pinnerButton.frame.x + pinnerButton.frame.width) - Math.max(dynamicFrame.x, pinnerButton.frame.x)) *
   Math.max(0, Math.min(dynamicFrame.y + dynamicFrame.height, pinnerButton.frame.y + pinnerButton.frame.height) - Math.max(dynamicFrame.y, pinnerButton.frame.y));
 assert.strictEqual(overlap, 0, "dynamic button must avoid MNPinner's visible follow button");
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, false);
+assert.strictEqual(addon.dynamicAddCommentButton.frame.width, 44);
+assert.strictEqual(addon.dynamicCommentButton.frame.height, 44);
+const addFrame = addon.dynamicAddCommentButton.frame;
+assert.strictEqual(Math.max(0, Math.min(addFrame.x + addFrame.width, pinnerButton.frame.x + pinnerButton.frame.width) - Math.max(addFrame.x, pinnerButton.frame.x)) * Math.max(0, Math.min(addFrame.y + addFrame.height, pinnerButton.frame.y + pinnerButton.frame.height) - Math.max(addFrame.y, pinnerButton.frame.y)), 0);
 
 assert.strictEqual(actions.beginInteraction(addon), true);
 assert.strictEqual(actions.handlePopupMenuClosed(addon), true);
-const guardedHideTimer = timers.shift();
+const guardedHideTimer = takePrimaryTimer();
 assert.strictEqual(guardedHideTimer.seconds, 0.18);
 guardedHideTimer.callback();
 assert.strictEqual(addon.dynamicCommentButton.hidden, false, "touch-down hold must outlive the popup-close delay");
@@ -143,7 +153,7 @@ assert.strictEqual(addon.dynamicCommentButton.hidden, true, "dismissing the sing
 assert.strictEqual(addon.dynamicCommentContext, null);
 
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true);
-timers.shift().callback();
+takePrimaryTimer().callback();
 actions.beginInteraction(addon);
 actions.suppressTapAfterLongPress(addon);
 assert.strictEqual(actions.openMenu(addon, addon.dynamicCommentButton), true);
@@ -183,7 +193,7 @@ mutationCalls.forEach((call) => {
 assert.strictEqual(addon.dynamicCommentButton.hidden, true);
 
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true);
-timers.shift().callback();
+takePrimaryTimer().callback();
 actions.beginInteraction(addon);
 actions.suppressTapAfterLongPress(addon);
 assert.strictEqual(actions.openMenu(addon, addon.dynamicCommentButton), true);
@@ -197,16 +207,16 @@ assert.strictEqual(addon.dynamicCommentMenuPopoverController, null);
 assert.strictEqual(addon.dynamicCommentContext, null);
 
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true);
-timers.shift().callback();
+takePrimaryTimer().callback();
 assert.strictEqual(actions.handlePopupMenuClosed(addon), true);
-const hideTimer = timers.shift();
+const hideTimer = takePrimaryTimer();
 assert.strictEqual(hideTimer.seconds, 0.18);
 hideTimer.callback();
 assert.strictEqual(addon.dynamicCommentButton.hidden, true, "an idle popup close must still hide the button");
 
 context.MNUtil.mindmapView.selViewLst = [{ note: { noteId: "note-a" } }, { note: { noteId: "note-b" } }];
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true, "PopupMenuOnNote's noteId must outrank stale selection state");
-timers.shift().callback();
+takePrimaryTimer().callback();
 assert.strictEqual(addon.dynamicCommentContext.noteId, "single-note");
 actions.hideButton(addon, "test.cleanup");
 
@@ -218,11 +228,62 @@ context.MNUtil.mindmapView.selViewLst = [];
 focusNoteId = "focus-fallback";
 const senderWithoutNoteId = { userInfo: { winRect: { x: 80, y: 80, width: 80, height: 30 } } };
 assert.strictEqual(actions.handlePopupMenuOnNote(addon, senderWithoutNoteId), true);
-timers.shift().callback();
+takePrimaryTimer().callback();
 assert.strictEqual(addon.dynamicCommentContext.noteId, "focus-fallback", "MNNote.getFocusNote(true) must cover PopupMenu payloads without noteId");
+const configured = { enableDynamicSingleCardButton: true, showQuickCommentButton: false, managementTapAction: "none", managementHoldAction: "quickInput", addTapAction: "menu" };
+context.__MN_COMMENT_ACTION_SETTINGS__.getSettings = () => configured;
+actions.refreshButtons(addon);
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, true);
+assert.strictEqual(actions.dispatchAction(addon, false, false), false);
+let quickOpens = 0;
+context.__MN_QUICK_COMMENT_MNCommentManagerAddon = { open(target, captured) { quickOpens += 1; assert.strictEqual(captured.noteId, "focus-fallback"); actions.hideButton(target, "quick-input.open"); } };
+assert.strictEqual(actions.dispatchAction(addon, false, true), true);
+assert.strictEqual(quickOpens, 1);
+assert.strictEqual(actions.dispatchAction(addon, false, false), false, "release after a configured long-press must remain suppressed after the button hides");
 assert.strictEqual(actions.disposeButton(addon, "test.done"), true);
 assert.strictEqual(addon.dynamicCommentButton, null);
 assert.strictEqual(hostView.viewWithTag(9304102), null, "disconnect cleanup must remove the selector-bound native button");
+assert.strictEqual(hostView.viewWithTag(9304103), null);
+
+configured.showQuickCommentButton = true;
+const area = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+const group = () => ({ ...addon.dynamicCommentButton.frame, width: 92 });
+timers.length = 0;
+hostView.convertRectFromView = rect => ({ ...rect, x: rect.x - 60, y: rect.y - 30 });
+context.PopupMenu = { currentMenu: () => ({ targetWinRect: sender.userInfo.winRect, frame: { x: 18, y: 5, width: 350, height: 60 } }) };
+assert(actions.handlePopupMenuOnNote(addon, sender)); takePrimaryTimer().callback();
+assert.strictEqual(area(group(), { x: 40, y: 70, width: 100, height: 40 }), 0, 'window anchor must be converted into host coordinates');
+assert.strictEqual(area(group(), context.PopupMenu.currentMenu().frame), 0, 'native popup must be avoided');
+const extra = { tag: 9205103, frame: group(), hidden: false, layer: { opacity: 1 } };
+hostView.addSubview(extra);
+const refreshIndex = timers.findIndex(timer => timer.seconds === 0.12);
+timers.splice(refreshIndex, 1)[0].callback();
+assert.strictEqual(area(group(), extra.frame), 0, 'deferred reveal of the Pinner extra button must reposition the entire pair');
+assert.strictEqual(addon.dynamicAddCommentButton.frame.x, addon.dynamicCommentButton.frame.x + 48);
+actions.hideButton(addon, 'closed-before-refresh');
+timers.forEach(timer => timer.callback()); timers.length = 0;
+assert.strictEqual(addon.dynamicCommentButton.hidden, true, 'late placement refresh must not resurrect closed buttons');
+extra.hidden = true;
+delete hostView.convertRectFromView;
+delete context.PopupMenu;
+const toolbar = { mntoolbar: true, frame: { x: 0, y: 0, width: 600, height: 400 }, hidden: false, enabled: false };
+hostView.addSubview({ subviews: [toolbar] });
+assert(actions.handlePopupMenuOnNote(addon, sender)); takePrimaryTimer().callback();
+assert.strictEqual(addon.dynamicCommentButton.hidden, true, 'no free slot must hide the group instead of covering a visible toolbar');
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, true);
+toolbar.hidden = true;
+actions.refreshButtons(addon);
+assert.strictEqual(addon.dynamicCommentButton.hidden, false, 'hidden ancestors and toolbars must not reserve space');
+actions.disposeButton(addon, 'layout-test.done');
+addon.quickCommentController = {};
+assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), false, 'an active editor must keep its fixed target');
+for (const marker of ['_quickClosePending', '_quickExiting']) {
+  addon.quickCommentController = { [marker]: true };
+  assert.strictEqual(actions.handlePopupMenuOnNote(addon, sender), true, 'closing and saved-exit windows must allow the next floating entry');
+  takePrimaryTimer().callback(); assert.strictEqual(addon.dynamicCommentButton.hidden, false);
+}
+addon.quickCommentController = null;
+actions.disposeButton(addon, 'transition-test.done');
 console.log("dynamic comment actions tests passed");
 })().catch((error) => {
   console.error(error);

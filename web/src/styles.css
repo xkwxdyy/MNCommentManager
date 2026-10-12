@@ -2745,3 +2745,7 @@ button.pressing {
     min-height: 44px;
   }
 }
+.dynamic-action-settings { display: grid; gap: 8px; padding: 8px 0 16px; }
+.dynamic-action-settings > label { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 12px; font-size: 13px; }
+.dynamic-action-settings > label > span { white-space: nowrap; }
+.dynamic-action-settings .html-select { min-width: 0; }

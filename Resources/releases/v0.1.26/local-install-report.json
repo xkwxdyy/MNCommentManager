@@ -1,0 +1,12 @@
+{
+  "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/mn-comment-manager-v0.1.26.mnaddon",
+  "backup": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/dist/local-install-backups/mncommentmanager-before-v0.1.26-20261013-004211.zip",
+  "extensionDir": "/Users/xiakangwei/Library/Containers/QReader.MarginStudy.easy/Data/Library/MarginNote Extensions/marginnote.extension.mncommentmanager",
+  "sha256": "1100e240f36beb121097c771c901e0bd300a159b9970f6c1765ad770a51c9aa1",
+  "previousPID": "6755",
+  "gracefulQuit": true,
+  "installedFileCount": 35,
+  "installedFilesMatchPackage": true,
+  "newPID": "13534",
+  "restarted": true
+}
