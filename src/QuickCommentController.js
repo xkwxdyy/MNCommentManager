@@ -13,9 +13,107 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   function log(error) { console.log(`[MN Comment Manager][quick-input] ${error && error.message ? error.message : error}`); }
   function host(controller) { return Application.sharedInstance().studyController(controller.addon.window).view; }
   function layout(controller) {
-    if (!controller || !controller.view || !controller.view.superview) return;
-    controller.view.frame = controller.view.superview.bounds;
+    if (!controller || !controller.view || !controller.view.superview || controller._quickClosePending) return;
+    const studyView = host(controller), parent = controller.view.superview;
+    const bounds = sameView(parent, controller.addon.window) ? studyView.convertRectToView(studyView.bounds, parent) : parent.bounds;
+    const frame = __MN_PANEL_CONTENT_BOUNDS_MNCommentManagerAddon.available(controller, parent, bounds);
+    const current = controller.view.frame;
+    if (!current || ["x", "y", "width", "height"].some(key => current[key] !== frame[key])) controller.view.frame = frame;
     controller.webView.frame = controller.view.bounds;
+  }
+  function sameView(left, right) {
+    return !!left && !!right && (left === right || typeof left.isEqual === "function" && left.isEqual(right));
+  }
+  function placeAboveContent(controller) {
+    const study = Application.sharedInstance().studyController(controller.addon.window), window = controller.addon.window;
+    let branch = study.view;
+    for (let depth = 0; branch && !sameView(branch.superview, window) && depth < 32; depth += 1) branch = branch.superview;
+    if (branch && sameView(branch.superview, window) && typeof window.insertSubviewAboveSubview === "function") {
+      // Keep input outside the study hierarchy while preserving existing window overlays.
+      if (!sameView(controller.view.superview, window)) window.insertSubviewAboveSubview(controller.view, branch);
+      layout(controller);
+      tracePlacement(controller, "window-mounted");
+      return;
+    }
+    const parent = study.view;
+    const children = parent.subviews || [], candidates = [study.notebookController && study.notebookController.view, study.readerController && study.readerController.view];
+    let anchor = null, index = -1;
+    candidates.forEach(view => {
+      let child = view;
+      for (let depth = 0; child && !sameView(child.superview, parent) && depth < 32; depth += 1) child = child.superview;
+      for (let i = 0; child && i < children.length; i += 1) {
+        if (sameView(children[i], child) && i > index) { anchor = child; index = i; }
+      }
+    });
+    // Preserve host overlays above content instead of moving the input to the front.
+    if (anchor) parent.insertSubviewAboveSubview(controller.view, anchor);
+    else if (!controller.view.superview) { parent.addSubview(controller.view); log("content anchor unavailable; placement requires device verification"); }
+    tracePlacement(controller, "mounted");
+  }
+  function tracePlacement(controller, stage) {
+    try {
+      const parent = controller.view.superview, children = parent && parent.subviews || [];
+      const details = view => ({ alpha: Number(view.alpha), opacity: Number(view.layer && view.layer.opacity), z: Number(view.layer && view.layer.zPosition), hidden: !!view.hidden, frame: view.frame });
+      const parents = [];
+      for (let view = parent; view && parents.length < 8; view = view.superview) parents.push(details(view));
+      console.log("[MN Comment Manager][quick-input][placement] " + JSON.stringify({ stage, input: details(controller.view), parents, siblings: Array.prototype.map.call(children, view => Object.assign({ input: sameView(view, controller.view) }, details(view))) }));
+    } catch (error) { log(error); }
+  }
+  const keyboardNames = ["UIKeyboardWillShowNotification", "UIKeyboardWillHideNotification", "UIKeyboardDidHideNotification"];
+  function observeKeyboard(controller, active) {
+    try {
+      const center = NSNotificationCenter.defaultCenter();
+      if (active) keyboardNames.forEach(name => center.addObserverSelectorName(controller, "mncmQuickKeyboardChanged:", name));
+      else center.removeObserver(controller);
+    } catch (error) { log(error); }
+  }
+  function infoValue(info, key) { return info && (typeof info.objectForKey === "function" ? info.objectForKey(key) : info[key]); }
+  function keyboardRect(controller, raw) {
+    if (!raw) return null;
+    const rect = typeof raw.CGRectValue === "function" ? raw.CGRectValue() : raw;
+    if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)) return null;
+    const window = controller.addon.window;
+    return controller.view.convertRectFromView(window.convertRectFromWindow(rect, null), window);
+  }
+  function overlaps(rect, bounds) {
+    return rect && rect.height > 80 && rect.width > 0 && rect.y < bounds.height && rect.y + rect.height > 0 && rect.x < bounds.width && rect.x + rect.width > 0;
+  }
+  function hasInputResponder(view) {
+    if (!view) return false;
+    if (typeof view.isFirstResponder === "function" && view.isFirstResponder()) return true;
+    const children = view.subviews || [];
+    for (let i = 0; i < children.length; i += 1) if (hasInputResponder(children[i])) return true;
+    return false;
+  }
+  function keyboardChanged(controller, notification) {
+    try {
+      const session = sessionFor(controller), window = controller.addon && controller.addon.window;
+      if (!session || controller._quickClosed || controller._quickClosePending || session.exitActive || controller.addon.quickCommentController !== controller || !window || Number(window.keyWindow) !== 1) return;
+      const info = notification.userInfo || {};
+      if (infoValue(info, "UIKeyboardIsLocalUserInfoKey") === false || infoValue(info, "UIKeyboardIsLocalUserInfoKey") === 0) return;
+      if (notification.object && window.screen && !sameView(notification.object, window.screen)) return;
+      const name = String(notification.name), bounds = controller.view.bounds;
+      const end = keyboardRect(controller, infoValue(info, "UIKeyboardFrameEndUserInfoKey"));
+      const keyboard = session.keyboard;
+      let event;
+      if (name === keyboardNames[0]) {
+        if (!overlaps(end, bounds) || !hasInputResponder(controller.webView)) return;
+        keyboard.visible = true; keyboard.width = bounds.width; keyboard.height = bounds.height; keyboard.hide = null;
+        event = { type: "show" };
+      } else {
+        if (!keyboard.visible || keyboard.hide) return;
+        keyboard.visible = false;
+        if (keyboard.width !== bounds.width || keyboard.height !== bounds.height || overlaps(end, bounds)) return;
+        const begin = keyboardRect(controller, infoValue(info, "UIKeyboardFrameBeginUserInfoKey"));
+        const duration = Number(infoValue(info, "UIKeyboardAnimationDurationUserInfoKey")), curve = Number(infoValue(info, "UIKeyboardAnimationCurveUserInfoKey"));
+        keyboard.hide = { id: id(), at: Date.now(), duration: Number.isFinite(duration) && duration >= 0 && duration <= 2 ? duration : 0.12,
+          curve: Number.isInteger(curve) && curve >= 0 && curve <= 7 ? curve : 0,
+          dy: begin && end && end.y > begin.y ? Math.min(bounds.height, end.y - begin.y) : 0 };
+        event = { type: "hide", eventId: keyboard.hide.id };
+      }
+      event.sessionId = session.id;
+      controller.webView.evaluateJavaScript("window.__MNQuickCommentKeyboard&&window.__MNQuickCommentKeyboard(" + JSON.stringify(event) + ")", function () {});
+    } catch (error) { log(error); }
   }
   function checkedSession(controller, payload) {
     const session = sessionFor(controller);
@@ -124,10 +222,11 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     const session = checkedSession(controller, payload);
     if (controller._quickClosed || controller._quickClosePending || session.exitActive || controller._quickPresentationStarted) return { started: false };
     controller._quickPresentationStarted = true;
+    layout(controller);
     try {
       UIView.animateWithDurationDelayOptionsAnimationsCompletion(payload && payload.reducedMotion === true ? 0.12 : 0.3, 0, 1 << 2, function () {
         controller.view.alpha = 1;
-      }, function () {});
+      }, function () { if (!controller._quickClosed) tracePlacement(controller, "presented"); });
     } catch (error) { controller.view.alpha = 1; log(error); }
     // Retry focus after the Native alpha model permits first-responder access.
     try { controller.webView.evaluateJavaScript("window.__MNQuickCommentFocus&&window.__MNQuickCommentFocus()", function () {}); }
@@ -175,6 +274,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   function close(controller, dispose) {
     if (!controller || controller._quickClosed) return;
     controller._quickClosed = true;
+    observeKeyboard(controller, false);
     const addon = controller.addon;
     try { controller.webView.delegate = null; controller.webView.stopLoading(); } catch (error) { log(error); }
     try { controller.view.endEditing(true); } catch (error) { log(error); }
@@ -196,13 +296,22 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   function requestClose(controller, payload) {
     const session = checkedSession(controller, payload);
     if (controller._quickClosePending) return { closed: true, nativeClosing: true };
+    const keyboard = payload && payload.reason === "keyboard" ? session.keyboard.hide : null;
+    if (payload && payload.reason === "keyboard" && (!keyboard || payload.eventId !== keyboard.id)) throw new Error("键盘关闭事件已失效，请重新关闭输入窗口");
     if (payload && payload.text !== undefined && (!session.attempt || session.attempt.status === "failed")) retainDraft(session, payload);
     // Deliver the bridge acknowledgement before removing the WebView.
     controller._quickClosePending = true;
+    observeKeyboard(controller, false);
+    const reduced = payload && payload.reducedMotion === true;
+    const duration = keyboard && !reduced ? Math.max(0, keyboard.duration - (Date.now() - keyboard.at) / 1000) : 0.12;
+    const options = (1 << 2) | (keyboard && !reduced ? keyboard.curve << 16 : 0);
     try {
-      UIView.animateWithDurationDelayOptionsAnimationsCompletion(0.12, 0, 1 << 2, function () { controller.view.alpha = 0; }, function () {});
+      UIView.animateWithDurationDelayOptionsAnimationsCompletion(duration, 0, options, function () {
+        if (keyboard && !reduced && keyboard.dy > 0) controller.webView.transform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: keyboard.dy };
+        controller.view.alpha = 0;
+      }, function () {});
     } catch (error) { controller.view.alpha = 0; log(error); }
-    NSTimer.scheduledTimerWithTimeInterval(0.18, false, function () { close(controller, false); });
+    NSTimer.scheduledTimerWithTimeInterval(Math.max(0.18, duration + 0.06), false, function () { close(controller, false); });
     return { closed: true, nativeClosing: true };
   }
   const controllerClass = JSB.defineClass("MNQuickCommentController_MNCommentManagerAddon : UIViewController <UIWebViewDelegate>", {
@@ -221,6 +330,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       self.webView.loadRequest(NSURLRequest.requestWithURL(url));
     },
     viewDidLayoutSubviews: function () { layout(self); },
+    mncmQuickKeyboardChanged: function (notification) { keyboardChanged(self, notification); },
     webViewDidFinishLoad: function () {
       const controller = self;
       if (controller._quickOpenFallbackScheduled) return;
@@ -264,7 +374,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     if (!context || !context.noteId) throw new Error("未读取到目标卡片");
     if (addon.quickCommentController) {
       if (addon.quickCommentController._quickClosePending || Number(addon.quickCommentController._quickExiting || 0) === 1) close(addon.quickCommentController, true);
-      else { addon.quickCommentController.view.superview.bringSubviewToFront(addon.quickCommentController.view); return; }
+      else { placeAboveContent(addon.quickCommentController); return; }
     }
     const study = Application.sharedInstance().studyController(addon.window);
     const note = __MN_COMMENT_DATA__.getWrappedNoteById(context.noteId);
@@ -278,6 +388,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       session.markdown = preferredMarkdown;
       session.draftRevision += 1;
     }
+    session.keyboard = { visible: false, hide: null };
     session.noteTitle = String(note.noteTitle || "未命名卡片");
     session.anchorRect = context.anchorRect;
     session.initialWidth = study.view.bounds.width;
@@ -291,10 +402,10 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     addon.quickCommentController = controller;
     try {
       controller.view.alpha = 0;
-      study.view.addSubview(controller.view);
+      placeAboveContent(controller);
       controller.view.autoresizingMask = (1 << 1 | 1 << 4);
       layout(controller);
-      study.view.bringSubviewToFront(controller.view);
+      observeKeyboard(controller, true);
       __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(addon, "quick-input.open");
     } catch (error) { close(controller, true); throw error; }
   }

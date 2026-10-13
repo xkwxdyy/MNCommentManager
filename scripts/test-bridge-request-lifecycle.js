@@ -184,6 +184,7 @@ function assertSinglePending(harness) {
       getCommentModuleSettings: 30000,
       getWorkflowActionCatalog: 30000,
       listWorkflows: 30000,
+      getWorkflowTemplates: 30000,
       getBatchCommentEditorState: 30000,
       previewBatchWorkflow: 60000,
     };
@@ -217,6 +218,7 @@ function assertSinglePending(harness) {
       "extractCommentModule",
       "runBatchWorkflow",
       "saveWorkflow",
+      "reorderWorkflows",
       "deleteWorkflow",
     ];
 

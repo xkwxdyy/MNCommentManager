@@ -379,24 +379,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const context = addon && addon.dynamicCommentContext;
     debug("menu.open", { hasContext: !!context, noteId: context && context.noteId, token: context && context.token });
     if (!context || !context.note) { hideButton(addon, "menu.noContext"); return false; }
-    const param = String(context.noteId || "");
-    const item = (title, selector, itemParam) => ({ title, object: addon, selector, param: itemParam === undefined ? param : itemParam, checked: false });
-    const items = [
-      item("── 单选处理 ──", "noopBatchCommentAction:"),
-      item("  只保留第一条内容", "runSingleKeepFirstContent:"),
-      item("  转换 HTML 为 Markdown", "runSingleConvertHtmlToMarkdown:"),
-      item("  转为非摘录版", "runSingleConvertToNoExcerpt:"),
-      item("  去掉链接评论", "runSingleRemoveAllLinks:"),
-      item("  清除失效链接 ➡️", "openSingleInvalidLinkMenu:", { noteId: param }),
-      item("  清空评论", "runSingleClearAllComments:"),
-      item("  清空标题", "runSingleClearAllTitles:"),
-    ];
-    const workflowEntries = getSingleWorkflowEntries();
-    items.splice(items.length - 2, 0, item(
-      workflowEntries.length > 0 ? `  已保存工作流（${workflowEntries.length}） ➡️` : "  工作流 ➡️",
-      "openSingleWorkflows:",
-      { noteId: param, token: context.token },
-    ));
+    const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", "root");
     const popover = MNUtil.getPopoverAndPresent(button || addon.dynamicCommentButton, items, 280, 0);
     if (!popover) { hideButton(addon, "menu.presentFailed"); return false; }
     popover.delegate = addon;
@@ -404,82 +387,6 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     addon.dynamicCommentMenuItems = items;
     debug("menu.presented", { itemCount: items.length, hasWorkflowEntry: items.some((entry) => entry.selector === "openSingleWorkflows:") });
     return true;
-  }
-
-  function workflowText(value) {
-    return value === undefined || value === null ? "" : String(value);
-  }
-
-  function decorateSingleWorkflow(workflow, kind, title) {
-    const missingActions = (workflow.steps || [])
-      .map((step) => workflowText(step && step.actionId).trim())
-      .filter((actionId, index, list) => actionId && !__MN_COMMENT_WORKFLOW_REGISTRY__.getAction(actionId) && list.indexOf(actionId) === index);
-    const invalidSelectors = Array.isArray(workflow.invalidSelectors) ? workflow.invalidSelectors.slice() : [];
-    if (invalidSelectors.length === 0) {
-      (workflow.steps || []).forEach((step, index) => {
-        if (!step || workflowText(step.kind).trim().toLowerCase() !== "select") return;
-        try {
-          const selector = __MN_COMMENT_BATCH_EDITOR__.normalizeSelector(step.selector);
-          if (selector.position && selector.position.invalid) invalidSelectors.push({ step: index, message: selector.position.error });
-        } catch (error) {
-          invalidSelectors.push({ step: index, message: error && error.message ? error.message : String(error) });
-        }
-      });
-    }
-    return { kind, id: workflow.id, title, workflow: Object.assign({}, workflow), missingActions, invalidSelectors };
-  }
-
-  function getSingleWorkflowEntries() {
-    if (typeof __MN_COMMENT_WORKFLOW_STORE__ === "undefined" || !__MN_COMMENT_WORKFLOW_STORE__ ||
-      typeof __MN_COMMENT_WORKFLOW_REGISTRY__ === "undefined" || !__MN_COMMENT_WORKFLOW_REGISTRY__) return [];
-    const saved = __MN_COMMENT_WORKFLOW_STORE__.list()
-      .filter((workflow) => {
-        return true;
-      })
-      .map((workflow) => decorateSingleWorkflow(workflow, "workflow", workflow.name));
-    const extensionActions = __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog("single")
-      .filter((action) => action && action.builtin !== true && action.compatible !== false)
-      .map((action) => decorateSingleWorkflow({
-        id: `action:${action.id}`,
-        name: action.title,
-        scope: action.scope,
-        steps: [{ actionId: action.id, options: {} }],
-      }, "action", action.title));
-    const presets = __MN_COMMENT_WORKFLOW_REGISTRY__.getPresets("single")
-      .map((preset) => decorateSingleWorkflow(preset, "preset", preset.title));
-    return saved.concat(extensionActions, presets);
-  }
-
-  function buildSingleWorkflowItems(addon, context) {
-    const entries = getSingleWorkflowEntries();
-    const token = context && context.token ? context.token : "";
-    const noteId = context && context.noteId ? context.noteId : "";
-    const items = [{ title: "↩ 返回单选处理", object: addon, selector: "backSingleWorkflowMenu:", param: "", checked: false }];
-    entries.forEach((entry) => {
-      const unavailable = entry.missingActions.length > 0 || entry.invalidSelectors.length > 0;
-      const scope = workflowText(entry.workflow && entry.workflow.scope || "batch").toLowerCase();
-      const scopeMismatch = entry.kind === "workflow" && scope === "batch";
-      const unavailableLabel = entry.missingActions.length > 0 ? "缺少动作" : entry.invalidSelectors.length > 0 ? "选择器无效" : "仅多卡";
-      items.push({
-        title: `  ${entry.title}${(unavailable || scopeMismatch) ? `（${unavailableLabel}）` : `（${entry.workflow.usageCount || 0} 次）`}`,
-        object: addon,
-        selector: (unavailable || scopeMismatch) ? "showSingleWorkflowMissing:" : "runSingleWorkflow:",
-        param: {
-          workflowId: entry.kind === "workflow" ? entry.id : "",
-          workflow: entry.workflow,
-          token,
-          noteId,
-          mode: "single",
-          missingActions: entry.missingActions,
-          invalidSelectors: entry.invalidSelectors,
-          scopeMismatch,
-        },
-        checked: false,
-      });
-    });
-    items.push({ title: "── 工作流管理 ──", object: addon, selector: "noopBatchCommentAction:", param: "", checked: false });
-    items.push({ title: "  打开工作流管理器", object: addon, selector: "openWorkflowManager:", param: "", checked: false });
-    return items;
   }
 
   function openSingleWorkflows(addon, sender) {
@@ -492,7 +399,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     addon.dynamicCommentMenuStack = addon.dynamicCommentMenuStack || [];
     addon.dynamicCommentMenuStack.push({ items: addon.dynamicCommentMenuItems || [], width: 280, position: 0 });
     addon.dynamicCommentMenuTransitioning = true;
-    const items = buildSingleWorkflowItems(addon, context);
+    const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", param.section || "saved");
     const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 320, 0);
     if (!popover) return false;
     popover.delegate = addon;

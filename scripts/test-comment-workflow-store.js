@@ -74,6 +74,20 @@ vm.runInContext(
 const store = context.__MN_COMMENT_WORKFLOW_STORE__;
 const expectedPath = `${documentPath}/marginnote.extension.mncommentmanager/workflows.json`;
 
+// Fresh installations receive editable defaults, persisted only once.
+assert.strictEqual(store.list().length, store.templates().length);
+const fresh = files.get(expectedPath);
+assert.strictEqual(JSON.parse(fresh).version, 3);
+assert.strictEqual(store.list().length, 9);
+assert.strictEqual(files.get(expectedPath), fresh);
+const defaultWorkflow = store.list()[0];
+store.save({ ...defaultWorkflow, name: "定制默认操作", menu: {
+  single: { position: "hidden", order: 0 }, batch: { position: "root", order: 8 },
+} });
+store.remove(defaultWorkflow.id);
+assert.strictEqual(store.list().some((item) => item.id === defaultWorkflow.id), false, "deleted defaults must not reappear on reload");
+// Existing empty v3 documents intentionally contain no defaults.
+files.set(expectedPath, JSON.stringify({ version: 3, workflows: [] }));
 assert.strictEqual(JSON.stringify(store.list()), "[]");
 const saved = store.save({
   name: "清理评论",
@@ -106,10 +120,32 @@ const second = store.save({ name: "另一个流程", steps: [{ actionId: "clearA
 store.recordUsage(second.id);
 store.recordUsage(second.id);
 store.recordUsage(updated.id);
-assert.strictEqual(store.list()[0].id, second.id, "usage count should drive menu order");
+assert.strictEqual(store.list()[0].id, saved.id, "usage count must not change manual menu order");
+const originalOrder = store.list().map((item) => item.id);
+store.reorder("single", originalOrder.slice().reverse(), originalOrder);
+assert.strictEqual(store.list()[0].id, second.id);
+assert.strictEqual(store.get(saved.id).menu.batch.order, 0, "single menu reordering must not change batch order");
+assert.throws(() => store.reorder("single", originalOrder, originalOrder), /菜单顺序已变化/);
+assert.throws(() => store.reorder("batch", [saved.id, saved.id], originalOrder), /工作流列表已变化/);
 assert.strictEqual(store.list().find((item) => item.id === second.id).usageCount, 2);
 
 assert.throws(() => store.save({ name: "无步骤", steps: [] }), /至少一个动作/);
+const legacy = JSON.stringify({ version: 2, workflows: [{ ...saved, usageCount: 1 }, { ...second, usageCount: 4 }] });
+files.set(expectedPath, legacy);
+const migrated = store.list();
+assert.strictEqual(migrated.length, 11);
+assert.strictEqual(files.get(expectedPath.replace("workflows.json", "workflows-v2-before-menu-migration.json")), legacy);
+assert.strictEqual(migrated[9].id, second.id, "migration freezes the previous usage-based order");
+assert.strictEqual(migrated[10].menu.single.position, "submenu");
+assert.strictEqual(migrated[10].menu.batch.position, "submenu");
+const editedDefault = migrated[0];
+store.save({ ...editedDefault, name: "用户定制", steps: [{ actionId: "clearAllTitles" }] });
+assert.strictEqual(store.get(editedDefault.id).name, "用户定制");
+store.save(store.templates()[0]);
+assert.strictEqual(store.get(editedDefault.id).name, store.templates()[0].name);
+const invalidMenuFile = files.get(expectedPath);
+assert.throws(() => store.save({ ...saved, menu: { single: { position: "unknown", order: 0 } } }), /菜单展示/);
+assert.strictEqual(files.get(expectedPath), invalidMenuFile);
 files.set(expectedPath, "");
 assert.strictEqual(JSON.stringify(store.list()), "[]");
 const invalidDocuments = ["", "{not-json", JSON.stringify({ version: 999, workflows: [saved] }),
@@ -138,7 +174,7 @@ assert.strictEqual(JSON.stringify(store.list()), "[]");
 files.set(expectedPath, JSON.stringify({ version: 999, workflows: [saved] }));
 assert.strictEqual(JSON.stringify(store.list()), "[]");
 files.set(expectedPath, JSON.stringify({ version: 1, workflows: [saved, null, { name: "无步骤", steps: [] }] }));
-assert.strictEqual(store.list().length, 1);
+assert.strictEqual(store.list().length, 0, "invalid legacy records must not be silently dropped during migration");
 files.set(expectedPath, JSON.stringify({
   version: 2,
   workflows: [{
@@ -150,13 +186,13 @@ files.set(expectedPath, JSON.stringify({
     ],
   }],
 }));
-const invalidLoaded = store.list()[0];
+const invalidLoaded = store.get("invalid-position");
 assert.strictEqual(invalidLoaded.invalidSelectors.length, 1);
 assert.ok(invalidLoaded.steps[0].selectorError);
 assert.throws(() => store.save(invalidLoaded), /选择步骤无效/);
 files.set(expectedPath, JSON.stringify({ version: 1, workflows: [saved] }));
 assert.strictEqual(store.remove(saved.id), true);
-assert.strictEqual(JSON.stringify(store.list()), "[]");
+assert.strictEqual(store.list().length, 9);
 assert.strictEqual(store.remove(saved.id), false);
 
 for (const actionId of ["foldSelectedComments", "unfoldSelectedComments"]) {
@@ -166,9 +202,38 @@ for (const actionId of ["foldSelectedComments", "unfoldSelectedComments"]) {
   ] });
   assert.strictEqual(store.get(folded.id).steps[1].actionId, actionId);
 }
+const existingMenuWorkflow = store.list()[0];
+const menuBeforePartialSave = existingMenuWorkflow.menu.batch;
+store.save({ ...existingMenuWorkflow, menu: { single: { position: "hidden", order: null } } });
+assert.strictEqual(JSON.stringify(store.get(existingMenuWorkflow.id).menu.batch), JSON.stringify(menuBeforePartialSave), "partial menu edits must preserve the other mode");
+const beforeSelectorOnly = files.get(expectedPath);
+assert.throws(() => store.save({ name: '只有筛选', scope: 'both', steps: [{ kind: 'select', selector: {} }] }), /不能单独运行/);
+assert.strictEqual(files.get(expectedPath), beforeSelectorOnly);
 const beforeInvalid = files.get(expectedPath);
 assert.throws(() => store.save({ name: "空动作", steps: [{ kind: "select", selector: {} }, { kind: "action", actionId: "" }] }), /空动作/);
 assert.strictEqual(files.get(expectedPath), beforeInvalid, "invalid new steps must not silently disappear or overwrite the file");
+
+// Migration must abort before touching the source if its backup cannot be verified.
+const sourceBeforeBackupFailure = JSON.stringify({ version: 1, workflows: [saved] });
+files.set(expectedPath, sourceBeforeBackupFailure);
+for (const backupPath of [...files.keys()]) if (backupPath.includes('before-menu-migration')) files.delete(backupPath);
+const backupWrite = MockData.prototype.writeToFileAtomically;
+MockData.prototype.writeToFileAtomically = function (filePath) {
+  if (filePath.includes('before-menu-migration')) return false;
+  return backupWrite.call(this, filePath);
+};
+assert.throws(() => store.listStrict(), /迁移备份失败/);
+assert.strictEqual(files.get(expectedPath), sourceBeforeBackupFailure);
+MockData.prototype.writeToFileAtomically = backupWrite;
+assert.strictEqual(store.listStrict().length, 10);
+files.set(expectedPath, JSON.stringify({ version: 2, workflows: [{ ...saved, id: 'builtin.keepFirstContent', name: '同名标识的旧工作流' }] }));
+assert.strictEqual(store.listStrict().filter(item => item.id === 'builtin.keepFirstContent').length, 1);
+assert.strictEqual(store.get('builtin.keepFirstContent').name, '同名标识的旧工作流');
+const duplicateContent = JSON.stringify({ version: 3, workflows: [saved, saved] });
+files.set(expectedPath, duplicateContent);
+assert.throws(() => store.save(saved), /工作流配置/);
+assert.strictEqual(files.get(expectedPath), duplicateContent);
+files.set(expectedPath, JSON.stringify({ version: 3, workflows: [saved] }));
 
 const originalWrite = MockData.prototype.writeToFileAtomically;
 let writeAttempts = 0;

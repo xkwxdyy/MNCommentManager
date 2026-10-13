@@ -40,6 +40,7 @@ const context = {
   },
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowMenu.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "DynamicCommentActions.js"), "utf8"), context);
 
  (async () => {
@@ -60,8 +61,7 @@ assert.strictEqual(submenu[1].selector, "runSingleWorkflow:");
 assert.strictEqual(submenu[1].param.mode, "single");
 assert.strictEqual(submenu[1].param.noteId, "N1");
 assert.strictEqual(submenu[1].param.workflow.scope, "single");
-assert.strictEqual(submenu[2].selector, "showSingleWorkflowMissing:");
-assert.strictEqual(submenu[2].param.scopeMismatch, true);
+assert.strictEqual(submenu.some((item) => item.param?.workflowId === "batch.only"), false, "single menu must exclude batch-only workflows");
 assert.strictEqual(actions.backSingleWorkflowMenu(addon), true);
 addon.dynamicCommentMenuPopoverController = presentations[1];
 const directParamResult = await actions.runSingleWorkflow(addon, {

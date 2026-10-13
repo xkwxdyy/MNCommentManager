@@ -165,6 +165,7 @@ function makeRunContext(send) {
     const context = vm.createContext({
       Promise,
       panelCloseRef: { current: false },
+      window: { __MNCommentManagerRequestedView: "workflow" },
       appMountedRef: { current: true },
       MNBridge: { send: () => { sends += 1; return response.promise; } },
       setClosingPanel: (value) => events.push(["closing", value]),
@@ -175,6 +176,7 @@ function makeRunContext(send) {
     const first = context.closePanel();
     const second = context.closePanel();
     assert.strictEqual(sends, 1, "the panel close command must be sent at most once while pending");
+    assert.strictEqual(context.window.__MNCommentManagerRequestedView, "", "closing must cancel the pending workflow view request");
     response.resolve({});
     await Promise.all([first, second]);
     assert.strictEqual(context.panelCloseRef.current, false);

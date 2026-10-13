@@ -808,7 +808,20 @@ assert.strictEqual(unidentifiedChild.parentNote, null, "unidentified child must 
 
 assert(batchActionsSource.includes('"runBatchConvertToNoExcerpt:"'));
 assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));
-assert(dynamicActionsSource.includes('"runSingleConvertToNoExcerpt:"'));
+// Single-card entry is now projected from an editable default workflow.
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowStore.js"), "utf8"), context);
+const noExcerptTemplate = context.__MN_COMMENT_WORKFLOW_STORE__.templates().find(item => item.id === "builtin.convertNotesToNoExcerpt");
+assert(noExcerptTemplate, "no-excerpt conversion remains available as a default workflow");
+context.__MN_COMMENT_WORKFLOW_STORE__.list = () => [noExcerptTemplate];
+context.__MN_COMMENT_WORKFLOW_REGISTRY__ = { getAction: id => ({ id, scope: "both" }), getCatalog: () => [], getPresets: () => [] };
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowMenu.js"), "utf8"), context);
+const noExcerptSingleMenu = context.__MN_COMMENT_WORKFLOW_MENU__.buildItems({}, { token: "test-single", noteId: ids.source }, "single", "root");
+const noExcerptSingleItem = noExcerptSingleMenu.find(item => item.param && item.param.workflowId === noExcerptTemplate.id);
+assert(noExcerptSingleItem, "single-card menu must keep the no-excerpt workflow");
+assert.strictEqual(noExcerptSingleItem.selector, "runSingleWorkflow:");
+assert.strictEqual(noExcerptSingleItem.param.workflow.steps[0].actionId, "convertNotesToNoExcerpt");
+assert.strictEqual(noExcerptSingleItem.param.noteId, ids.source);
+assert(dynamicActionsSource.includes('__MN_COMMENT_WORKFLOW_MENU__.buildItems'));
 assert(addonSource.includes("runSingleConvertToNoExcerpt: async function"));
 assert(bridgeSource.includes("updateLinkCommentFromClipboard"));
 assert(bridgeSource.includes("mergeCommentsToExcerpt"));

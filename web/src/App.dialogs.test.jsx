@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
+import { chooseHtmlOption } from "./test/chooseHtmlOption";
 import MNBridge from "./lib/mnBridge";
 
 vi.mock("./lib/mnBridge", () => ({ default: { send: vi.fn() } }));
@@ -13,6 +14,22 @@ async function key(node, key, options = {}) {
   await act(async () => node.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options })));
 }
 
+async function openWorkflowEditing() {
+  const toggle = host.querySelector('[data-workflow-edit-toggle]');
+  if (toggle?.getAttribute('aria-expanded') === 'false') await click(toggle);
+}
+async function addFilter() {
+  await openWorkflowEditing();
+  const builder = host.querySelector('.workflow-filter-builder');
+  if (!builder.open) await click(builder.querySelector('summary'));
+  await click(button('添加评论筛选'));
+}
+async function addActionIfNeeded() {
+  if ([...host.querySelectorAll('.workflow-step-title')].some(node => !node.textContent.startsWith('筛选评论'))) return;
+  await chooseHtmlOption(host.querySelector('[aria-label="添加工作流动作"]'), 'foldSelectedComments');
+  await click(button('添加步骤'));
+}
+
 beforeEach(async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   MNBridge.send.mockReset();
@@ -21,7 +38,8 @@ beforeEach(async () => {
       noteId: "dialog-test", noteTitle: "弹窗测试", excerpt: { present: false },
       comments: [{ index: 0, type: "textComment", text: "原文", capabilities: { canEditText: true } }],
     };
-    if (command === "listWorkflows" || command === "getWorkflowActionCatalog") return [];
+    if (command === "listWorkflows") return [];
+    if (command === "getWorkflowActionCatalog") return [{ id: "foldSelectedComments", title: "折叠评论", scope: "both", input: "selection", compatible: true, parameterSchema: [] }];
     return {};
   });
   host = document.createElement("div");
@@ -37,7 +55,7 @@ afterEach(async () => {
 
 it.each([{ isComposing: true }, { keyCode: 229 }])("keeps workflow drafts open while IME handles Escape: %j", async (options) => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   const input = host.querySelector('.workflow-name-field input');
   await key(input, "Escape", options);
   expect(host.querySelector('.workflow-unsaved-dialog')).toBeNull();
@@ -53,9 +71,10 @@ it("keeps the workflow footer in the focus loop and restores the opener on close
   const opener = button("工作流");
   opener.focus();
   await click(opener);
-  await click(button("添加选择器"));
+  await addFilter();
   const manager = host.querySelector('.workflow-manager');
   const first = manager.querySelector('[data-workflow-close]');
+  await addActionIfNeeded();
   const save = button("保存");
   save.focus();
   await key(save, "Tab");
@@ -95,14 +114,15 @@ it("still submits text with Ctrl+Enter after composition ends", async () => {
 
 it("saves from the relocated footer and keeps selector values", async () => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   await click(host.querySelector('.comment-type-choices input'));
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation(async (command, payload) => command === "saveWorkflow"
     ? { ...payload, id: "saved-workflow" } : send(command, payload));
+  await addActionIfNeeded();
   await click(button("保存"));
   expect(MNBridge.send).toHaveBeenCalledWith("saveWorkflow", expect.objectContaining({
-    steps: [expect.objectContaining({ selector: expect.objectContaining({ types: ["text"] }) })],
+    steps: [expect.objectContaining({ selector: expect.objectContaining({ types: ["text"] }) }), expect.objectContaining({ actionId: "foldSelectedComments" })],
   }));
   expect(host.querySelector('.workflow-save-state').textContent).toBe("已保存");
   expect(host.querySelector('.comment-type-choices input').checked).toBe(true);
@@ -110,7 +130,7 @@ it("saves from the relocated footer and keeps selector values", async () => {
 
 it("reports a failed footer save and allows retry without losing the draft", async () => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   const send = MNBridge.send.getMockImplementation();
   let fail = true;
   MNBridge.send.mockImplementation(async (command, payload) => {
@@ -118,11 +138,13 @@ it("reports a failed footer save and allows retry without losing the draft", asy
     if (fail) throw new Error("测试保存失败");
     return { ...payload, id: "retry-workflow" };
   });
+  await addActionIfNeeded();
   await click(button("保存"));
   expect(host.querySelector('[role="alert"]').textContent).toContain("测试保存失败");
-  expect(host.querySelectorAll('.workflow-step')).toHaveLength(1);
+  expect(host.querySelectorAll('.workflow-step')).toHaveLength(2);
   expect(button("保存").disabled).toBe(false);
   fail = false;
+  await addActionIfNeeded();
   await click(button("保存"));
   expect(host.querySelector('[role="alert"]')).toBeNull();
   expect(host.querySelector('.workflow-save-state').textContent).toBe("已保存");
@@ -136,13 +158,14 @@ it.each([
 ].map((reply) => ({ reply })))(
   "preserves the draft and reports unconfirmed save receipts: %j", async ({ reply }) => {
     await click(button("工作流"));
-    await click(button("添加选择器"));
+    await addFilter();
     await click(host.querySelector('.comment-type-choices input'));
     const send = MNBridge.send.getMockImplementation();
     MNBridge.send.mockImplementation(async (command, payload) => command === "saveWorkflow" ? reply : send(command, payload));
+    await addActionIfNeeded();
     await click(button("保存"));
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("未确认");
-    expect(host.querySelectorAll('.workflow-step')).toHaveLength(1);
+    expect(host.querySelectorAll('.workflow-step')).toHaveLength(2);
     expect(host.querySelector('.comment-type-choices input').checked).toBe(true);
     expect(host.querySelector('.workflow-save-state').textContent).toContain("尚未保存");
     expect(host.querySelector('.workflow-feedback.success')).toBeNull();
@@ -153,35 +176,37 @@ it.each([
 
 it("accepts a complete workflow wrapped in a single-item reply array", async () => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation(async (command, payload) => command === "saveWorkflow"
     ? [{ ...payload, id: "array-reply" }] : send(command, payload));
+  await addActionIfNeeded();
   await click(button("保存"));
   expect(host.querySelector('.workflow-save-state').textContent).toBe("已保存");
-  expect(host.querySelectorAll('.workflow-step')).toHaveLength(1);
+  expect(host.querySelectorAll('.workflow-step')).toHaveLength(2);
 });
 
 it("rejects a receipt for another workflow without replacing the current saved draft", async () => {
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation(async (command, payload) => {
-    if (command === "listWorkflows") return [{ id: "original", name: "原工作流", scope: "both", steps: [{ kind: "select", selector: { types: ["text"] } }] }];
+    if (command === "listWorkflows") return [{ id: "original", name: "原工作流", scope: "both", steps: [{ kind: "select", selector: { types: ["text"] } }, { kind: "action", actionId: "foldSelectedComments", options: {} }] }];
     if (command === "saveWorkflow") return { ...payload, id: "different" };
     return send(command, payload);
   });
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
+  await addActionIfNeeded();
   await click(button("保存"));
   expect(host.querySelector('[role="alert"]').textContent).toContain("未确认");
-  expect(host.querySelectorAll('.workflow-step')).toHaveLength(2);
+  expect(host.querySelectorAll('.workflow-step')).toHaveLength(3);
   expect(host.querySelector('.workflow-save-state').textContent).toContain("未保存");
   expect(host.querySelectorAll('.workflow-list-item')).toHaveLength(1);
 });
 
 it("keeps focus on the adjacent step after deletion, then the add control when empty", async () => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
-  await click(button("添加选择器"));
+  await addFilter();
+  await addFilter();
   const remove = host.querySelector('[aria-label="删除第 2 步"]');
   remove.focus();
   await click(remove);
@@ -189,15 +214,15 @@ it("keeps focus on the adjacent step after deletion, then the add control when e
   const lastRemove = host.querySelector('[aria-label="删除第 1 步"]');
   lastRemove.focus();
   await click(lastRemove);
-  expect(document.activeElement).toBe(button("添加选择器"));
+  expect(document.activeElement).toBe(button("添加评论筛选"));
 });
 
 it("focuses newly added and moved steps", async () => {
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   expect(document.activeElement.closest('.workflow-step')).toBe(host.querySelector('.workflow-step'));
   await click(host.querySelector('.comment-type-choices input'));
-  await click(button("添加选择器"));
+  await addFilter();
   expect(document.activeElement.closest('.workflow-step')).toBe(host.querySelectorAll('.workflow-step')[1]);
   const move = host.querySelector('[aria-label="下移第 1 步"]');
   move.focus();
@@ -206,7 +231,7 @@ it("focuses newly added and moved steps", async () => {
   expect(document.activeElement.closest('.workflow-step').querySelector('.comment-type-choices input').checked).toBe(true);
 });
 
-const savedWorkflowFixture = { id: "original", name: "删除验证", scope: "both", steps: [{ kind: "select", selector: { types: ["text"] } }] };
+const savedWorkflowFixture = { id: "original", name: "删除验证", scope: "both", steps: [{ kind: "select", selector: { types: ["text"] } }, { kind: "action", actionId: "foldSelectedComments", options: {} }] };
 async function openSavedWorkflow(deleteReply) {
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation(async (command, payload) => {
@@ -215,6 +240,8 @@ async function openSavedWorkflow(deleteReply) {
     return send(command, payload);
   });
   await click(button("工作流"));
+  await openWorkflowEditing();
+  await click(host.querySelector(".workflow-secondary-actions summary"));
 }
 const deleteWorkflowButton = () => host.querySelector('[data-workflow-delete]');
 
@@ -226,12 +253,12 @@ it.each([
   { deleted: true, workflows: [{ ...savedWorkflowFixture, id: "other" }, { ...savedWorkflowFixture, id: "other" }] },
 ].map(reply => ({ reply })))("does not pretend a workflow was deleted on an unconfirmed receipt: %j", async ({ reply }) => {
   await openSavedWorkflow(reply);
-  await click(button("添加选择器"));
+  await addFilter();
   await click(deleteWorkflowButton());
   await click(button("确认删除"));
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("删除结果未确认");
   expect(host.querySelectorAll('.workflow-list-item')).toHaveLength(1);
-  expect(host.querySelectorAll('.workflow-step')).toHaveLength(2);
+  expect(host.querySelectorAll('.workflow-step')).toHaveLength(3);
   expect(host.querySelector('.workflow-save-state').textContent).toContain("未保存");
   expect(host.querySelector('.workflow-feedback.success')).toBeNull();
   await vi.waitFor(() => expect(document.activeElement).toBe(deleteWorkflowButton()));
@@ -259,7 +286,7 @@ it.each(["resolve", "reject"])("dismisses the pending-close prompt when saving s
   let resolve, reject;
   const response = new Promise((ok, fail) => { resolve = ok; reject = fail; });
   await click(button("工作流"));
-  await click(button("添加选择器"));
+  await addFilter();
   let submitted;
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation((command, payload) => {
@@ -267,6 +294,7 @@ it.each(["resolve", "reject"])("dismisses the pending-close prompt when saving s
     submitted = payload;
     return response;
   });
+  await addActionIfNeeded();
   await click(button("保存"));
   await click(host.querySelector('.workflow-actions .secondary'));
   expect(host.querySelector('.workflow-mutation-close-dialog')).not.toBeNull();

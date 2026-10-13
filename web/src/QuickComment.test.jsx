@@ -311,3 +311,168 @@ it('does not end the panel exit when the independent backdrop finishes fading', 
   await act(async () => animationEnd(host.querySelector('.quick-card'), 'quick-flight'));
   expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(1);
 });
+
+async function finishComposition() {
+  await act(async () => { input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })); await new Promise(resolve => setTimeout(resolve, 10)); });
+}
+async function keyboard(type, extra = {}) {
+  await act(async () => window.__MNQuickCommentKeyboard({ sessionId: 'session', type, ...extra }));
+}
+it('closes with the newest composing draft when the owned keyboard hides', async () => {
+  await type('已输入'); await keyboard('show');
+  await act(async () => input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '已输入组词');
+  await keyboard('hide', { eventId: 'hide-1' });
+  await finishComposition();
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ reason: 'keyboard', eventId: 'hide-1', text: '已输入组词', draftRevision: 2 }));
+  await keyboard('hide', { eventId: 'hide-1' });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(1);
+});
+it('ignores unowned, old-session and ordinary focus-change keyboard events', async () => {
+  await keyboard('hide', { eventId: 'no-show' });
+  await keyboard('show');
+  await keyboard('hide', { sessionId: 'old', eventId: 'stale' });
+  await act(async () => host.querySelector('[aria-label="插入换行"]').focus());
+  await keyboard('hide', { eventId: 'focus-change' });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+});
+it('ignores keyboard hiding during a save or after window focus is lost', async () => {
+  await type('正文'); await keyboard('show');
+  await act(async () => window.dispatchEvent(new Event('blur')));
+  await keyboard('hide', { eventId: 'background' });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  await keyboard('show'); await click('添加评论'); await keyboard('hide', { eventId: 'saved' });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  expect(host.querySelector('.quick-success')).not.toBeNull();
+});
+it('restores the current editing phase and content after a keyboard-close failure', async () => {
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation(async (cmd, payload) => { if (cmd === 'closeQuickComment') throw new Error('关闭失败'); return send(cmd, payload); });
+  await type('保留正文'); await keyboard('show'); await keyboard('hide', { eventId: 'failed' });
+  expect(input().disabled).toBe(false); expect(input().value).toBe('保留正文');
+  expect(host.querySelector('[role=alert]').textContent).toContain('关闭失败');
+  await type('继续编辑'); expect(input().value).toBe('继续编辑');
+});
+it('freezes viewport geometry during keyboard dismissal and removes its callback on unmount', async () => {
+  await keyboard('show');
+  const original = host.querySelector('.quick-positioner').getAttribute('style');
+  await keyboard('hide', { eventId: 'freeze' });
+  await act(async () => window.dispatchEvent(new Event('resize')));
+  expect(host.querySelector('.quick-positioner').getAttribute('style')).toBe(original);
+  await act(async () => root.unmount());
+  expect(window.__MNQuickCommentKeyboard).toBeUndefined();
+  root = createRoot(host);
+});
+
+it('allows keyboard dismissal again after the textarea is touched', async () => {
+  await keyboard('show');
+  await act(async () => host.querySelector('header').dispatchEvent(new Event('pointerdown', { bubbles: true })));
+  await act(async () => input().dispatchEvent(new Event('pointerdown', { bubbles: true })));
+  await keyboard('hide', { eventId: 'input-again' });
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ reason: 'keyboard', eventId: 'input-again' }));
+});
+
+it('retains the final composition value when keyboard hiding arrives before the input event', async () => {
+  await type('原正文'); await keyboard('show');
+  await act(async () => {
+    input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文中文组词');
+    input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    window.__MNQuickCommentKeyboard({ sessionId: 'session', type: 'hide', eventId: 'commit-before-input' });
+  });
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ text: '原正文中文组词' }));
+});
+it('keeps the composing snapshot visible after keyboard-close delivery fails', async () => {
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation(async (cmd, payload) => { if (cmd === 'closeQuickComment') throw new Error('关闭请求未送达'); return send(cmd, payload); });
+  await type('原正文'); await keyboard('show');
+  await act(async () => input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文保留中文');
+  await keyboard('hide', { eventId: 'composition-close-error' });
+  await finishComposition();
+  expect(input().value).toBe('原正文保留中文');
+  await key('Escape');
+  const closes = MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment');
+  expect(closes.at(-1)[1].text).toBe('原正文保留中文');
+});
+it('does not close a submission when keyboard hiding races the first saving render', async () => {
+  const pending = deferred(), send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((cmd, payload) => cmd === 'appendQuickComment' ? pending.promise : send(cmd, payload));
+  await type('保存正文'); await keyboard('show');
+  await act(async () => {
+    host.querySelector('[aria-label="添加评论"]').click();
+    window.__MNQuickCommentKeyboard({ sessionId: 'session', type: 'hide', eventId: 'same-tick-save' });
+    host.querySelector('[aria-label="关闭输入并保留草稿"]').click();
+  });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  const submission = MNBridge.send.mock.calls.find(([cmd]) => cmd === 'appendQuickComment')[1];
+  await act(async () => pending.resolve(stateFor(submission, 'saved', { receipt: { persisted: true, noteId: 'card', markdown: false } })));
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(1);
+  expect(host.querySelector('.quick-success')).not.toBeNull();
+});
+
+it('waits for a pending Chinese composition to finish before taking the keyboard-close snapshot', async () => {
+  await type('原正文'); await keyboard('show');
+  await act(async () => {
+    input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文拼音');
+    window.__MNQuickCommentKeyboard({ sessionId: 'session', type: 'hide', eventId: 'hide-before-commit' });
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文中文');
+    input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 10));
+  });
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ text: '原正文中文' }));
+});
+
+it('keeps a draft visible instead of removing an unfinished composition on timeout', async () => {
+  vi.useFakeTimers(); await type('原正文'); await keyboard('show');
+  await act(async () => input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文尚未结束的组词');
+  await keyboard('hide', { eventId: 'no-composition-end' });
+  await act(async () => vi.advanceTimersByTime(500));
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  expect(input().value).toBe('原正文尚未结束的组词'); expect(input().disabled).toBe(false);
+  expect(host.querySelector('[role=alert]').textContent).toContain('中文组词尚未结束');
+  await click('关闭输入并保留草稿');
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ text: '原正文尚未结束的组词' }));
+});
+it('cancels a pending composition close when its page is removed', async () => {
+  vi.useFakeTimers(); await type('原正文'); await keyboard('show');
+  await act(async () => input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  await keyboard('hide', { eventId: 'removed-while-composing' });
+  await act(async () => root.unmount());
+  await act(async () => vi.advanceTimersByTime(600));
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  root = createRoot(host);
+});
+it('does not submit the Return used to finish composition while a close is waiting', async () => {
+  await type('组词正文'); await keyboard('show');
+  await act(async () => {
+    input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    window.__MNQuickCommentKeyboard({ sessionId: 'session', type: 'hide', eventId: 'return-finishes-composition' });
+    input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 10));
+  });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(0);
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(1);
+});
+
+it('blocks closing while a retry starts before the uncertain phase rerenders', async () => {
+  const send = MNBridge.send.getMockImplementation(), pending = deferred(); let attempts = 0;
+  MNBridge.send.mockImplementation((cmd, payload) => {
+    if (cmd === 'appendQuickComment') { attempts += 1; if (attempts === 1) return Promise.reject(new Error('首次回执丢失')); return pending.promise; }
+    return send(cmd, payload);
+  });
+  await type('原提交正文'); await click('添加评论');
+  await act(async () => {
+    [...host.querySelectorAll('button')].find(el => el.textContent === '重试同次提交').click();
+    host.querySelector('[aria-label="关闭输入并保留草稿"]').click();
+  });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
+  const first = MNBridge.send.mock.calls.find(([cmd]) => cmd === 'appendQuickComment')[1];
+  await act(async () => pending.resolve(stateFor(first, 'saved', { receipt: { persisted: true, noteId: 'card', markdown: false } })));
+  const requests = MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment');
+  expect(requests[0][1]).toEqual(requests[1][1]);
+  expect(host.querySelector('.quick-success')).not.toBeNull();
+});

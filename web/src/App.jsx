@@ -289,6 +289,10 @@ function workflowDraftSignature(workflow) {
     name: String(source.name || ""),
     scope: source.scope === "single" || source.scope === "both" ? source.scope : "batch",
     steps,
+    menu: ["single", "batch"].map((mode) => ({
+      position: source.menu?.[mode]?.position || "submenu",
+      order: source.menu?.[mode]?.order ?? null,
+    })),
   });
 }
 
@@ -536,19 +540,24 @@ const DIALOG_FOCUSABLE_SELECTOR = [
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",
+  "summary",
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
 function getDialogFocusableElements(dialogElement) {
   if (!dialogElement || typeof dialogElement.querySelectorAll !== "function") return [];
-  return Array.from(dialogElement.querySelectorAll(DIALOG_FOCUSABLE_SELECTOR)).filter((element) => (
-    element &&
-    element.disabled !== true &&
-    element.hidden !== true &&
-    element.tabIndex >= 0 &&
-    element.getAttribute?.("aria-hidden") !== "true" &&
-    String(element.getAttribute?.("type") || "").toLowerCase() !== "hidden"
-  ));
+  return Array.from(dialogElement.querySelectorAll(DIALOG_FOCUSABLE_SELECTOR)).filter((element) => {
+    if (!element || element.disabled === true || element.hidden === true || element.tabIndex < 0 ||
+      element.getAttribute?.("aria-hidden") === "true" || String(element.getAttribute?.("type") || "").toLowerCase() === "hidden") return false;
+    for (let ancestor = element.parentElement; ancestor && ancestor !== dialogElement; ancestor = ancestor.parentElement) {
+      if (ancestor.hidden || ancestor.getAttribute?.("aria-hidden") === "true") return false;
+      if (ancestor.tagName === "DETAILS" && !ancestor.open) {
+        const summary = Array.from(ancestor.children).find((child) => child.tagName === "SUMMARY");
+        if (!summary?.contains(element)) return false;
+      }
+    }
+    return true;
+  });
 }
 
 function keepFocusWithinDialog(event, dialogElement) {
@@ -2386,16 +2395,19 @@ function App() {
     setOpeningOverlay(openingToken);
     notifyStatus("正在打开工作流管理器…");
     try {
-      const [catalog, workflows] = await Promise.all([
+      const [catalog, workflows, templates] = await Promise.all([
         MNBridge.send("getWorkflowActionCatalog"),
         MNBridge.send("listWorkflows"),
+        MNBridge.send("getWorkflowTemplates"),
       ]);
       if (!appMountedRef.current) return;
       setWorkflowManager({
         catalog: Array.isArray(catalog) ? catalog : [],
         workflows: Array.isArray(workflows) ? workflows : [],
+        templates: Array.isArray(templates) ? templates : [],
         returnFocusTarget,
       });
+      notifyStatus("菜单与工作流设置已打开");
     } catch (error) {
       if (appMountedRef.current) notifyStatus(normalizeError(error));
     } finally {
@@ -2406,8 +2418,26 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const openRequestedWorkflow = () => {
+      if (window.__MNCommentManagerRequestedView !== "workflow") return;
+      if (workflowManager) { window.__MNCommentManagerRequestedView = ""; return; }
+      if (loading || openingOverlay || closingPanel) return;
+      if (dialog || moduleSettingsOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
+        notifyStatus("请先完成或关闭当前编辑窗口，随后会打开工作流设置");
+        return;
+      }
+      window.__MNCommentManagerRequestedView = "";
+      openWorkflowManager();
+    };
+    window.__MNCommentManagerOpenWorkflow = openRequestedWorkflow;
+    openRequestedWorkflow();
+    return () => { delete window.__MNCommentManagerOpenWorkflow; };
+  }, [workflowManager, loading, dialog, moduleSettingsOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+
   const closePanel = async () => {
     if (panelCloseRef.current) return;
+    window.__MNCommentManagerRequestedView = "";
     panelCloseRef.current = true;
     setClosingPanel(true);
     notifyStatus("正在关闭评论管理器…");
@@ -2979,6 +3009,7 @@ function App() {
         <WorkflowManagerDialog
           initialCatalog={workflowManager.catalog}
           initialWorkflows={workflowManager.workflows}
+          initialTemplates={workflowManager.templates}
           returnFocusTarget={workflowManager.returnFocusTarget}
           onClose={() => setWorkflowManager(null)}
           onStatus={notifyStatus}
@@ -3684,7 +3715,9 @@ function SelectorEditor({ selector, onChange, disabled = false }) {
   return (
     <div className="workflow-visual-options">
       <CommentTypeSelector types={value.types} disabled={disabled} onChange={(types) => onChange({ ...value, types })} />
-      <label><span>处理顺序</span><HtmlSelect value={value.order === "reverse" ? "reverse" : "forward"} disabled={disabled} onChange={(event) => onChange({ ...value, order: event.target.value })}>
+      <details className="workflow-selector-advanced" open={!!position || capabilities.length > 0 || value.includeExcerpt === true || value.order === "reverse" ? true : undefined}>
+        <summary>更多筛选条件</summary>
+        <label><span>处理顺序</span><HtmlSelect value={value.order === "reverse" ? "reverse" : "forward"} disabled={disabled} onChange={(event) => onChange({ ...value, order: event.target.value })}>
         <option value="forward">正序</option><option value="reverse">倒序</option>
       </HtmlSelect></label>
       <label><span>位置</span><HtmlSelect value={positionMode} disabled={disabled} onChange={(event) => onChange(selectorWithPosition(value, event.target.value, position))}>
@@ -3692,9 +3725,10 @@ function SelectorEditor({ selector, onChange, disabled = false }) {
       </HtmlSelect></label>
       {positionMode === "single" ? <label><span>评论索引</span><input disabled={disabled} inputMode="numeric" value={position?.index ?? "0"} placeholder="例如 0 或 -1" onChange={(event) => onChange(selectorWithPosition(value, "single", { index: event.target.value }))} /></label> : null}
       {positionMode === "range" ? <div className="workflow-position-range"><label><span>范围起点</span><input disabled={disabled} inputMode="numeric" value={position?.start ?? "0"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: event.target.value, end: position?.end ?? "-1" }))} /></label><label><span>范围终点</span><input disabled={disabled} inputMode="numeric" value={position?.end ?? "-1"} onChange={(event) => onChange(selectorWithPosition(value, "range", { start: position?.start ?? "0", end: event.target.value }))} /></label></div> : null}
-      <small className={positionError ? "workflow-input-error" : "workflow-options-hint"}>{positionError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small>
-      <label className="workflow-inline-check"><input type="checkbox" disabled={disabled} checked={capabilities.includes("canMergeText")} onChange={(event) => onChange({ ...value, capabilities: event.target.checked ? Array.from(new Set([...capabilities, "canMergeText"])) : capabilities.filter((item) => item !== "canMergeText") })} /><span>仅选择可合并文本</span></label>
-      <label className="workflow-inline-check"><input type="checkbox" disabled={disabled} checked={value.includeExcerpt === true} onChange={(event) => onChange({ ...value, includeExcerpt: event.target.checked })} /><span>包含原生摘录</span></label>
+      <small className={positionError ? "workflow-input-error" : "workflow-options-hint"}>{positionError || "评论位置从 0 开始：0 表示第一条，-1 表示最后一条。范围包含起点和终点。"}</small>
+      <label className="workflow-inline-check"><input type="checkbox" disabled={disabled} checked={capabilities.includes("canMergeText")} onChange={(event) => onChange({ ...value, capabilities: event.target.checked ? Array.from(new Set([...capabilities, "canMergeText"])) : capabilities.filter((item) => item !== "canMergeText") })} /><span>仅处理可以合并为文本的评论</span></label>
+      <label className="workflow-inline-check"><input type="checkbox" disabled={disabled} checked={value.includeExcerpt === true} onChange={(event) => onChange({ ...value, includeExcerpt: event.target.checked })} /><span>合并评论时同时处理卡片的原始摘录</span></label>
+      </details>
     </div>
   );
 }
@@ -3709,9 +3743,13 @@ function ActionOptionsEditor({ actionId, descriptor, options, onChange, disabled
   return <small className="workflow-options-hint">此扩展动作没有可视化参数；已有配置会原样保留。</small>;
 }
 
-function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTarget, onClose, onStatus }) {
+function WorkflowManagerDialog({ initialCatalog, initialWorkflows, initialTemplates, returnFocusTarget, onClose, onStatus }) {
   const catalog = Array.isArray(initialCatalog) ? initialCatalog : [];
+  const templates = Array.isArray(initialTemplates) ? initialTemplates : [];
+  const [menuMode, setMenuMode] = useState("single");
   const initialWorkflow = initialWorkflows?.[0] || null;
+  const [templateId, setTemplateId] = useState(initialWorkflow?.templateId || "");
+  const [editing, setEditing] = useState(!initialWorkflow || !!initialWorkflow.missingActions?.length || !!initialWorkflow.invalidSelectors?.length || !initialWorkflow.steps?.some((step) => step.kind !== "select" && step.actionId));
   const [workflows, setWorkflows] = useState(() => (Array.isArray(initialWorkflows) ? initialWorkflows : []));
   const [selectedId, setSelectedId] = useState(() => initialWorkflow?.id || "");
   const [draft, setDraft] = useState(() => cloneWorkflowDraft(initialWorkflow));
@@ -3727,6 +3765,8 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   const pendingMutationCloseRef = useRef(null);
   const workflowManagerRef = useRef(null);
   const pendingStepFocusRef = useRef(null);
+  const pendingEditorFocusRef = useRef(false);
+  const automaticWorkflowNameRef = useRef(!initialWorkflow);
   const deleteDialogRef = useRef(null);
   const deleteReturnFocusTargetRef = useRef(null);
   const discardDialogRef = useRef(null);
@@ -3763,13 +3803,16 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     restoreFocusAfterDialogClose(returnFocusTarget);
   };
 
-  const loadWorkflowDraft = (workflow) => {
+  const loadWorkflowDraft = (workflow, baseline = workflow) => {
     const next = cloneWorkflowDraft(workflow);
+    automaticWorkflowNameRef.current = !next.id && next.name === "新工作流";
     setSelectedId(next.id || "");
     setDraft(next);
     setNewActionId("");
-    setSavedDraftSignature(workflowDraftSignature(next));
+    setSavedDraftSignature(workflowDraftSignature(cloneWorkflowDraft(baseline)));
     setConfirmDelete(false);
+    setTemplateId(next.templateId || "");
+    setEditing(!next.id || !!next.missingActions?.length || !!next.invalidSelectors?.length || !next.steps?.some((step) => step.kind !== "select" && step.actionId));
     setWorkflowFeedback(null);
   };
 
@@ -3780,8 +3823,11 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       return;
     }
     if (transition.kind === "create") {
-      loadWorkflowDraft(createEmptyWorkflowDraft());
-      restoreFocusAfterDialogClose(transition.returnFocusTarget, workflowManagerRef.current);
+      pendingEditorFocusRef.current = true;
+      if (transition.workflow) loadWorkflowDraft(transition.workflow, workflows.find((item) => item.id === transition.workflow.id) || null);
+      else loadWorkflowDraft(createEmptyWorkflowDraft());
+      setEditing(true);
+      if (transition.message) setWorkflowFeedback({ kind: "info", message: transition.message });
       return;
     }
     if (transition.kind === "select") {
@@ -3898,8 +3944,20 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     const steps = workflowManagerRef.current?.querySelectorAll(".workflow-step");
     const step = steps?.[Math.min(index, steps.length - 1)];
     if (step) focusInitialDialogControl(step);
-    else workflowManagerRef.current?.querySelector("[data-workflow-add-selector]")?.focus();
+    else {
+      const filterButton = workflowManagerRef.current?.querySelector("[data-workflow-add-selector]");
+      const target = getDialogFocusableElements(workflowManagerRef.current).includes(filterButton)
+        ? filterButton : workflowManagerRef.current?.querySelector('[aria-label="添加工作流动作"]');
+      target?.focus();
+    }
   }, [draft.steps]);
+
+  useEffect(() => {
+    if (!pendingEditorFocusRef.current || !editing) return;
+    pendingEditorFocusRef.current = false;
+    const input = workflowManagerRef.current?.querySelector(".workflow-edit-fields input");
+    if (input) focusInitialDialogControl(workflowManagerRef.current, input);
+  }, [draft, editing]);
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -3911,6 +3969,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
   const addStep = () => {
     const action = catalog.find((item) => item.id === newActionId);
     if (!action || action.compatible === false) return;
+    automaticWorkflowNameRef.current = false;
     pendingStepFocusRef.current = (draft.steps || []).length;
     setDraft((current) => ({
       ...current,
@@ -3957,9 +4016,9 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       setWorkflowFeedback({ kind: "error", message: "请填写工作流名称" });
       return;
     }
-    if (stepsToSave.length === 0) {
-      onStatus?.("至少添加一个工作流动作");
-      setWorkflowFeedback({ kind: "error", message: "至少添加一个工作流动作" });
+    if (!stepsToSave.some((step) => step && step.kind !== "select" && step.actionId)) {
+      onStatus?.("请至少选择一个执行动作；评论筛选条件不能单独运行");
+      setWorkflowFeedback({ kind: "error", message: "请至少选择一个执行动作；评论筛选条件不能单独运行" });
       return;
     }
     const invalidSelector = stepsToSave.map(invalidSelectorMessage).find(Boolean);
@@ -3974,13 +4033,14 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       if (!descriptor || descriptor.compatible !== false) {
         const actionScope = descriptor?.scope;
         const workflowScope = draft.scope === "single" || draft.scope === "batch" ? draft.scope : "both";
-        if (actionScope === "batch" && workflowScope === "single") return `${descriptor.title} 仅支持多卡`;
-        if (actionScope === "single" && workflowScope === "batch") return `${descriptor.title} 仅支持单卡`;
+        if (workflowScope === "both" && actionScope && actionScope !== "both") return `${descriptor.title} 仅支持${actionScope === "single" ? "单选卡片" : "多选卡片"}`;
+        if (actionScope === "batch" && workflowScope === "single") return `${descriptor.title} 仅支持多选卡片`;
+        if (actionScope === "single" && workflowScope === "batch") return `${descriptor.title} 仅支持单选卡片`;
       }
       return "";
     }).find(Boolean);
     if (incompatibleAction) {
-      const message = `支持范围不兼容：${incompatibleAction}`;
+      const message = `适用场景不匹配：${incompatibleAction}。请展开“名称与执行步骤”调整可执行场景。`;
       onStatus?.(message);
       setWorkflowFeedback({ kind: "error", message });
       return;
@@ -4004,6 +4064,8 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
         name: String(draft.name || "").trim(),
         scope: draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch",
         steps: normalizedSteps,
+        menu: draft.menu,
+        templateId: draft.templateId,
       });
       const next = Array.isArray(saved) ? saved : saved ? [saved] : [];
       const savedWorkflow = next.length === 1 ? next[0] : null;
@@ -4013,6 +4075,11 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
         || (draft.id && savedWorkflow.id !== draft.id)
         || typeof savedWorkflow.name !== "string" || !savedWorkflow.name.trim()
         || !["single", "batch", "both"].includes(savedWorkflow.scope)
+        || (draft.menu && ["single", "batch"].some((mode) => (
+          !savedWorkflow.menu?.[mode] || savedWorkflow.menu[mode].position !== draft.menu[mode].position
+          || !Number.isSafeInteger(savedWorkflow.menu[mode].order) || savedWorkflow.menu[mode].order < 0
+          || (draft.menu[mode].order !== null && draft.menu[mode].order !== undefined && savedWorkflow.menu[mode].order !== draft.menu[mode].order)
+        )))
         || !Array.isArray(savedWorkflow.steps) || savedWorkflow.steps.length !== normalizedSteps.length
         || !savedWorkflow.steps.every((step, index) => step && step.kind === normalizedSteps[index].kind && (
           step.kind === "select"
@@ -4133,6 +4200,67 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     restoreFocusAfterDialogClose(returnFocusTarget, workflowManagerRef.current);
   };
 
+  const orderedWorkflows = workflows.slice().sort((left, right) =>
+    (left.menu?.[menuMode]?.order || 0) - (right.menu?.[menuMode]?.order || 0) || String(left.id).localeCompare(String(right.id)));
+  const selectedIndex = orderedWorkflows.findIndex((item) => item.id === selectedId);
+  const positionLabels = { root: "直接显示在菜单中", submenu: "显示在工作流子菜单中", links: "显示在失效链接子菜单中", hidden: "不在菜单中显示" };
+  const selectedTemplate = templates.find((item) => item.id === templateId);
+  const existingTemplateWorkflow = workflows.find((item) => item.id === templateId);
+  const executableSteps = (draft.steps || []).filter((step) => step.kind !== "select" && step.actionId);
+  const changeMenuPosition = (mode, position) => setDraft((current) => ({ ...current, menu: {
+    single: { position: "submenu", order: null, ...current.menu?.single },
+    batch: { position: "submenu", order: null, ...current.menu?.batch },
+    [mode]: { position, order: current.menu?.[mode]?.order ?? null },
+  } }));
+  const copyWorkflow = (event) => {
+    const copy = cloneWorkflowDraft(workflows.find((item) => item.id === draft.id) || draft);
+    copy.id = ""; copy.templateId = ""; copy.name = `${copy.name}（副本）`;
+    // A copy is appended; it never inherits the original menu rank.
+    delete copy.menu;
+    requestWorkflowDraftTransition({ kind: "create", workflow: copy, returnFocusTarget: event.currentTarget,
+      description: "副本将采用已保存的内容。当前未保存的修改会被放弃。",
+      message: "副本尚未保存。名称和执行步骤可继续修改，保存后才会出现在菜单中。", confirmText: "放弃修改并复制" });
+  };
+  const restoreTemplate = (event) => {
+    const template = templates.find((item) => item.id === templateId);
+    if (!template) return;
+    requestWorkflowDraftTransition({ kind: "create", workflow: template, returnFocusTarget: event.currentTarget,
+      description: "载入默认配置会放弃当前未保存的修改；保存后才会替换指定的默认工作流。", confirmText: "放弃修改并载入",
+      message: workflowDraftSignature(template) === workflowDraftSignature(workflows.find((item) => item.id === template.id))
+        ? "已保存的配置与默认内容一致，无需再次保存。" : "默认配置已载入草稿。保存后才会生效，其他工作流不受影响。" });
+  };
+  const reorderWorkflow = async (direction) => {
+    if (workflowMutationRef.current || hasUnsavedChanges || selectedIndex < 0) return;
+    const destination = selectedIndex + direction;
+    if (destination < 0 || destination >= orderedWorkflows.length) return;
+    const expectedIds = orderedWorkflows.map((item) => item.id);
+    const ids = expectedIds.slice();
+    [ids[selectedIndex], ids[destination]] = [ids[destination], ids[selectedIndex]];
+    const operation = { kind: "save" };
+    workflowMutationRef.current = operation;
+    setBusy(true); setWorkflowMutationKind("reorder");
+    setWorkflowFeedback({ kind: "saving", message: "正在保存菜单顺序…" });
+    try {
+      const result = await MNBridge.send("reorderWorkflows", { mode: menuMode, ids, expectedIds });
+      if (!Array.isArray(result) || result.length !== ids.length || new Set(result.map((item) => item?.id)).size !== ids.length
+        || result.some((item) => !ids.includes(item?.id) || !item.menu?.[menuMode] || !Array.isArray(item.steps)
+          || !item.name || !["single", "batch", "both"].includes(item.scope)
+          || item.menu[menuMode].order !== ids.indexOf(item.id))) throw new Error("菜单排序结果未确认，请重新打开管理器核对实际顺序");
+      if (workflowMountedRef.current) {
+        setWorkflows(result);
+        loadWorkflowDraft(result.find((item) => item.id === selectedId));
+        setWorkflowFeedback({ kind: "success", message: "菜单顺序已保存" });
+      }
+    } catch (error) {
+      if (workflowMountedRef.current) setWorkflowFeedback({ kind: "error", message: normalizeError(error) });
+    } finally {
+      if (workflowMutationRef.current === operation) {
+        workflowMutationRef.current = null;
+        if (workflowMountedRef.current) { setBusy(false); setWorkflowMutationKind(""); }
+      }
+    }
+  };
+
   const actionTitle = (actionId) => catalog.find((item) => item.id === actionId)?.title || actionId;
   const actionDescriptor = (actionId) => catalog.find((item) => item.id === actionId) || null;
   const invalidSelectorMessage = (step) => {
@@ -4142,16 +4270,17 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
     return selectorPositionError(step.selector.position);
   };
   const hasInvalidSelector = (draft.steps || []).some((step) => !!invalidSelectorMessage(step));
-  const pendingTransitionDescription = pendingDraftTransition?.kind === "select"
+  const canSave = !!draft.name?.trim() && !hasInvalidSelector && (executableSteps.length > 0 || !!newActionId);
+  const pendingTransitionDescription = pendingDraftTransition?.description || (pendingDraftTransition?.kind === "select"
     ? `切换到「${pendingDraftTransition.workflow?.name || "其他工作流"}」会放弃当前草稿。`
     : pendingDraftTransition?.kind === "create"
       ? "新建工作流会放弃当前草稿。"
-      : "关闭工作流管理器会放弃当前草稿。";
-  const pendingTransitionConfirmText = pendingDraftTransition?.kind === "select"
+      : "关闭工作流管理器会放弃当前草稿。");
+  const pendingTransitionConfirmText = pendingDraftTransition?.confirmText || (pendingDraftTransition?.kind === "select"
     ? "放弃并切换"
     : pendingDraftTransition?.kind === "create"
       ? "放弃并新建"
-      : "放弃并关闭";
+      : "放弃并关闭");
   const draftStatusText = hasUnsavedChanges
     ? (draft.id ? "有未保存更改" : "新工作流尚未保存")
     : (draft.id ? "已保存" : "新工作流");
@@ -4180,16 +4309,34 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
       >
         <div className="workflow-manager-header">
           <div>
-            <h2 id="workflow-manager-title">工作流</h2>
-            <p>把多个评论批处理动作组合成一个菜单项。工作流会保存在 MarginNote 原生配置中。</p>
+            <h2 id="workflow-manager-title">菜单与工作流</h2>
+            <p>先选择一个操作，再设置菜单中的显示位置。执行步骤可以按需编辑。</p>
           </div>
           <Button data-workflow-close className="ghost compact" onClick={requestWorkflowManagerClose} aria-label="关闭工作流管理器">×</Button>
         </div>
+        <details className="workflow-guide">
+          <summary>设置与运行说明</summary>
+          <p>工作流是保存好的评论处理动作；单个动作或多个连续动作都可以保存为工作流。</p>
+          <p>单选卡片时，长按卡片旁的“评”按钮；多选卡片时，点击“评论”按钮。</p>
+          <p>入口未显示时，可以在评论管理器的设置中开启对应按钮。</p>
+          <p>“直接显示”可以减少一次菜单操作；“放入工作流子菜单”可以缩短菜单。隐藏不会删除工作流。</p>
+          <p>菜单位置需要点击“保存”才会生效；左侧的顺序调整会立即保存。选择“新建工作流”可以组合多个执行动作。</p>
+        </details>
         <div className="workflow-manager-body">
           <aside className="workflow-list" aria-label="已保存工作流">
             <Button data-workflow-create className="primary wide" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
-            {workflows.length === 0 ? <p className="workflow-empty">暂无工作流</p> : null}
-            {workflows.map((workflow) => (
+            <label className="workflow-name-field"><span>正在排列的菜单</span>
+              <HtmlSelect aria-label="菜单排序范围" value={menuMode} disabled={busy} onChange={(event) => setMenuMode(event.target.value)}>
+                <option value="single">单选卡片</option><option value="batch">多选卡片</option>
+              </HtmlSelect>
+            </label>
+            <div className="workflow-menu-tools">
+              <Button className="secondary compact" disabled={busy || hasUnsavedChanges || selectedIndex <= 0} onClick={() => reorderWorkflow(-1)} title="上移工作流" aria-label="上移工作流">↑</Button>
+              <Button className="secondary compact" disabled={busy || hasUnsavedChanges || selectedIndex < 0 || selectedIndex >= orderedWorkflows.length - 1} onClick={() => reorderWorkflow(1)} title="下移工作流" aria-label="下移工作流">↓</Button>
+              <small>{hasUnsavedChanges ? "请先保存当前修改，再调整菜单顺序。" : "顺序调整会立即保存，只影响当前菜单。"}</small>
+            </div>
+            {workflows.length === 0 ? <p className="workflow-empty">暂无工作流。可以新建工作流，也可以展开“复制、恢复默认配置或删除”重新添加默认工作流。</p> : null}
+            {orderedWorkflows.map((workflow) => (
               <button
                 type="button"
                 key={workflow.id}
@@ -4198,46 +4345,69 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
                 disabled={busy}
                 onClick={(event) => selectWorkflow(workflow, event)}
               >
-                <strong>{workflow.name}</strong>
-                <small>{workflow.steps?.length || 0} 步 · {workflow.scope === "single" ? "仅单卡" : workflow.scope === "both" ? "单卡/多卡" : "仅多卡"} · 使用 {workflow.usageCount || 0} 次{workflow.missingActions?.length ? " · 有缺失动作" : workflow.invalidSelectors?.length ? " · 选择器无效" : ""}</small>
+                <strong title={workflow.name}>{workflow.name}</strong>
+                <small>{workflow.scope !== "both" && workflow.scope !== menuMode ? (workflow.scope === "single" ? "仅用于单选卡片" : "仅用于多选卡片") : positionLabels[workflow.menu?.[menuMode]?.position || "submenu"]}</small>
+                {workflow.missingActions?.length || workflow.invalidSelectors?.length ? <small className="workflow-input-error">{workflow.missingActions?.length ? "部分动作不可用，请检查执行内容" : "评论筛选条件需要修正"}</small> : null}
               </button>
             ))}
           </aside>
           <div className="workflow-editor">
+            <div className="workflow-overview">
+              <h3>{draft.name || "新工作流"}</h3>
+              <p>{executableSteps.length ? `执行内容：${executableSteps.map((step) => actionTitle(step.actionId)).join(" → ")}` : "先选择一个执行动作，再保存工作流。"}</p>
+              <small className="workflow-options-hint">保存设置不会执行评论操作；工作流需要从卡片菜单中运行。</small>
+            </div>
+            <div className="workflow-menu-settings">
+              {["single", "batch"].filter((mode) => draft.scope === "both" || draft.scope === mode).map((mode) => <label className="workflow-name-field" key={mode}>
+                <span>{mode === "single" ? "单选卡片时" : "多选卡片时"}</span>
+                <HtmlSelect aria-label={mode === "single" ? "单选菜单展示位置" : "多选菜单展示位置"}
+                  value={draft.menu?.[mode]?.position || "submenu"} disabled={busy}
+                  onChange={(event) => changeMenuPosition(mode, event.target.value)}>
+                  <option value="root">直接显示在菜单中</option><option value="submenu">放入工作流子菜单</option>
+                  {draft.menu?.[mode]?.position === "links" || executableSteps.some((step) => step.actionId === "clearInvalidLinks") ? <option value="links">放入失效链接子菜单</option> : null}
+                  <option value="hidden">不在菜单中显示</option>
+                </HtmlSelect>
+              </label>)}
+            </div>
+            <small className="workflow-options-hint">菜单位置需要保存后才会生效。{draft.menu?.single?.position === "hidden" || draft.menu?.batch?.position === "hidden" ? "隐藏的工作流仍保留在左侧列表中，可以重新设置为显示。" : "“直接显示”无需再打开工作流子菜单。"}</small>
+            {draft.scope !== "both" ? <small className="workflow-options-hint">此工作流仅用于{draft.scope === "single" ? "单选" : "多选"}卡片；可执行场景可以在“名称与执行步骤”中修改。</small> : null}
+            <Button className="secondary workflow-edit-toggle" data-workflow-edit-toggle aria-expanded={editing} aria-controls="workflow-edit-fields" disabled={busy} onClick={() => setEditing((current) => !current)}>{editing ? "收起名称与执行步骤" : "编辑名称与执行步骤"}</Button>
+            {editing ? <div id="workflow-edit-fields" className="workflow-edit-fields">
             <label className="workflow-name-field">
-              <span>名称</span>
-              <input value={draft.name || ""} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+              <span>菜单中显示的名称</span>
+              <input value={draft.name || ""} disabled={busy} onChange={(event) => {
+                automaticWorkflowNameRef.current = false;
+                const name = event.target.value;
+                setDraft((current) => ({ ...current, name }));
+              }} />
             </label>
             <label className="workflow-name-field">
-              <span>支持范围</span>
+              <span>可执行场景</span>
               <HtmlSelect value={draft.scope === "single" || draft.scope === "both" ? draft.scope : "batch"} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, scope: event.target.value }))}>
-                <option value="both">单卡和多卡</option>
-                <option value="single">仅单卡</option>
-                <option value="batch">仅多卡</option>
+                <option value="both">单选和多选卡片时</option>
+                <option value="single">仅单选卡片时</option>
+                <option value="batch">仅多选卡片时</option>
               </HtmlSelect>
-              <small className="workflow-options-hint">单卡菜单和多选菜单会按此范围显示工作流。</small>
+              <small className="workflow-options-hint">此设置决定工作流可以处理单张卡片、所选的多张卡片，或两种场景。</small>
             </label>
             <div className="workflow-step-header">
-              <h3>步骤</h3>
-              <span>{draft.steps?.length || 0} 步</span>
+              <h3>执行步骤</h3>
+              <span>按从上到下的顺序执行</span>
             </div>
             <div className="workflow-steps">
               {(draft.steps || []).map((step, index) => (
                 <div className="workflow-step" role="group" aria-label={`第 ${index + 1} 步`} tabIndex={-1} key={`${step.kind || "action"}-${step.actionId || "select"}-${index}`}>
                   <span className="workflow-step-index">{index + 1}</span>
                   <div className="workflow-step-main">
-                    <span className="workflow-step-title">{step.kind === "select" ? `选择：${(step.selector?.types || []).join("、") || "全部评论"} · ${selectorPositionLabel(step.selector?.position)}` : actionTitle(step.actionId)}</span>
-                    {actionDescriptor(step.actionId) ? (
-                      <small className="workflow-step-meta">
-                        范围：{actionDescriptor(step.actionId).scope === "both" ? "单卡/多卡" : actionDescriptor(step.actionId).scope === "single" ? "单卡" : "多卡"}
-                        {actionDescriptor(step.actionId).input === "selection" ? " · 按选择器" : " · 整张卡片"}
-                        {actionDescriptor(step.actionId).dangerous ? " · 危险操作" : " · 只读/安全"}
-                      </small>
-                    ) : null}
+                    <span className="workflow-step-title">{step.kind === "select" ? `筛选评论 · ${selectorPositionLabel(step.selector?.position)}` : actionTitle(step.actionId)}</span>
+                    {step.kind !== "select" && draft.steps.slice(0, index).some((previous) => previous.kind === "select") && actionDescriptor(step.actionId)?.input !== "selection" ? <small className="workflow-warning">前面的评论筛选不会限制此操作；此操作会处理整张卡片。</small> : null}
                     {step.kind === "select" ? (
                       <SelectorEditor selector={step.selector || {}} disabled={busy} onChange={(selector) => updateStep(index, { selector, selectorError: undefined })} />
                     ) : (
-                      <ActionOptionsEditor actionId={step.actionId} descriptor={actionDescriptor(step.actionId)} options={step.options || {}} disabled={busy} onChange={(options) => updateStep(index, { options })} />
+                      actionDescriptor(step.actionId)?.parameterSchema?.length ? <details className="workflow-step-options">
+                        <summary>设置操作参数{Object.keys(step.options || {}).length ? "（已有配置）" : ""}</summary>
+                        <ActionOptionsEditor actionId={step.actionId} descriptor={actionDescriptor(step.actionId)} options={step.options || {}} disabled={busy} onChange={(options) => updateStep(index, { options })} />
+                      </details> : null
                     )}
                   </div>
                   {step.kind === "select" || catalog.some((item) => item.id === step.actionId) ? null : <small className="workflow-missing">缺失动作</small>}
@@ -4248,25 +4418,52 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
                   </div>
                 </div>
               ))}
-              {(draft.steps || []).length === 0 ? <p className="workflow-empty">从下方选择动作开始搭建</p> : null}
+              {(draft.steps || []).length === 0 ? <p className="workflow-empty">选择下方的执行动作。单个动作也可以保存为工作流。</p> : null}
             </div>
             <div className="workflow-add-step">
+              {catalog.some((item) => item.input === "selection") || draft.steps?.some((step) => step.kind === "select") ? <details className="workflow-filter-builder">
+                <summary>只处理部分评论</summary>
+                <p>添加评论筛选后，支持筛选的后续动作会只处理匹配的评论。整张卡片操作不受筛选限制。</p>
               <Button data-workflow-add-selector className="secondary" disabled={busy} onClick={() => {
                 pendingStepFocusRef.current = (draft.steps || []).length;
                 setDraft((current) => ({ ...current, steps: [...(current.steps || []), { kind: "select", selector: { subject: "comments", types: [], includeExcerpt: false, order: "forward" } }] }));
-              }}>添加选择器</Button>
-              <HtmlSelect aria-label="添加工作流动作" value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => setNewActionId(event.target.value)}>
-                <option value="">选择一个动作…</option>
+              }}>添加评论筛选</Button>
+              </details> : null}
+              <HtmlSelect aria-label="添加工作流动作" value={newActionId} disabled={busy || catalog.length === 0} onChange={(event) => {
+                const id = event.target.value;
+                setNewActionId(id);
+                const action = catalog.find((item) => item.id === id);
+                if (action && automaticWorkflowNameRef.current) setDraft((current) => !current.id && current.steps.every((step) => step.kind === "select") ? { ...current, name: action.title } : current);
+              }}>
+                <option value="">选择执行动作…</option>
                 {catalog.filter((item) => item.compatible !== false).map((action) => (
                   <option value={action.id} key={action.id}>
-                    {action.title} · {action.scope === "both" ? "单卡/多卡" : action.scope === "single" ? "单卡" : "多卡"}{action.dangerous ? " · 危险" : " · 安全"}
+                    {action.title}
                   </option>
                 ))}
               </HtmlSelect>
               <Button className="secondary" disabled={busy || !newActionId} onClick={addStep}>添加步骤</Button>
             </div>
-            {draft.missingActions?.length ? <p className="workflow-warning">缺失动作：{draft.missingActions.join(", ")}。安装对应 Patch 后才能运行。</p> : null}
-            {draft.invalidSelectors?.length && hasInvalidSelector ? <p className="workflow-warning">选择器无效：请修正位置索引后再保存或运行。</p> : null}
+            {newActionId ? <p className="workflow-pending-action" role="status">已选择“{actionTitle(newActionId)}”。点击“添加步骤”可继续设置，也可以直接保存。</p> : null}
+            </div> : null}
+            <details key={selectedId || "new"} className="workflow-secondary-actions">
+              <summary>复制、恢复默认配置或删除</summary>
+              {draft.id ? <p className="workflow-options-hint">累计使用 {draft.usageCount || 0} 次。</p> : null}
+              {draft.id ? <Button className="secondary" disabled={busy || !draft.steps?.length} onClick={copyWorkflow} title="复制已保存的名称和步骤，原工作流保持不变" aria-label="复制工作流">复制为新工作流</Button> : null}
+              {templates.length ? <div className="workflow-template-tools">
+                <label className="workflow-name-field"><span>恢复指定的默认工作流</span>
+                  <HtmlSelect aria-label="出厂工作流模板" value={templateId} disabled={busy} onChange={(event) => setTemplateId(event.target.value)}>
+                    <option value="">选择默认工作流</option>
+                    {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                  </HtmlSelect>
+                </label>
+                {selectedTemplate ? <p className="workflow-options-hint">{existingTemplateWorkflow ? `将恢复“${existingTemplateWorkflow.name}”的名称、执行步骤和菜单位置。` : `将重新添加“${selectedTemplate.name}”。`}保存后才会生效，其他工作流不受影响。</p> : null}
+                <Button className="secondary" disabled={busy || !templateId} onClick={restoreTemplate} title="载入默认配置，确认内容后再保存" aria-label="载入出厂模板">载入默认配置</Button>
+              </div> : null}
+              {draft.id ? <Button data-workflow-delete className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
+            </details>
+            {draft.missingActions?.length ? <p className="workflow-warning">部分执行动作不可用：{draft.missingActions.join("、")}。请安装对应扩展，或在执行步骤中替换这些动作。</p> : null}
+            {draft.invalidSelectors?.length && hasInvalidSelector ? <p className="workflow-warning">评论筛选条件无效：请展开名称与执行步骤，修正评论位置后再保存。</p> : null}
           </div>
         </div>
         {workflowFeedback ? (
@@ -4275,10 +4472,9 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
           </p>
         ) : null}
         <div className="dialog-actions workflow-actions">
-          {draft.id ? <Button data-workflow-delete className="danger" disabled={busy} onClick={remove}>删除</Button> : null}
           <span className={hasUnsavedChanges ? "workflow-save-state unsaved" : "workflow-save-state"} aria-live="polite">{draftStatusText}</span>
           <Button className="secondary" onClick={requestWorkflowManagerClose}>关闭</Button>
-          <Button className="primary" disabled={busy || hasInvalidSelector || !draft.name?.trim() || (!(draft.steps || []).length && !newActionId)} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
+          <Button className="primary" disabled={busy || !hasUnsavedChanges || !canSave} onClick={save}>{workflowMutationKind === "save" ? "保存中…" : "保存"}</Button>
         </div>
         {confirmDelete ? (
           <div className="dialog-backdrop workflow-confirm-backdrop" role="presentation" onClick={cancelDeleteConfirmation}>
@@ -4302,7 +4498,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
               }}
             >
               <h2 id="workflow-delete-title">删除工作流？</h2>
-              <p id="workflow-delete-description">确定删除「{draft.name}」吗？删除后无法从工作流菜单中恢复。</p>
+              <p id="workflow-delete-description">“{draft.name}”将从菜单和工作流列表中移除。{draft.templateId ? "默认工作流可以重新添加，但此次定制的内容不会保留。" : "自定义工作流删除后无法恢复；如需暂时停用，可以改为不在菜单中显示。"}</p>
               {hasUnsavedChanges ? <p className="workflow-unsaved-note">当前尚未保存的修改也会一并丢失。</p> : null}
               <div className="dialog-actions">
                 <Button data-workflow-delete-cancel className="secondary" disabled={busy} onClick={cancelDeleteConfirmation}>取消</Button>
@@ -4363,7 +4559,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTa
             >
               <h2 id="workflow-unsaved-title">放弃未保存的更改？</h2>
               <p>{pendingTransitionDescription}</p>
-              <p className="workflow-unsaved-note">名称、支持范围、步骤和动作参数中的未保存修改都将丢失，且无法恢复。</p>
+              <p className="workflow-unsaved-note">名称、支持范围、步骤和动作参数中的未保存修改都将丢失，且无法恢复。菜单展示设置中的未保存修改也会丢失。</p>
               <div className="dialog-actions">
                 <Button data-workflow-unsaved-cancel className="secondary" onClick={cancelPendingDraftTransition}>继续编辑</Button>
                 <Button className="danger" onClick={confirmPendingDraftTransition}>{pendingTransitionConfirmText}</Button>

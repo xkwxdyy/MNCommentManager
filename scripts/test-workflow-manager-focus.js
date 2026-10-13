@@ -222,7 +222,7 @@ const managerEnd = source.indexOf("\nfunction Dialog(", managerStart);
 assert.notStrictEqual(managerStart, -1, "WorkflowManagerDialog must exist");
 assert.notStrictEqual(managerEnd, -1, "WorkflowManagerDialog boundary must exist");
 const manager = source.slice(managerStart, managerEnd);
-assert.ok(manager.startsWith("function WorkflowManagerDialog({ initialCatalog, initialWorkflows, returnFocusTarget, onClose, onStatus })"));
+assert.ok(manager.startsWith("function WorkflowManagerDialog({ initialCatalog, initialWorkflows, initialTemplates, returnFocusTarget, onClose, onStatus })"));
 assert.ok(manager.includes("const workflowManagerRef = useRef(null)"));
 assert.ok(manager.includes("const deleteDialogRef = useRef(null)"));
 assert.ok(manager.includes("const deleteReturnFocusTargetRef = useRef(null)"));

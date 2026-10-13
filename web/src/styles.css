@@ -1941,6 +1941,8 @@ button.pressing {
 
 .workflow-manager-body {
   display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
   grid-template-columns: minmax(160px, 0.34fr) minmax(0, 0.66fr);
   gap: 18px;
   margin-top: 18px;
@@ -1957,6 +1959,7 @@ button.pressing {
 
 .workflow-list {
   display: grid;
+  grid-auto-rows: max-content;
   align-content: start;
   gap: 8px;
   max-height: 470px;
@@ -2004,6 +2007,103 @@ button.pressing {
 .workflow-editor {
   display: grid;
   align-content: start;
+  gap: 12px;
+}
+
+.workflow-overview h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.workflow-overview p,
+.workflow-guide p,
+.workflow-filter-builder p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.workflow-guide {
+  flex: 0 0 auto;
+  max-height: 20vh;
+  max-height: min(140px, 20dvh);
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.workflow-manager summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.workflow-manager summary:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.workflow-edit-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-secondary-actions {
+  border-top: 1px solid var(--border-light);
+}
+
+.workflow-secondary-actions > button,
+.workflow-secondary-actions > div {
+  margin-top: 8px;
+}
+
+.workflow-secondary-actions .workflow-template-tools {
+  display: grid;
+}
+
+.workflow-pending-action {
+  margin: 0;
+  padding: 8px;
+  background: var(--accent-blue-soft);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.workflow-selector-advanced > label,
+.workflow-selector-advanced > div {
+  margin-top: 8px;
+}
+
+@media (max-height: 480px) {
+  .workflow-manager-header p {
+    display: none;
+  }
+}
+
+.workflow-menu-tools,
+.workflow-template-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workflow-template-tools .html-select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.workflow-menu-tools small {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.workflow-menu-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 

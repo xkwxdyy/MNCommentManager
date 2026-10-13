@@ -223,6 +223,7 @@ function loadAddon({
     "DynamicCommentActions",
     "CommentModuleOperations",
     "WebBridgeCommands",
+    "PanelContentBounds",
     "WebPanelController",
     "QuickCommentController",
     "MNCommentManagerAddon",

@@ -164,6 +164,8 @@ assert.strictEqual(
 
 for (const [label, mutate] of [
   ["name", (value) => { value.name = "清理评论（修改）"; }],
+  ["menu visibility", (value) => { value.menu = { single: { position: "hidden", order: 0 } }; }],
+  ["menu order", (value) => { value.menu = { batch: { position: "root", order: 10 } }; }],
   ["scope", (value) => { value.scope = "single"; }],
   ["step order", (value) => { value.steps.reverse(); }],
   ["action id", (value) => { value.steps[1].actionId = "deleteSelectedComments"; }],
@@ -248,7 +250,7 @@ assert.ok(manager.includes("有未保存更改"));
 assert.ok(manager.includes("新工作流尚未保存"));
 
 assert.ok(manager.includes("setSavedDraftSignature(workflowDraftSignature(nextDraft))"), "successful save/delete must establish a new clean baseline");
-assert.ok(manager.includes("setSavedDraftSignature(workflowDraftSignature(next))"), "select/create transitions must establish a new clean baseline");
+assert.ok(manager.includes("setSavedDraftSignature(workflowDraftSignature(cloneWorkflowDraft(baseline)))"), "select/create transitions must establish a new clean baseline");
 const catchStart = manager.indexOf("} catch (error) {", manager.indexOf('MNBridge.send("saveWorkflow"'));
 const catchEnd = manager.indexOf("} finally {", catchStart);
 assert.notStrictEqual(catchStart, -1);

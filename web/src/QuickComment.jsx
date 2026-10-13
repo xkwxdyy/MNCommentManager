@@ -26,12 +26,14 @@ export default function QuickComment() {
   const [viewport, setViewport] = useState({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
   const input = useRef(null), panel = useRef(null), composing = useRef(false), locked = useRef(false);
   const current = useRef(null), alive = useRef(true), closing = useRef(false), submission = useRef(null);
-  const confirmed = useRef(false);
+  const confirmed = useRef(false), keyboardOwned = useRef(false), keyboardFocusMoved = useRef(false);
+  const livePhase = useRef(phase); livePhase.current = phase;
+  const closeLatest = useRef(null); closeLatest.current = close;
   const exitVisual = useRef(false), loadGeneration = useRef(0);
   const presentationRequested = useRef(false);
   const textValue = useRef(''), draftRevision = useRef(0), deliveryGeneration = useRef(0);
   const cursor = useRef(null), allowLineBreak = useRef(false);
-  const waitTimer = useRef(null), animationTimer = useRef(null);
+  const waitTimer = useRef(null), animationTimer = useRef(null), pendingCompositionClose = useRef(null);
   const focus = () => input.current?.focus({ preventScroll: true });
 
   useLayoutEffect(() => {
@@ -61,9 +63,23 @@ export default function QuickComment() {
   useEffect(() => {
     alive.current = true;
     const updateViewport = () => {
-      if (confirmed.current) return; // Keep the flight origin stable while the keyboard closes.
+      if (confirmed.current || closing.current) return; // Keep the origin stable during either exit.
       const v = window.visualViewport;
       setViewport({ top: v?.offsetTop || 0, left: v?.offsetLeft || 0, width: v?.width || window.innerWidth, height: v?.height || window.innerHeight });
+    };
+    const loseWindowFocus = () => { keyboardOwned.current = false; };
+    window.addEventListener('blur', loseWindowFocus);
+    window.__MNQuickCommentKeyboard = event => {
+      if (!alive.current || !current.current || event?.sessionId !== current.current.sessionId || closing.current || confirmed.current) return;
+      if (event.type === 'show') {
+        keyboardOwned.current = document.activeElement === input.current;
+        keyboardFocusMoved.current = false;
+      } else if (event.type === 'hide') {
+        const owned = keyboardOwned.current;
+        keyboardOwned.current = false;
+        if (!owned || keyboardFocusMoved.current || !event.eventId || ['loading', 'saving', 'saved', 'closed'].includes(livePhase.current)) return;
+        closeLatest.current(false, { reason: 'keyboard', eventId: event.eventId, reducedMotion: !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches });
+      }
     };
     window.__MNQuickCommentFocus = focus;
     window.__MNQuickCommentRecoverOpen = () => {
@@ -79,7 +95,10 @@ export default function QuickComment() {
     loadState();
     return () => {
       alive.current = false;
+      pendingCompositionClose.current?.();
       clearTimeout(waitTimer.current); clearTimeout(animationTimer.current);
+      delete window.__MNQuickCommentKeyboard;
+      window.removeEventListener('blur', loseWindowFocus);
       delete window.__MNQuickCommentFocus;
       delete window.__MNQuickCommentRecoverOpen;
       window.removeEventListener('resize', updateViewport);
@@ -111,17 +130,36 @@ export default function QuickComment() {
     return () => element.removeEventListener('beforeinput', beforeInput);
   }, [text, state, phase]);
 
-  async function close(saved = false) {
-    if (closing.current) return;
+  async function close(saved = false, cause = null) {
+    if (closing.current || pendingCompositionClose.current || !saved && locked.current && submission.current && livePhase.current !== 'uncertain') return;
+    if (!saved && composing.current) {
+      try {
+        await new Promise((resolve, reject) => {
+          const element = input.current;
+          const cleanup = () => { clearTimeout(timer); element.removeEventListener('compositionend', ended); };
+          const ended = () => { cleanup(); timer = setTimeout(resolve, 0); };
+          let timer = setTimeout(() => { cleanup(); reject(new Error('中文组词尚未结束，正文已保留，请完成组词后再次关闭')); }, 500);
+          pendingCompositionClose.current = () => { cleanup(); reject(new Error('输入窗口已关闭')); };
+          element.addEventListener('compositionend', ended);
+          element.blur();
+        });
+      } catch (err) {
+        if (alive.current) { change(input.current?.value ?? textValue.current); composing.current = false; setError(messageOf(err)); }
+        return;
+      } finally { pendingCompositionClose.current = null; }
+      if (alive.current && !confirmed.current) closeLatest.current(false, cause);
+      return;
+    }
     const previousPhase = saved ? 'saved' : phase, previousLock = locked.current;
     closing.current = true;
     clearTimeout(animationTimer.current);
     locked.current = true; setPhase('closing');
-    const payload = { sessionId: current.current?.sessionId };
+    const payload = { sessionId: current.current?.sessionId, ...(cause || {}) };
     // An unhydrated page has no authoritative text; Native must keep its draft.
     if (current.current && !saved) {
       const value = composing.current ? input.current?.value ?? textValue.current : textValue.current;
-      if (value !== textValue.current) { textValue.current = value; draftRevision.current += 1; }
+      if (value !== textValue.current) { textValue.current = value; draftRevision.current += 1; setText(value); }
+      composing.current = false;
       payload.text = value; payload.markdown = markdownValue.current; payload.draftRevision = draftRevision.current;
     }
     try {
@@ -196,7 +234,7 @@ export default function QuickComment() {
     } else { locked.current = true; setPhase('uncertain'); setError(result.submission.error || '保存结果待核对，请核对后继续'); }
   }
   async function submit() {
-    if (locked.current || closing.current || !textValue.current.trim() || composing.current || !state) return;
+    if (locked.current || closing.current || pendingCompositionClose.current || !textValue.current.trim() || composing.current || !state) return;
     const expected = { submissionId: ticket(), text: textValue.current, markdown: markdownValue.current, draftRevision: draftRevision.current };
     submission.current = expected;
     await deliver(expected);
@@ -204,7 +242,7 @@ export default function QuickComment() {
   async function deliver(expected) {
     if (closing.current || confirmed.current) return;
     const generation = ++deliveryGeneration.current;
-    locked.current = true; setPhase('saving'); setError('');
+    locked.current = true; livePhase.current = 'saving'; setPhase('saving'); setError('');
     clearTimeout(waitTimer.current);
     waitTimer.current = setTimeout(() => {
       if (alive.current && !closing.current && !confirmed.current && generation === deliveryGeneration.current) { setPhase('uncertain'); setError('保存回执尚未返回，请核对保存结果'); }
@@ -244,6 +282,7 @@ export default function QuickComment() {
   }
   const busy = phase === 'saving' || phase === 'saved' || phase === 'closing';
   return <main className={`quick-overlay ${ready ? 'quick-ready' : ''} ${exitVisual.current && (phase === 'saved' || phase === 'closing' || nativeClosing) ? 'quick-success' : ''} ${!exitVisual.current && (phase === 'closing' || nativeClosing) ? 'quick-paused' : ''} ${phase === 'closed' ? 'quick-closed' : ''} ${nativeClosing ? 'quick-native-close' : ''}`}
+    onPointerDownCapture={event => { keyboardFocusMoved.current = event.target !== input.current; }}
     onPointerDown={event => { if (event.target === event.currentTarget && !busy) { if (!text.trim()) close(); else focus(); } }}>
     <div className="quick-backdrop" aria-hidden="true" />
     <div className="quick-positioner" style={{ top: viewport.top, left: viewport.left, width: viewport.width, height: viewport.height }}>
@@ -263,8 +302,14 @@ export default function QuickComment() {
           <button type="button" className="quick-icon quick-close" aria-label="关闭输入并保留草稿" title="关闭并保留草稿" disabled={busy} onClick={() => close(confirmed.current)}><Icon kind="close" /></button>
         </header>
         <textarea ref={input} value={text} aria-label="评论内容" placeholder="记录此刻的想法…" disabled={!state || locked.current} rows={4}
+          onFocus={() => { keyboardFocusMoved.current = false; }}
+          onBlur={event => { if (event.relatedTarget) keyboardFocusMoved.current = true; }}
           onChange={event => change(event.target.value)} onKeyDown={keyDown}
-          onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
+          onCompositionStart={() => { composing.current = true; }} onCompositionEnd={event => {
+            composing.current = false;
+            // Composition can finish before the final input event reaches React.
+            if (event.currentTarget.value !== textValue.current) change(event.currentTarget.value);
+          }}
           onPaste={event => {
             const value = event.clipboardData.getData('text/plain'); event.preventDefault();
             const element = input.current, start = element.selectionStart;

@@ -1,0 +1,62 @@
+[
+  {
+    "width": 1100,
+    "height": 700,
+    "colorScheme": "light",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 375,
+    "height": 812,
+    "colorScheme": "light",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "colorScheme": "light",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "colorScheme": "light",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "colorScheme": "dark",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 560,
+    "height": 300,
+    "colorScheme": "light",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 375,
+    "height": 240,
+    "colorScheme": "dark",
+    "directed": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "reducedMotion": true,
+    "passed": true
+  }
+]

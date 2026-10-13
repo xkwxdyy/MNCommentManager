@@ -1,7 +1,42 @@
 var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
   const ADDON_ID = "marginnote.extension.mncommentmanager";
   const FILE_NAME = "workflows.json";
+
+  function templates() {
+    const definitions = [
+      ["keepFirstContent", "只保留第一条内容"],
+      ["convertHtmlCommentsToMarkdown", "转换 HTML 为 Markdown"],
+      ["convertNotesToNoExcerpt", "转为非摘录版"],
+      ["removeAllLinkComments", "去掉所有链接"],
+      ["clearInvalidLinks.card", "清除失效卡片链接", "card"],
+      ["clearInvalidLinks.markdown", "清除失效 Markdown 行内链接", "markdown"],
+      ["clearInvalidLinks.all", "清除全部失效链接", "all"],
+      ["clearAllComments", "清空所有评论"],
+      ["clearAllTitles", "清空所有标题"],
+    ];
+    return definitions.map(([id, name, mode], order) => ({
+      id: `builtin.${id}`, name, scope: "both", templateId: `builtin.${id}`,
+      steps: [{ kind: "action", actionId: mode ? "clearInvalidLinks" : id, options: mode ? { mode } : {} }],
+      menu: {
+        single: { position: mode ? "links" : "root", order },
+        batch: { position: mode ? "links" : "root", order },
+      },
+    }));
+  }
+
+  function menuSettings(raw, fallbackOrder) {
+    const result = {};
+    ["single", "batch"].forEach((mode) => {
+      const setting = raw && raw[mode] || {};
+      const order = Number(setting.order);
+      result[mode] = {
+        position: ["root", "submenu", "links", "hidden"].indexOf(setting.position) >= 0 ? setting.position : "submenu",
+        order: setting.order !== null && setting.order !== undefined && Number.isSafeInteger(order) && order >= 0 ? order : fallbackOrder,
+      };
+    });
+    return result;
+  }
 
   function now() {
     return Date.now();
@@ -84,7 +119,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       paths = getFilePath();
       const data = readData(paths.file);
       if (!data && !NSFileManager.defaultManager().fileExistsAtPath(paths.file)) {
-        return { version: SCHEMA_VERSION, workflows: [] };
+        return { version: SCHEMA_VERSION, workflows: templates().map(normalizeWorkflow), needsMigration: true, sourceVersion: 0 };
       }
       const parsed = decodeData(data);
       const version = Number(parsed && parsed.version);
@@ -93,12 +128,18 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
         throw new Error("工作流配置无法读取或版本不受支持，已保留原文件，请恢复配置后再试");
       }
       const workflows = parsed.workflows.map(normalizeWorkflow);
-      if (forWrite && workflows.some((workflow, index) => !workflow || workflow.steps.length !== parsed.workflows[index].steps.length)) {
+      if (forWrite && (workflows.some((workflow, index) => !workflow || workflow.steps.length !== parsed.workflows[index].steps.length) ||
+        new Set(workflows.map((workflow) => workflow && workflow.id)).size !== workflows.length)) {
         throw new Error("工作流配置包含无法识别的记录，已保留原文件，请修复配置后再试");
       }
+      const legacy = version < SCHEMA_VERSION;
+      const ordered = legacy ? sortLegacyForMenu(workflows.filter(Boolean)) : workflows.filter(Boolean);
+      if (legacy) ordered.forEach((workflow, index) => { workflow.menu = menuSettings(null, templates().length + index); });
       return {
         version: SCHEMA_VERSION,
-        workflows: workflows.filter(Boolean),
+        workflows: legacy ? templates().filter((template) => !ordered.some((workflow) => workflow.id === template.id)).map(normalizeWorkflow).concat(ordered) : ordered,
+        needsMigration: legacy,
+        sourceVersion: version,
       };
     } catch (error) {
       console.log(`[MN Comment Manager] load workflows failed: ${error && error.message ? error.message : error}`);
@@ -115,6 +156,34 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       throw new Error("无法保存工作流配置");
     }
     return true;
+  }
+
+  function readManagedDocument() {
+    const document = readDocument(true);
+    if (!document.needsMigration) return document;
+    const paths = getFilePath();
+    if (!ensureDirectory(paths.root)) throw new Error("无法创建工作流配置目录");
+    if (document.sourceVersion) {
+      let backup = `${paths.root}/workflows-v${document.sourceVersion}-before-menu-migration.json`;
+      const original = readData(paths.file);
+      if (!original) throw new Error("工作流迁移备份失败，原配置已保留");
+      if (NSFileManager.defaultManager().fileExistsAtPath(backup) &&
+        JSON.stringify(canonicalValue(decodeData(readData(backup)))) !== JSON.stringify(canonicalValue(decodeData(original)))) {
+        backup = `${paths.root}/workflows-v${document.sourceVersion}-before-menu-migration-${generateId()}.json`;
+      }
+      if (!NSFileManager.defaultManager().fileExistsAtPath(backup)) {
+        if (!original || !original.writeToFileAtomically(backup, true)) throw new Error("工作流迁移备份失败，原配置已保留");
+        if (JSON.stringify(canonicalValue(decodeData(readData(backup)))) !== JSON.stringify(canonicalValue(decodeData(original)))) {
+          throw new Error("工作流迁移备份未通过回读校验，原配置已保留");
+        }
+      }
+    }
+    writeDocument(document.workflows);
+    const stored = readDocument(true);
+    if (stored.needsMigration || JSON.stringify(canonicalValue(stored.workflows)) !== JSON.stringify(canonicalValue(document.workflows))) {
+      throw new Error("工作流迁移结果未通过回读校验，请从备份恢复配置");
+    }
+    return stored;
   }
 
   function normalizeScope(scope) {
@@ -199,6 +268,8 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       id,
       name: name.slice(0, 120),
       scope: normalizeScope(raw.scope),
+      templateId: templates().some((item) => item.id === raw.templateId) ? raw.templateId : "",
+      menu: menuSettings(raw.menu, 0),
       steps,
       invalidSelectors,
       usageCount: Math.max(0, Number(raw.usageCount) || 0),
@@ -209,31 +280,58 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   }
 
   function validate(raw) {
+    if (raw && raw.menu !== undefined) {
+      if (!raw.menu || typeof raw.menu !== "object" || Array.isArray(raw.menu)) return { valid: false, errors: ["菜单配置无效"] };
+      for (const mode of ["single", "batch"]) {
+        const setting = raw.menu[mode];
+        if (setting === undefined) continue;
+        if (!setting || typeof setting !== "object" || Array.isArray(setting) ||
+          ["root", "submenu", "links", "hidden"].indexOf(setting.position) < 0 ||
+          (setting.order !== undefined && setting.order !== null && (!Number.isSafeInteger(setting.order) || setting.order < 0))) {
+          return { valid: false, errors: ["菜单展示位置或顺序无效"] };
+        }
+      }
+    }
     const workflow = normalizeWorkflow(raw);
     if (!workflow) return { valid: false, errors: ["工作流必须包含名称和至少一个动作"] };
     if (workflow.steps.length !== raw.steps.length) return { valid: false, errors: ["工作流包含空动作或无效步骤，草稿已保留，请修正后保存"] };
     if (workflow.invalidSelectors && workflow.invalidSelectors.length > 0) {
       return { valid: false, errors: workflow.invalidSelectors.map((item) => `第 ${item.step + 1} 个选择步骤无效：${item.message}`) };
     }
+    if (!workflow.steps.some((step) => step.kind === "action" && step.actionId)) {
+      return { valid: false, errors: ["请至少添加一个执行动作；评论筛选条件不能单独运行"] };
+    }
     return { valid: true, errors: [], workflow };
   }
 
   function list() {
-    return readDocument().workflows.slice();
+    try { return sortForMenu(readManagedDocument().workflows); }
+    catch (error) { console.log(`[MN Comment Manager] load workflows failed: ${error}`); return []; }
   }
 
   function save(raw) {
     const validation = validate(raw);
     if (!validation.valid) throw new Error(validation.errors[0]);
     const next = validation.workflow;
-    const document = readDocument(true);
+    const document = readManagedDocument();
     const index = document.workflows.findIndex((item) => item.id === next.id);
     if (index >= 0) {
       next.createdAt = document.workflows[index].createdAt;
       next.usageCount = document.workflows[index].usageCount;
       next.lastUsedAt = document.workflows[index].lastUsedAt;
+      next.templateId = document.workflows[index].templateId;
+      if (!raw.menu) next.menu = document.workflows[index].menu;
+      else ["single", "batch"].forEach((mode) => {
+        if (!raw.menu[mode]) next.menu[mode] = document.workflows[index].menu[mode];
+        else if (raw.menu[mode].order === undefined || raw.menu[mode].order === null) next.menu[mode].order = document.workflows[index].menu[mode].order;
+      });
       document.workflows[index] = next;
     } else {
+      ["single", "batch"].forEach((mode) => {
+        if (!raw.menu || raw.menu[mode]?.order === undefined || raw.menu[mode]?.order === null) {
+          next.menu[mode].order = document.workflows.reduce((max, item) => Math.max(max, item.menu[mode].order), -1) + 1;
+        }
+      });
       document.workflows.push(next);
     }
     writeDocument(document.workflows);
@@ -265,14 +363,15 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
   function remove(id) {
     const normalizedId = stringValue(id).trim();
     if (!normalizedId) return false;
-    const document = readDocument(true);
+    const document = readManagedDocument();
     const next = document.workflows.filter((item) => item.id !== normalizedId);
     if (next.length === document.workflows.length) return false;
     writeDocument(next);
+    if (readDocument(true).workflows.some((item) => item.id === normalizedId)) throw new Error("工作流删除结果未通过回读校验");
     return true;
   }
 
-  function sortForMenu(workflows) {
+  function sortLegacyForMenu(workflows) {
     return (Array.isArray(workflows) ? workflows.slice() : []).sort((left, right) => (
       (Number(right.usageCount) || 0) - (Number(left.usageCount) || 0) ||
       (Number(right.lastUsedAt) || 0) - (Number(left.lastUsedAt) || 0) ||
@@ -281,10 +380,32 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
     ));
   }
 
+  function sortForMenu(workflows, mode) {
+    const key = mode === "batch" ? "batch" : "single";
+    return (Array.isArray(workflows) ? workflows.slice() : []).sort((left, right) => (
+      menuSettings(left.menu, 0)[key].order - menuSettings(right.menu, 0)[key].order || String(left.id).localeCompare(String(right.id))
+    ));
+  }
+
+  function reorder(mode, ids, expectedIds) {
+    if (mode !== "single" && mode !== "batch") throw new Error("菜单范围无效");
+    const document = readManagedDocument();
+    const currentIds = sortForMenu(document.workflows, mode).map((item) => item.id);
+    if (!Array.isArray(ids) || ids.length !== currentIds.length || new Set(ids).size !== ids.length || ids.some((id) => currentIds.indexOf(id) < 0)) {
+      throw new Error("工作流列表已变化，请重新打开管理器后排序");
+    }
+    if (JSON.stringify(currentIds) !== JSON.stringify(expectedIds)) throw new Error("菜单顺序已变化，请重新打开管理器后排序");
+    document.workflows.forEach((item) => { item.menu[mode].order = ids.indexOf(item.id); });
+    writeDocument(document.workflows);
+    const stored = readDocument(true).workflows;
+    if (JSON.stringify(sortForMenu(stored, mode).map((item) => item.id)) !== JSON.stringify(ids)) throw new Error("菜单排序结果未通过回读校验");
+    return sortForMenu(stored);
+  }
+
   function recordUsage(id) {
     const normalizedId = stringValue(id).trim();
     if (!normalizedId) return null;
-    const document = readDocument(true);
+    const document = readManagedDocument();
     const index = document.workflows.findIndex((item) => item.id === normalizedId);
     if (index < 0) return null;
     const workflow = document.workflows[index];
@@ -297,12 +418,16 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
 
   return {
     schemaVersion: SCHEMA_VERSION,
-    list: () => sortForMenu(readDocument().workflows),
+    list,
     get: (id) => list().find((item) => item.id === stringValue(id).trim()) || null,
     save,
     remove,
     recordUsage,
     sortForMenu,
+    menuSettings,
+    templates,
+    reorder,
+    listStrict: () => sortForMenu(readManagedDocument().workflows),
     validate,
     path: getFilePath,
   };

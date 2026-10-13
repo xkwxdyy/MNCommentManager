@@ -36,7 +36,7 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); delete globalThis.IS_REACT_ACT_ENVIRONMENT; });
 
 it.each(catalog.map(({ id }) => id))("saves a selected pending action and restores it when reopening: %s", async (id) => {
-  await click(button("添加选择器"));
+  await click(button("添加评论筛选"));
   await choose(id);
   await click(button("保存"));
   expect(saved.steps).toEqual([expect.objectContaining({ kind: "select" }), { kind: "action", actionId: id, options: {} }]);
@@ -44,6 +44,7 @@ it.each(catalog.map(({ id }) => id))("saves a selected pending action and restor
   await click(button("关闭"));
   expect(host.querySelector(".workflow-manager")).toBeNull();
   await click(button("工作流"));
+  await click(host.querySelector("[data-workflow-edit-toggle]"));
   expect(host.querySelectorAll(".workflow-step")).toHaveLength(2);
   expect(host.querySelectorAll(".workflow-step-title")[1].textContent).toBe(catalog.find((item) => item.id === id).title);
 });
@@ -66,7 +67,7 @@ it("protects a pending action from being discarded on close", async () => {
 });
 
 it("preserves the pending action and draft if the receipt replaces its action ID", async () => {
-  await click(button("添加选择器")); await choose("foldSelectedComments");
+  await click(button("添加评论筛选")); await choose("foldSelectedComments");
   const send = MNBridge.send.getMockImplementation();
   MNBridge.send.mockImplementation(async (command, payload) => command === "saveWorkflow"
     ? { ...payload, id: "fold-workflow", steps: payload.steps.map((step) => step.kind === "action" ? { ...step, actionId: "unfoldSelectedComments" } : step) }
@@ -74,4 +75,24 @@ it("preserves the pending action and draft if the receipt replaces its action ID
   await click(button("保存"));
   expect(host.querySelector(".workflow-feedback.error").textContent).toContain("保存结果未确认");
   expect(host.querySelector('[aria-label="添加工作流动作"]').textContent).toContain("折叠选中的批注");
+});
+
+it('does not allow saving a workflow that only filters comments', async () => {
+  await click(button('添加评论筛选'));
+  expect(button('保存').disabled).toBe(true);
+  expect(MNBridge.send.mock.calls.some(([command]) => command === 'saveWorkflow')).toBe(false);
+  expect(host.querySelector('.workflow-selector-advanced').open).toBe(false);
+});
+it('keeps basic type filtering visible and discloses advanced conditions only when expanded', async () => {
+  const builder = host.querySelector('.workflow-filter-builder');
+  expect(builder.open).toBe(false);
+  await click(builder.querySelector('summary'));
+  expect(builder.open).toBe(true);
+  await click(button('添加评论筛选'));
+  expect(host.querySelector('.comment-type-selector')).not.toBeNull();
+  const advanced = host.querySelector('.workflow-selector-advanced');
+  expect(advanced.open).toBe(false);
+  await click(advanced.querySelector('summary'));
+  expect(advanced.open).toBe(true);
+  expect(advanced.textContent).toContain('评论位置从 0 开始');
 });

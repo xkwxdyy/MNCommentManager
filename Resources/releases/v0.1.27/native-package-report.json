@@ -1,0 +1,30 @@
+[
+  {
+    "test": "test-quick-comment.js",
+    "passed": true
+  },
+  {
+    "test": "test-quick-comment-keyboard.js",
+    "passed": true
+  },
+  {
+    "test": "test-quick-comment-keyboard-safety.js",
+    "passed": true
+  },
+  {
+    "test": "test-quick-comment-window-placement.js",
+    "passed": true
+  },
+  {
+    "test": "test-quick-comment-top-chrome.js",
+    "passed": true
+  },
+  {
+    "test": "test-panel-top-chrome.js",
+    "passed": true
+  },
+  {
+    "test": "test-quick-comment-transitions.js",
+    "passed": true
+  }
+]

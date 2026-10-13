@@ -40,3 +40,5 @@
 - 实现与本次验证结果见 [事实.md](事实.md)；MarginNote 真机验收见 [待办.md](待办.md)。
 
 - 提交/发版 Skill（2026-10-01）：Claude 项目技能已适配到 `.agents/skills/git-commit-changelog/` 与 `.agents/skills/mn-release/`；迁移及复验见 [事实.md](事实.md)，完整 0.1.23 发版已完成，待真机验收与 123 网盘手动上传见 [待办.md](待办.md)。
+
+- 2026-10-13｜v0.1.27已准备发布：隔离工作区整合可编辑默认工作流、键盘收起与草稿安全、MN5顶部胶囊避让；前端247项、Node脚本63个、最终包原生与网页交互通过。MN5显示有用户初步确认，完整设备验收保留。见 Resources/releases/v0.1.27.md。

@@ -1,0 +1,254 @@
+[
+  {
+    "script": "scripts/test-action-button-settings-dialog.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-comment-selection-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-no-excerpt-conversion.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-operation-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-recording-close-guard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-recording-save.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-batch-workflow-partial-result.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-bridge-error-correlation.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-bridge-request-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-action-settings.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-batch-editor.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-edit-refresh.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-fold.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-modules.mjs",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-move-refresh.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-quick-action-touch-target.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-selection-geometry.mjs",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-workflow-menu.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-workflow-preview.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-workflow-registry.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-workflow-runner.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-comment-workflow-store.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-dynamic-comment-actions.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-edit-dialog-focus.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-edit-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-extra-narrow-action-order.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-handwriting-preview.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-html-conversion-fidelity.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-html-conversion-integrity.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-inline-merge-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-invalid-link-cleanup-dialog.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-invalid-link-cleanup.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-link-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-main-command-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-main-delete-button-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-main-shell-dark-narrow-layout.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-main-workspace-extra-narrow-layout.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-markdown-link-edit-dialog-focus.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-markdown-link-edit-dialog-recovery.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-markdown-link-quick-actions-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-merged-markdown.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-panel-top-chrome.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment-keyboard-safety.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment-keyboard.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment-top-chrome.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment-transitions.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment-window-placement.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-quick-comment.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-responsive-action-order.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-runtime-dependency-isolation.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-selection-main-state.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-single-workflow-menu.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-text-dialog-confirmation-focus.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-undo-helper.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-update-manifest.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-web-entry-release-hygiene.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-manager-delete-ui.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-manager-focus.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-manager-native-entry.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-manager-unsaved-draft.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-mutation-lifecycle.js",
+    "passed": true
+  },
+  {
+    "script": "scripts/test-workflow-parameters.js",
+    "passed": true
+  }
+]

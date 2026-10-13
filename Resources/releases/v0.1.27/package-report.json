@@ -1,0 +1,17 @@
+{
+  "version": "0.1.27",
+  "package": "/Users/xiakangwei/.codex/worktrees/release-v0-1-27/mncommentmanager/mn-comment-manager-v0.1.27.mnaddon",
+  "sha256": "936ec0439161688406ce5bdd20632f0c46c31261789ca71352451b2e8e704887",
+  "size": 660719,
+  "files": 36,
+  "zipIntegrity": true,
+  "javascriptSyntax": true,
+  "downloadManifestUnchanged": true,
+  "frontendPassed": 247,
+  "firstMN5VisibilityUserConfirmed": true,
+  "fullDeviceAcceptance": false,
+  "downloadManifestSHA256": "602c0786c2d267edc1232e5161122dc62d130685ddea755fdfd507509ef76712",
+  "finalRebuildChangedOnlyDownloadManifest": true,
+  "nodeScriptsPassed": 63,
+  "packedNativeScriptsPassed": 7
+}

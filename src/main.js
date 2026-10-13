@@ -17,6 +17,7 @@ JSB.require("BatchCommentActions");
 JSB.require("DynamicCommentActions");
 JSB.require("CommentModuleOperations");
 JSB.require("WebBridgeCommands");
+JSB.require("PanelContentBounds");
 JSB.require("WebPanelController");
 JSB.require("QuickCommentController");
 JSB.require("MNCommentManagerAddon");

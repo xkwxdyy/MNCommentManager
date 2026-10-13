@@ -1,0 +1,114 @@
+[
+  {
+    "width": 1200,
+    "height": 700,
+    "colorScheme": "light",
+    "layout": {
+      "left": 190,
+      "top": 20,
+      "right": 1010,
+      "bottom": 680,
+      "saveTop": 623,
+      "saveBottom": 657,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 985,
+    "height": 600,
+    "colorScheme": "light",
+    "layout": {
+      "left": 82.5,
+      "top": 20,
+      "right": 902.5,
+      "bottom": 580,
+      "saveTop": 523,
+      "saveBottom": 557,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 600,
+    "height": 480,
+    "colorScheme": "light",
+    "layout": {
+      "left": 20,
+      "top": 10,
+      "right": 580,
+      "bottom": 470,
+      "saveTop": 409,
+      "saveBottom": 453,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 600,
+    "height": 360,
+    "colorScheme": "light",
+    "layout": {
+      "left": 20,
+      "top": 10,
+      "right": 580,
+      "bottom": 350,
+      "saveTop": 289,
+      "saveBottom": 333,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 375,
+    "height": 480,
+    "colorScheme": "light",
+    "layout": {
+      "left": 20,
+      "top": 10,
+      "right": 355,
+      "bottom": 470,
+      "saveTop": 409,
+      "saveBottom": 453,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 320,
+    "height": 360,
+    "colorScheme": "light",
+    "layout": {
+      "left": 20,
+      "top": 10,
+      "right": 300,
+      "bottom": 350,
+      "saveTop": 289,
+      "saveBottom": 333,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "colorScheme": "dark",
+    "layout": {
+      "left": 102,
+      "top": 27.421875,
+      "right": 922,
+      "bottom": 740.5625,
+      "saveTop": 683.5625,
+      "saveBottom": 717.5625,
+      "overflow": false
+    },
+    "errors": [],
+    "passed": true
+  }
+]

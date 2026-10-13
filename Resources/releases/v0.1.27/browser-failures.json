@@ -1,0 +1,48 @@
+[
+  {
+    "scenario": "not-delivered-same-id-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": false
+  },
+  {
+    "scenario": "saved-reply-lost-same-id-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": false
+  },
+  {
+    "scenario": "not-delivered-same-id-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": true
+  },
+  {
+    "scenario": "saved-reply-lost-same-id-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": true
+  },
+  {
+    "scenario": "partial-write-save-failure-check-and-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": false
+  },
+  {
+    "scenario": "partial-write-save-failure-check-and-retry",
+    "passed": true,
+    "addedComments": 1,
+    "markdown": true
+  },
+  {
+    "scenario": "close-snapshot-survives-delayed-draft-writes-and-reopen",
+    "passed": true,
+    "addedComments": 0
+  },
+  {
+    "scenario": "remember-mode-after-save-across-cards-and-webview-reload",
+    "passed": true,
+    "addedComments": 2
+  }
+]

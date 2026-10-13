@@ -77,6 +77,11 @@ const context = {
 };
 context.globalThis = context;
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowStore.js"), "utf8"), context);
+const templates = context.__MN_COMMENT_WORKFLOW_STORE__.templates();
+context.__MN_COMMENT_WORKFLOW_STORE__.list = () => templates;
+context.__MN_COMMENT_WORKFLOW_REGISTRY__ = { getCatalog: () => [], getPresets: () => [], getAction: (id) => ({ id }) };
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowMenu.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "DynamicCommentActions.js"), "utf8"), context);
 
 (async function run() {
@@ -116,35 +121,21 @@ assert.strictEqual(actions.openMenu(addon, addon.dynamicCommentButton), true);
 assert.strictEqual(addon.dynamicCommentMenuPopoverController.commandTable.length, 9);
 assert.deepStrictEqual(
   Array.from(addon.dynamicCommentMenuPopoverController.commandTable, (item) => String(item.selector)),
-  [
-    "noopBatchCommentAction:",
-    "runSingleKeepFirstContent:",
-    "runSingleConvertHtmlToMarkdown:",
-    "runSingleConvertToNoExcerpt:",
-    "runSingleRemoveAllLinks:",
-    "openSingleInvalidLinkMenu:",
-    "openSingleWorkflows:",
-    "runSingleClearAllComments:",
-    "runSingleClearAllTitles:",
-  ],
-);
-assert.deepStrictEqual(
-  Array.from(addon.dynamicCommentMenuPopoverController.commandTable.slice(3), (item) => String(item.title).trim()),
-  ["转为非摘录版", "去掉链接评论", "清除失效链接 ➡️", "工作流 ➡️", "清空评论", "清空标题"],
-  "single-card menu labels must use single-card semantics",
+  ["noopBatchCommentAction:", "runSingleWorkflow:", "runSingleWorkflow:", "runSingleWorkflow:", "runSingleWorkflow:",
+    "openSingleWorkflows:", "runSingleWorkflow:", "runSingleWorkflow:", "openWorkflowManager:"],
 );
 assert.strictEqual(addon.dynamicCommentMenuPopoverController.delegate, addon);
-const invalidLinkParent = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "openSingleInvalidLinkMenu:");
+const invalidLinkParent = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.param?.section === "links");
 assert(invalidLinkParent);
-assert.strictEqual(actions.openSingleInvalidLinkMenu(addon, invalidLinkParent), true);
+assert.strictEqual(actions.openSingleWorkflows(addon, invalidLinkParent), true);
 assert.deepStrictEqual(
   Array.from(addon.dynamicCommentMenuPopoverController.commandTable, (item) => String(item.selector)),
-  ["backSingleInvalidLinkMenu:", "runSingleClearInvalidLinks:", "runSingleClearInvalidLinks:", "runSingleClearInvalidLinks:"],
+  ["backSingleWorkflowMenu:", "runSingleWorkflow:", "runSingleWorkflow:", "runSingleWorkflow:", "openWorkflowManager:"],
 );
-assert.strictEqual(actions.backSingleInvalidLinkMenu(addon), true);
-const conversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "runSingleConvertToNoExcerpt:");
+assert.strictEqual(actions.backSingleWorkflowMenu(addon), true);
+const conversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.param?.workflow?.steps[0]?.actionId === "convertNotesToNoExcerpt");
 assert(conversionItem);
-assert.strictEqual(conversionItem.param, "single-note");
+assert.strictEqual(conversionItem.param.noteId, "single-note");
 assert.strictEqual(actions.consumeTapSuppression(addon), true);
 assert.strictEqual(actions.consumeTapSuppression(addon), false);
 const firstSingleCardPopover = addon.dynamicCommentMenuPopoverController;
@@ -173,7 +164,7 @@ actionContracts.forEach(([, mutationName]) => {
     return { total: notes.length, changed: notes.length, mutationName };
   };
 });
-const activeConversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.selector === "runSingleConvertToNoExcerpt:");
+const activeConversionItem = addon.dynamicCommentMenuPopoverController.commandTable.find((item) => item.param?.workflow?.steps[0]?.actionId === "convertNotesToNoExcerpt");
 const activeSingleCardPopover = addon.dynamicCommentMenuPopoverController;
 const conversionResult = await actions.runConvertToNoExcerpt(addon, activeConversionItem.param);
 assert.deepStrictEqual(activeSingleCardPopover.dismissCalls, [true], "selecting an item must dismiss the native popover");

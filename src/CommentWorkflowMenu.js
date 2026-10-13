@@ -59,93 +59,80 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
     };
   }
 
-  function getSavedEntries() {
-    return __MN_COMMENT_WORKFLOW_STORE__.list()
-      .filter((workflow) => {
-        const scope = String(workflow && workflow.scope || "batch").toLowerCase();
-        return scope === "batch" || scope === "both";
-      })
-      .map((workflow) => decorate("workflow", workflow, workflow.name));
+  function getSavedEntries(mode) {
+    const workflows = __MN_COMMENT_WORKFLOW_STORE__.list();
+    const sorted = typeof __MN_COMMENT_WORKFLOW_STORE__.sortForMenu === "function"
+      ? __MN_COMMENT_WORKFLOW_STORE__.sortForMenu(workflows, mode) : workflows;
+    return sorted.filter((workflow) => {
+      const scope = text(workflow.scope || "batch").toLowerCase();
+      return (scope === mode || scope === "both") && (workflow.steps || []).every((step) => {
+        if (step.kind === "select") return true;
+        const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
+        return !action || !action.scope || action.scope === "both" || action.scope === mode;
+      });
+    }).map((workflow) => decorate("workflow", workflow, workflow.name));
   }
 
-  function getExtensionEntries() {
-    const actions = __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog("batch")
+  function getExtensionEntries(mode) {
+    const actions = __MN_COMMENT_WORKFLOW_REGISTRY__.getCatalog(mode)
       .filter((action) => action && action.builtin !== true && action.compatible !== false)
       .map((action) => decorate("action", {
-        id: `action:${action.id}`,
-        name: action.title,
-        scope: action.scope,
+        id: `action:${action.id}`, name: action.title, scope: action.scope,
         steps: [{ actionId: action.id, options: {} }],
       }, action.title));
-    const presets = __MN_COMMENT_WORKFLOW_REGISTRY__.getPresets("batch")
+    const presets = __MN_COMMENT_WORKFLOW_REGISTRY__.getPresets(mode)
       .map((preset) => decorate("preset", preset, preset.title));
     return actions.concat(presets);
   }
 
-  function getEntries(section) {
-    return section === "extension" ? getExtensionEntries() : getSavedEntries();
+  function setting(entry, mode) {
+    return entry.workflow.menu && entry.workflow.menu[mode] || { position: "submenu", order: 0 };
   }
 
-  function buildRootItems(addon, context) {
-    const count = context && Array.isArray(context.notes) ? context.notes.length : 0;
-    const token = context && context.token ? context.token : "";
-    const savedEntries = getSavedEntries();
-    const extensionEntries = getExtensionEntries();
-    const items = [
-      item(addon, "── 评论批处理 ──", "noopBatchCommentAction:"),
-      item(addon, `  只保留第一条内容（${count} 张）`, "runBatchKeepFirstContent:", { token }),
-      item(addon, `  转换 HTML 为 Markdown（${count} 张）`, "runBatchConvertHtmlToMarkdown:", { token }),
-      item(addon, `  转为非摘录版（${count} 张）`, "runBatchConvertToNoExcerpt:", { token }),
-      item(addon, `  去掉所有链接（${count} 张）`, "runBatchRemoveAllLinks:", { token }),
-      item(addon, `  清除失效链接 ➡️`, "openBatchInvalidLinkMenu:", { token }),
-      item(addon, `  清空所有评论（${count} 张）`, "runBatchClearAllComments:", { token }),
-      item(addon, `  清空所有标题（${count} 张）`, "runBatchClearAllTitles:", { token }),
-    ];
-    if (savedEntries.length > 0) {
-      items.push(item(addon, `  已保存工作流（${savedEntries.length}） ➡️`, "openBatchWorkflows:", {
-        token,
-        section: "saved",
-      }));
-    }
-    if (extensionEntries.length > 0) {
-      items.push(item(addon, `  扩展动作（${extensionEntries.length}） ➡️`, "openBatchWorkflows:", {
-        token,
-        section: "extension",
-      }));
-    }
-    return items;
+  function workflowItem(addon, entry, context, mode) {
+    const unavailable = entry.missingActions.length > 0 || entry.invalidSelectors.length > 0;
+    const label = entry.missingActions.length > 0 ? "缺少动作" : "选择器无效";
+    return item(addon, `  ${entry.title}${unavailable ? `（${label}）` : ""}`,
+      mode === "single" ? (unavailable ? "showSingleWorkflowMissing:" : "runSingleWorkflow:")
+        : (unavailable ? "showWorkflowMissing:" : "runBatchWorkflow:"), {
+        workflowId: entry.kind === "workflow" ? entry.id : "", workflow: entry.workflow,
+        token: context && context.token || "", noteId: context && context.noteId || "", mode,
+        missingActions: entry.missingActions, invalidSelectors: entry.invalidSelectors,
+      });
   }
 
-  function buildWorkflowItems(addon, context) {
-    const section = context && context.workflowMenuSection === "extension" ? "extension" : "saved";
-    const entries = getEntries(section);
-    const token = context && context.token ? context.token : "";
-    const items = [item(addon, "↩ 返回评论批处理", "backWorkflowMenu:")];
-    if (section === "extension") items.push(item(addon, "── Patch 动作与预设 ──", "noopBatchCommentAction:"));
-    entries.forEach((entry) => {
-      const noteCount = context && Array.isArray(context.notes) ? context.notes.length : 0;
-      const unavailable = entry.missingActions.length > 0 || entry.invalidSelectors.length > 0;
-      const unavailableLabel = entry.missingActions.length > 0 ? "缺少动作" : "选择器无效";
-      items.push(item(
-        addon,
-        `  ${entry.title}${unavailable ? `（${unavailableLabel}）` : `（${noteCount} 张 · ${entry.workflow.usageCount || 0} 次）`}`,
-        unavailable ? "showWorkflowMissing:" : "runBatchWorkflow:",
-        {
-          workflowId: entry.kind === "workflow" ? entry.id : "",
-          // Pass the same normalized snapshot that was used to render the
-          // menu. This avoids a menu/runner scope mismatch caused by a second
-          // read of legacy workflow data at click time.
-          workflow: entry.workflow,
-          token,
-          missingActions: entry.missingActions,
-          invalidSelectors: entry.invalidSelectors,
-        },
+  function buildItems(addon, context, mode, section) {
+    const entries = getSavedEntries(mode);
+    const extensions = getExtensionEntries(mode);
+    const openSelector = mode === "single" ? "openSingleWorkflows:" : "openBatchWorkflows:";
+    const param = { token: context && context.token || "", noteId: context && context.noteId || "" };
+    const items = [];
+    if (!section || section === "root") {
+      items.push(item(addon, mode === "single" ? "── 单选处理 ──" : "── 评论批处理 ──", "noopBatchCommentAction:"));
+      const root = entries.filter((entry) => setting(entry, mode).position === "root")
+        .map((entry) => ({ order: setting(entry, mode).order, item: workflowItem(addon, entry, context, mode) }));
+      const links = entries.filter((entry) => setting(entry, mode).position === "links");
+      if (links.length) root.push({ order: setting(links[0], mode).order,
+        item: item(addon, "  清除失效链接 ➡️", openSelector, Object.assign({}, param, { section: "links" })) });
+      root.sort((left, right) => left.order - right.order).forEach((entry) => items.push(entry.item));
+      if (entries.some((entry) => setting(entry, mode).position === "submenu")) {
+        items.push(item(addon, "  工作流 ➡️", openSelector, Object.assign({}, param, { section: "saved" })));
+      }
+      if (extensions.length) items.push(item(addon, "  扩展动作 ➡️", openSelector, Object.assign({}, param, { section: "extension" })));
+    } else {
+      items.push(item(addon, mode === "single" ? "↩ 返回单选处理" : "↩ 返回评论批处理",
+        mode === "single" ? "backSingleWorkflowMenu:" : "backWorkflowMenu:"));
+      const selected = section === "extension" ? extensions : entries.filter((entry) => (
+        setting(entry, mode).position === (section === "links" ? "links" : "submenu")
       ));
-    });
-    items.push(item(addon, "── 工作流管理 ──", "noopBatchCommentAction:"));
+      selected.forEach((entry) => items.push(workflowItem(addon, entry, context, mode)));
+    }
     items.push(item(addon, "  打开工作流管理器", "openWorkflowManager:"));
     return items;
   }
+
+  function buildRootItems(addon, context) { return buildItems(addon, context, "batch", "root"); }
+  function buildWorkflowItems(addon, context) { return buildItems(addon, context, "batch", context.workflowMenuSection || "saved"); }
 
   function openBatchMenu(addon, button, context) {
     if (!addon) return false;
@@ -173,7 +160,7 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
       position: 0,
     });
     const submenuContext = Object.assign({}, context, {
-      workflowMenuSection: param.section === "extension" ? "extension" : "saved",
+      workflowMenuSection: param.section === "extension" || param.section === "links" ? param.section : "saved",
     });
     return !!present(addon, addon.batchCommentButton, buildWorkflowItems(addon, submenuContext), 320, 0);
   }
@@ -208,7 +195,7 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
 
   function openWorkflowManager(addon) {
     if (!addon || !addon.webController) throw new Error("评论管理器尚未初始化");
-    __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController);
+    __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController, { requestedView: "workflow" });
     if (typeof addon.layoutViewController === "function") addon.layoutViewController();
     return true;
   }
@@ -233,5 +220,6 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
       return false;
     },
     buildRootItems,
+    buildItems,
   };
 })();

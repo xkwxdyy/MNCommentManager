@@ -67,6 +67,20 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       });
     });
     __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
+      id: "clearInvalidLinks", title: "清除失效链接", scope: "both", dangerous: true,
+      parameterSchema: [{ key: "mode", type: "enum", label: "清理范围", default: "card", choices: [
+        { value: "card", label: "纯卡片链接" }, { value: "markdown", label: "Markdown 行内链接" },
+        { value: "all", label: "全部失效链接" },
+      ] }],
+      run(context, options) {
+        const opts = Object.assign({}, options, { allowSingle: context.mode === "single" });
+        const preview = __MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes(context.notes, opts);
+        const signature = context.cleanupPreviewSignatures && context.cleanupPreviewSignatures[context.workflowStep];
+        const earlierMutation = context.workflowStep > 0 && context.workflowSteps.slice(0, context.workflowStep).some((step) => step.kind !== "select");
+        return __MN_COMMENT_MUTATIONS__.clearInvalidLinksForNotes(context.notes, Object.assign(opts, { expectedSignature: signature && !earlierMutation ? signature : preview.signature }));
+      },
+    });
+    __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
       id: "convertSelectedHtmlToMarkdown",
       title: "转换选中的 HTML 评论",
       scope: "both",
@@ -334,15 +348,24 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
       return action ? action.title : step.actionId;
     });
+    context.cleanupPreviewSignatures = {};
+    const cleanups = (workflow.steps || []).map((step, index) => {
+      if (!step || step.actionId !== "clearInvalidLinks") return "";
+      const options = __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(__MN_COMMENT_WORKFLOW_REGISTRY__.getAction("clearInvalidLinks"), step.options);
+      const preview = __MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes(context.notes, Object.assign({}, options, { allowSingle: context.mode === "single" }));
+      context.cleanupPreviewSignatures[index] = preview.signature;
+      return `失效链接预览：${preview.affectedCards} 张卡片，卡片链接 ${preview.removableCardLinks} 条，Markdown 行内链接 ${preview.removableMarkdownLinks} 条。`;
+    }).filter(Boolean);
     const message = [
       `将对 ${context.notes.length} 张卡片执行 ${workflow.steps.length} 个步骤。`,
       "",
       labels.map((label, index) => `${index + 1}. ${label}`).join("\n"),
+      cleanups.length ? `\n${cleanups.join("\n")}\n此前步骤可能改变实际清理范围。` : "",
       "",
       (workflow.steps || []).some((step) => {
         const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
         return action && action.managesUndo;
-      }) ? "批注折叠步骤由宿主独立管理撤销；其余连续步骤使用同一撤销分组。" : "危险步骤会在一个撤销分组中执行；如有需要，可以一次撤销整个工作流。",
+      }) ? "操作会修改所选卡片。完成后可以在 MarginNote 中撤销；包含折叠或展开的工作流可能需要分次撤销。" : "操作会修改所选卡片。完成后可以在 MarginNote 中撤销。",
     ].join("\n");
     return !!(await MNUtil.confirm("确认执行工作流？", message, ["取消", "确认执行"]));
   }
@@ -382,6 +405,8 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
               throw new Error(canRun && canRun.reason ? String(canRun.reason) : `动作 ${action.title} 当前不可用`);
             }
           }
+          context.workflowStep = index;
+          context.workflowSteps = workflow.steps;
           const result = action.run(actionContext, action.workflowOptions);
           if (isPromiseLike(result)) {
             throw new Error(`动作 ${action.title} 返回异步结果；工作流动作暂要求同步执行`);
@@ -422,6 +447,9 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       ? workflowOrId
       : __MN_COMMENT_WORKFLOW_STORE__.get(workflowOrId);
     if (!workflow) throw new Error("工作流不存在或已被删除");
+    if (!Array.isArray(workflow.steps) || !workflow.steps.some((step) => step && step.kind !== "select" && step.actionId)) {
+      throw new Error("该工作流没有执行动作，请在工作流设置中添加；评论筛选条件不能单独运行");
+    }
     if (Array.isArray(workflow.invalidSelectors) && workflow.invalidSelectors.length > 0) {
       throw new Error(`工作流包含无效选择器：${workflow.invalidSelectors[0].message || "请在工作流管理器中修复"}`);
     }
@@ -448,7 +476,7 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     const targetLabel = context.mode === "single" ? "当前卡片" : `${context.notes.length} 张卡片`;
     const summary = completed
       ? `工作流「${workflow.name}」已完成（${workflow.steps.length} 步，${targetLabel}）`
-      : `工作流「${workflow.name}」已在第 ${(execution.failedStep ? execution.failedStep.index : execution.stepResults.length) + 1} 步停止`;
+      : `工作流「${workflow.name}」未完成，在第 ${(execution.failedStep ? execution.failedStep.index : execution.stepResults.length) + 1} 步停止。已执行的操作可能已经修改卡片，请先检查结果，必要时撤销后再运行。`;
     const persistedWorkflow = workflow.id && typeof __MN_COMMENT_WORKFLOW_STORE__.get === "function"
       ? __MN_COMMENT_WORKFLOW_STORE__.get(workflow.id)
       : null;

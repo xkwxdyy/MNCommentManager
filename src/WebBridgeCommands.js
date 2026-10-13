@@ -235,7 +235,12 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function listWorkflows() {
-    return __MN_COMMENT_WORKFLOW_STORE__.list().map(decorateWorkflow);
+    return (__MN_COMMENT_WORKFLOW_STORE__.listStrict || __MN_COMMENT_WORKFLOW_STORE__.list)().map(decorateWorkflow);
+  }
+
+  function getWorkflowTemplates() { return __MN_COMMENT_WORKFLOW_STORE__.templates(); }
+  function reorderWorkflows(context, payload) {
+    return __MN_COMMENT_WORKFLOW_STORE__.reorder(payload.mode, payload.ids, payload.expectedIds).map(decorateWorkflow);
   }
 
   function getBatchCommentEditorState(context, payload) {
@@ -299,7 +304,11 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
       if (!step || step.kind === "select") return;
       const action = __MN_COMMENT_WORKFLOW_REGISTRY__.getAction(step.actionId);
       // Preserve missing extension steps so reinstalling the extension can restore them.
-      if (action) __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(action, step.options);
+      if (action) {
+        __MN_COMMENT_WORKFLOW_REGISTRY__.validateOptions(action, step.options);
+        const scope = payload.scope || "batch";
+        if (action.scope && action.scope !== "both" && action.scope !== scope) throw new Error(`动作 ${action.title} 不支持工作流的全部适用范围`);
+      }
     });
     const saved = __MN_COMMENT_WORKFLOW_STORE__.save(payload);
     return decorateWorkflow(saved);
@@ -366,6 +375,8 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     updateActionButtonSettings,
     getWorkflowActionCatalog,
     listWorkflows,
+    getWorkflowTemplates,
+    reorderWorkflows,
     getBatchCommentEditorState,
     previewBatchWorkflow,
     runBatchWorkflow,

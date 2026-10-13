@@ -119,7 +119,7 @@ workflows.set(workflow.id, workflow);
   }, { token: "token-1" });
   assert.strictEqual(failedResult.completed, false);
   assert.strictEqual(failedResult.failedStep.actionId, "test.fail");
-  assert.strictEqual(JSON.stringify(calls), JSON.stringify([{ action: "fail" }, { action: "hud", message: "工作流「失败即停」已在第 1 步停止" }]));
+  assert.strictEqual(JSON.stringify(calls), JSON.stringify([{ action: "fail" }, { action: "hud", message: "工作流「失败即停」未完成，在第 1 步停止。已执行的操作可能已经修改卡片，请先检查结果，必要时撤销后再运行。" }]));
   assert.strictEqual(undoCalls.length, 1);
   assert.strictEqual(confirmations.length, 0);
 
@@ -214,6 +214,34 @@ workflows.set(workflow.id, workflow);
   assert.strictEqual(changed.completed, false);
   assert.strictEqual(changedAddon.batchCommentContext.notes[0], notes.A3, "reentrant selection changes must not be overwritten");
   assert.strictEqual(calls.some((call) => call.action === "removeAllLinks"), false);
+  let cleanupSignature = "before";
+  const cleanupCalls = [];
+  context.__MN_COMMENT_MUTATIONS__.previewInvalidLinkCleanupForNotes = (currentNotes, options) => ({
+    signature: cleanupSignature, affectedCards: currentNotes.length, removableCardLinks: 2, removableMarkdownLinks: 3,
+  });
+  context.__MN_COMMENT_MUTATIONS__.clearInvalidLinksForNotes = (currentNotes, options) => {
+    if (options.expectedSignature !== cleanupSignature) throw new Error("链接状态已变化");
+    cleanupCalls.push({ ids: currentNotes.map((note) => note.noteId), options });
+    return { failed: 0, changed: currentNotes.length };
+  };
+  const cleanupWorkflow = { id: "cleanup", name: "清除失效链接", scope: "both", steps: [{ actionId: "clearInvalidLinks", options: { mode: "all" } }] };
+  const cleanupAddon = { dynamicCommentContext: { noteId: "A", token: "single-cleanup", note: notes.A } };
+  let cleanupResult = await runner.run(cleanupAddon, cleanupWorkflow, { mode: "single", token: "single-cleanup", noteId: "A" });
+  assert.strictEqual(cleanupResult.completed, true);
+  assert.strictEqual(cleanupCalls[0].options.allowSingle, true);
+  assert.strictEqual(cleanupCalls[0].options.mode, "all");
+  assert(confirmations.at(-1).message.includes("卡片链接 2 条"));
+  context.MNUtil.confirm = async () => { cleanupSignature = "changed"; return true; };
+  cleanupResult = await runner.run(cleanupAddon, cleanupWorkflow, { mode: "single", token: "single-cleanup", noteId: "A" });
+  assert.strictEqual(cleanupResult.completed, false, "a changed link signature after confirmation must prevent cleanup");
+  assert.strictEqual(cleanupCalls.length, 1);
+  context.MNUtil.confirm = async () => false;
+  cleanupResult = await runner.run(cleanupAddon, cleanupWorkflow, { mode: "single", token: "single-cleanup", noteId: "A" });
+  assert.strictEqual(cleanupResult.cancelled, true);
+  assert.strictEqual(cleanupCalls.length, 1);
+  await assert.rejects(() => runner.run(cleanupAddon, {
+    name: '只有筛选', scope: 'both', steps: [{ kind: 'select', selector: {} }],
+  }, { mode: 'single', token: 'single-cleanup', noteId: 'A' }), /没有执行动作/);
   console.log("comment workflow runner tests passed");
 })().catch((error) => {
   console.error(error);

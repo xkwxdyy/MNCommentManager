@@ -1,8 +1,47 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-13T00:00:00+08:00",
+  "updatedAt": "2026-10-13T14:11:53Z",
   "entries": [
+    {
+      "version": "0.1.27",
+      "channel": "stable",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "zh": "内置处理操作纳入可编辑的默认工作流，支持修改名称和步骤、复制与出厂模板恢复；单选和多选分别配置菜单位置及手动顺序。",
+          "en": "Built-in operations are editable default workflows with customizable names and steps, copying, and factory-template restoration. Single-card and multi-card menus have independent placement and manual ordering."
+        },
+        {
+          "zh": "旧工作流配置迁移前备份，保存后回读校验；菜单顺序不再随使用次数变化，隐藏位置保留以便恢复。",
+          "en": "Legacy workflow configurations are backed up before migration and verified after saving. Usage counts no longer change menu ordering, and hidden positions are retained for restoration."
+        },
+        {
+          "zh": "工作流编辑优先展示名称、步骤和菜单位置，高级筛选及管理操作按需展开；复制、恢复、未保存草稿提示及焦点处理更一致。",
+          "en": "The workflow editor prioritizes names, steps, and menu placement, with advanced filters and management controls expanded on demand. Copying, restoration, unsaved-draft prompts, and focus handling are more consistent."
+        },
+        {
+          "zh": "快速输入跟随所属窗口的软键盘收起通知下移并淡出，参数不可用时采用短淡出；保留草稿和Markdown模式，并防止旋转、失焦及旧通知误关新窗口。",
+          "en": "Quick input follows keyboard dismissal in its owning window with a downward fade, falling back to a short fade when animation data is unavailable. Drafts and Markdown mode are retained, with guards against rotation, focus loss, and stale notifications closing a new window."
+        },
+        {
+          "zh": "快速输入的原生覆盖区域与网页共同避开MN5顶部胶囊，主面板默认、恢复及最大化布局同步避让；修复小窗口尺寸溢出和低高度按钮不可达。",
+          "en": "The native quick-input overlay and its web content avoid the MN5 top capsule. Default, restored, and maximized main-panel layouts also avoid it. Small-window overflow and unreachable controls in short viewports are fixed."
+        },
+        {
+          "zh": "关闭前等待中文组词结束，异常时保留正文；修复关闭失败时正文回退、保存开始时提前关闭和迟到回调干扰新输入的问题。",
+          "en": "Closing waits for Chinese IME composition to finish and retains the text on errors. Failed closes no longer revert newer text, saving does not close input prematurely, and late callbacks cannot affect a new input session."
+        },
+        {
+          "zh": "仅含筛选条件的工作流不能作为执行流程保存；菜单可直接打开管理页，页面加载、关闭重开和其他编辑窗口结束后的请求正确清理与恢复。",
+          "en": "Filter-only workflows cannot be saved as executable workflows. Menu entries open the manager directly, with proper request cleanup and recovery during page loading, reopening, and after other editors close."
+        },
+        {
+          "zh": "MN5快速输入显示已获初步确认；iPad和iPhone键盘动画、中文输入及完整多窗口仍待设备验收，兼容胶囊定位不代表正式保护边界已经验证。",
+          "en": "MN5 quick-input visibility has preliminary user confirmation. iPad and iPhone keyboard animations, IME input, and full multi-window behavior still require device acceptance; compatibility capsule lookup does not establish the exact host protection boundary."
+        }
+      ]
+    },
     {
       "version": "0.1.26",
       "channel": "stable",

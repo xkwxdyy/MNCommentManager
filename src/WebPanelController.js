@@ -18,6 +18,12 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     webView.evaluateJavaScript(script, function () {});
   }
 
+  function pushRequestedView(controller) {
+    if (!controller || !controller.webView || controller._webContentReady !== true || controller._requestedView !== "workflow") return;
+    evaluateScript(controller.webView, "window.__MNCommentManagerRequestedView='workflow';window.__MNCommentManagerOpenWorkflow&&window.__MNCommentManagerOpenWorkflow();");
+    controller._requestedView = "";
+  }
+
   function showHandwritingHUD(controller, message) {
     try {
       if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
@@ -254,16 +260,23 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     return typeof rawValue === "object" ? rawValue : null;
   }
 
+  function panelLimits(bounds) {
+    const marginX = Math.min(PANEL_MARGIN, Math.max(0, (bounds.width - 320) / 2));
+    const marginY = Math.min(PANEL_MARGIN, Math.max(0, (bounds.height - 260) / 2));
+    return { marginX, marginY, width: Math.max(0, bounds.width - marginX * 2), height: Math.max(0, bounds.height - marginY * 2) };
+  }
+
   function createDefaultFrame(bounds) {
     const safeBounds = normalizeBounds(bounds);
-    const maxWidth = Math.max(320, safeBounds.width - PANEL_MARGIN * 2);
-    const maxHeight = Math.max(260, safeBounds.height - PANEL_MARGIN * 2);
+    const limits = panelLimits(safeBounds);
+    const maxWidth = limits.width;
+    const maxHeight = limits.height;
     const width = Math.min(DEFAULT_WIDTH, maxWidth);
     const height = Math.min(DEFAULT_HEIGHT, maxHeight);
 
     return {
-      x: safeBounds.x + Math.max(PANEL_MARGIN, (safeBounds.width - width) / 2),
-      y: safeBounds.y + Math.max(PANEL_MARGIN, (safeBounds.height - height) / 2),
+      x: safeBounds.x + Math.max(limits.marginX, (safeBounds.width - width) / 2),
+      y: safeBounds.y + Math.max(limits.marginY, (safeBounds.height - height) / 2),
       width,
       height,
     };
@@ -282,14 +295,15 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     const safeBounds = normalizeBounds(bounds);
     const fallback = createDefaultFrame(safeBounds);
     const source = frame || fallback;
-    const maxWidth = Math.max(320, safeBounds.width - PANEL_MARGIN * 2);
-    const maxHeight = Math.max(260, safeBounds.height - PANEL_MARGIN * 2);
+    const limits = panelLimits(safeBounds);
+    const maxWidth = limits.width;
+    const maxHeight = limits.height;
     const width = Math.min(Math.max(MIN_WIDTH, numberOr(source.width, fallback.width)), maxWidth);
     const height = Math.min(Math.max(MIN_HEIGHT, numberOr(source.height, fallback.height)), maxHeight);
-    const minX = safeBounds.x + PANEL_MARGIN;
-    const minY = safeBounds.y + PANEL_MARGIN;
-    const maxX = safeBounds.x + Math.max(PANEL_MARGIN, safeBounds.width - width - PANEL_MARGIN);
-    const maxY = safeBounds.y + Math.max(PANEL_MARGIN, safeBounds.height - height - PANEL_MARGIN);
+    const minX = safeBounds.x + limits.marginX;
+    const minY = safeBounds.y + limits.marginY;
+    const maxX = safeBounds.x + Math.max(limits.marginX, safeBounds.width - width - limits.marginX);
+    const maxY = safeBounds.y + Math.max(limits.marginY, safeBounds.height - height - limits.marginY);
 
     return {
       x: Math.max(minX, Math.min(maxX, numberOr(source.x, fallback.x))),
@@ -316,6 +330,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function performCloseWindow(controller) {
+    controller._requestedView = "";
+    if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerRequestedView='';");
     controller.view.hidden = true;
     if (controller.view.superview) {
       controller.view.removeFromSuperview();
@@ -342,13 +358,19 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     return studyController.view.bounds;
   }
 
+  function getPanelContentBounds(controller) {
+    const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;
+    const parent = Application.sharedInstance().studyController(targetWindow).view;
+    return __MN_PANEL_CONTENT_BOUNDS_MNCommentManagerAddon.available(controller, parent, parent.bounds);
+  }
+
   function applyDefaultFrame(controller) {
-    const bounds = getStudyRootBounds(controller);
+    const bounds = getPanelContentBounds(controller);
     applyRootFrame(controller, createDefaultFrame(bounds), true);
   }
 
   function applySavedOrDefaultFrame(controller) {
-    const bounds = getStudyRootBounds(controller);
+    const bounds = getPanelContentBounds(controller);
     const saved = parseSavedPanelFrame(
       NSUserDefaults.standardUserDefaults().objectForKey(FRAME_CONFIG_KEY),
     );
@@ -383,7 +405,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function keepPanelWithinStudyBounds(controller) {
     if (!controller.view || !controller.view.superview) return;
-    const bounds = getStudyRootBounds(controller);
+    const bounds = controller._mncmPanelManualPlacement && !controller._isMaximized ? getStudyRootBounds(controller) : getPanelContentBounds(controller);
 
     if (controller._isMaximized) {
       const maximizedFrame = {
@@ -536,7 +558,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function togglePanelMaximize(controller) {
     const superview = controller.view.superview;
-    const bounds = superview ? superview.bounds : { x: 0, y: 0, width: 1920, height: 1080 };
+    const bounds = superview ? getPanelContentBounds(controller) : { x: 0, y: 0, width: 1920, height: 1080 };
 
     if (!controller._isMaximized) {
       controller._preMaxFrame = controller._preferredFrame || controller.view.frame;
@@ -600,6 +622,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
     handlePan: function (recognizer) {
       const translation = recognizer.translationInView(self.view.superview);
+      if (recognizer.state === 2 && (translation.x || translation.y)) self._mncmPanelManualPlacement = true;
       const center = self.view.center;
       const nextCenter = {
         x: center.x + translation.x,
@@ -641,6 +664,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
         const dx = location.x - self._resizeStartLocation.x;
         const dy = location.y - self._resizeStartLocation.y;
+        if (dx || dy) self._mncmPanelManualPlacement = true;
 
         let width = Math.max(MIN_WIDTH, self._resizeStartFrame.width + dx);
         let height = Math.max(MIN_HEIGHT, self._resizeStartFrame.height + dy);
@@ -704,10 +728,13 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     },
 
     webViewDidStartLoad: function () {
+      self._webContentReady = false;
       UIApplication.sharedApplication().networkActivityIndicatorVisible = true;
     },
 
     webViewDidFinishLoad: function () {
+      self._webContentReady = true;
+      pushRequestedView(self);
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
       if (self.panelMode === "batch") pushBatchEditorState(self, "web-load");
       else scheduleCurrentNoteSnapshotPush(self, "web-load");
@@ -770,6 +797,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function showPanel(controller, options) {
     const panelOptions = options && typeof options === "object" ? options : {};
+    controller._requestedView = panelOptions.requestedView === "workflow" ? "workflow" : "";
     controller.panelMode = panelOptions.mode === "batch" ? "batch" : "single";
     const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;
     const studyController = Application.sharedInstance().studyController(targetWindow);
@@ -783,11 +811,13 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
     controller.view.autoresizingMask = 0;
     controller._isMaximized = false;
+    controller._mncmPanelManualPlacement = false;
     applySavedOrDefaultFrame(controller);
     controller.view.hidden = false;
     NSUserDefaults.standardUserDefaults().setObjectForKey(true, PANEL_ON_KEY);
     if (controller.panelMode === "batch") pushBatchEditorState(controller, "show-panel");
     else scheduleCurrentNoteSnapshotPush(controller, "show-panel");
+    pushRequestedView(controller);
   }
 
   function hidePanel(controller) {
