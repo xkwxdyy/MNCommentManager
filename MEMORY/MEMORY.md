@@ -43,4 +43,6 @@
 
 - 2026-10-13｜v0.1.27已完成发布：隔离工作区整合可编辑默认工作流、键盘收起与草稿安全、MN5顶部胶囊避让；前端247项、Node脚本63个、最终包原生与网页交互通过。MN5显示有用户初步确认，完整设备验收保留。见 Resources/releases/v0.1.27.md。
 
-- 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已发布；提交和标签为c2731ca，附件SHA-256与本地一致。发布使用隔离工作区，原目录和下载清单保留。完整设备验收、123网盘上传及清单更新继续待办，见 Resources/releases/v0.1.27.md。
+- 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已发布；提交和标签为c2731ca，附件SHA-256与本地一致。发布使用隔离工作区，原目录和下载清单保留。123网盘上传及清单更新已完成，完整设备验收继续待办，见 Resources/releases/v0.1.27.md。
+
+- 2026-10-13｜v0.1.27已通过Arc网页上传到MNCommentManager目录28467434；现有助手完整下载、ZIP及SHA-256一致性核验通过。主站和旧版兼容站的更新清单及双语日志均已部署并逐字节核验，真实下载清单已更新；GitHub标签和附件保持原样，本机插件未替换。服务器旧文件备份保留，设备验收继续待完成。报告见 Resources/releases/v0.1.27/cloud-publication-report.json。
