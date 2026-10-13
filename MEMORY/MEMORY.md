@@ -41,4 +41,6 @@
 
 - 提交/发版 Skill（2026-10-01）：Claude 项目技能已适配到 `.agents/skills/git-commit-changelog/` 与 `.agents/skills/mn-release/`；迁移及复验见 [事实.md](事实.md)，完整 0.1.23 发版已完成，待真机验收与 123 网盘手动上传见 [待办.md](待办.md)。
 
-- 2026-10-13｜v0.1.27已准备发布：隔离工作区整合可编辑默认工作流、键盘收起与草稿安全、MN5顶部胶囊避让；前端247项、Node脚本63个、最终包原生与网页交互通过。MN5显示有用户初步确认，完整设备验收保留。见 Resources/releases/v0.1.27.md。
+- 2026-10-13｜v0.1.27已完成发布：隔离工作区整合可编辑默认工作流、键盘收起与草稿安全、MN5顶部胶囊避让；前端247项、Node脚本63个、最终包原生与网页交互通过。MN5显示有用户初步确认，完整设备验收保留。见 Resources/releases/v0.1.27.md。
+
+- 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已发布；提交和标签为c2731ca，附件SHA-256与本地一致。发布使用隔离工作区，原目录和下载清单保留。完整设备验收、123网盘上传及清单更新继续待办，见 Resources/releases/v0.1.27.md。
