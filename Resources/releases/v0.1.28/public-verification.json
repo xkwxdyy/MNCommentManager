@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "version": "0.1.28",
+    "bytesMatchLocal": true,
+    "sha256": "2614b5c579aa01c37772a1c0d2d4107c1d262d07e385d4033033de8fec7510bb"
+  },
+  {
+    "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+    "version": "0.1.28",
+    "bytesMatchLocal": true,
+    "sha256": "26dc027c3554446dc2b2df44c660b587350dfebb2f95f5fceecf80c00b0e9328"
+  },
+  {
+    "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "version": "0.1.28",
+    "bytesMatchLocal": true,
+    "sha256": "2614b5c579aa01c37772a1c0d2d4107c1d262d07e385d4033033de8fec7510bb"
+  },
+  {
+    "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+    "version": "0.1.28",
+    "bytesMatchLocal": true,
+    "sha256": "26dc027c3554446dc2b2df44c660b587350dfebb2f95f5fceecf80c00b0e9328"
+  }
+]

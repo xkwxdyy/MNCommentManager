@@ -86,4 +86,4 @@
 
 - 2026-10-18｜评论管理器已接入通用跟随按钮规则；源码回归与原生构建或压缩校验通过，未归档或安装，Mac/iPad 待验收。见[跨插件实施记录](../../mnpinner/docs/reviews/2026-10-18-follow-button-collision-implementation.md)、[事实](事实.md)和[待办](待办.md)。
 
-- 2026-10-18｜v0.1.28 正在发布，正式包与本次回归已核验；发布工作区基于远端 main，原目录保留。见 Resources/releases/v0.1.28/package-report.json。
+- 2026-10-18｜v0.1.28 已完成 GitHub、Arc 网盘及主站和兼容站更新源发布，所有正式包下载和公开文件摘要一致。发布提交 cfbf272；正式源码在独立 release-v0-1-28 工作区，原目录版本与未提交源码保留。设备验收及界面更新检测待完成，见 Resources/releases/v0.1.28.md。

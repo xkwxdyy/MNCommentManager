@@ -1,0 +1,30 @@
+{
+  "backupDir": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.28-20261018-072606",
+  "backups": [
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.28-20261018-072606/0-mncommentmanager_changelog.json",
+      "sha256": "90cfc627a9f15e7f771a0da33c0a14753125b06b488237d3ebad7da7d42e42b6"
+    },
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.28-20261018-072606/0-mncommentmanager.json",
+      "sha256": "f41559c83d1e4287ab757538385dbad0e0fd0a99a01680b2c1f3af8b05023a1f"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.28-20261018-072606/1-mncommentmanager_changelog.json",
+      "sha256": "90cfc627a9f15e7f771a0da33c0a14753125b06b488237d3ebad7da7d42e42b6"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.28-20261018-072606/1-mncommentmanager.json",
+      "sha256": "f41559c83d1e4287ab757538385dbad0e0fd0a99a01680b2c1f3af8b05023a1f"
+    }
+  ],
+  "deployed": {
+    "mncommentmanager_changelog.json": "2614b5c579aa01c37772a1c0d2d4107c1d262d07e385d4033033de8fec7510bb",
+    "mncommentmanager.json": "26dc027c3554446dc2b2df44c660b587350dfebb2f95f5fceecf80c00b0e9328"
+  },
+  "remoteStaging": "/tmp/mncm-v0.1.28-publish-xAWG7M4c"
+}
