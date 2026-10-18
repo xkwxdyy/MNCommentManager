@@ -1,0 +1,17 @@
+[
+  {
+    "script": "test-comment-action-settings.js",
+    "passed": true,
+    "output": "comment action settings tests passed\n"
+  },
+  {
+    "script": "test-comment-move-refresh.js",
+    "passed": true,
+    "output": "comment move refresh regression ok\n"
+  },
+  {
+    "script": "test-conversion-runtime.js",
+    "passed": true,
+    "output": "[MN Comment Manager] MN Comment Manager:CommentMutations: 新建空白子卡片缺少稳定 noteId {\n  parentNoteId: 'CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC',\n  requestedDocId: '',\n  requestedPageNumber: null,\n  returnedType: 'object'\n}\npacked conversion runtime assertions passed\n"
+  }
+]

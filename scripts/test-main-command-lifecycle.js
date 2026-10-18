@@ -176,7 +176,7 @@ function makeRunContext(send) {
     const first = context.closePanel();
     const second = context.closePanel();
     assert.strictEqual(sends, 1, "the panel close command must be sent at most once while pending");
-    assert.strictEqual(context.window.__MNCommentManagerRequestedView, "", "closing must cancel the pending workflow view request");
+    assert.strictEqual(context.window.__MNCommentManagerRequestedView, "", "closing cancels a pending workflow view request");
     response.resolve({});
     await Promise.all([first, second]);
     assert.strictEqual(context.panelCloseRef.current, false);
@@ -195,6 +195,7 @@ function makeRunContext(send) {
       MNBridge: { send: () => { sends += 1; return response.promise; } },
       setOpeningOverlay: (value) => states.push(["opening", value]),
       setShowImageExcerptText: (value) => states.push(["imageExcerptText", value]),
+      setShowExcerptMoveNotice: (value) => states.push(["excerptMoveNotice", value]),
       setActionButtonSettings: (value) => states.push(["settings", value]),
       notifyStatus: (value) => states.push(["status", value]),
       normalizeError: (error) => String(error?.message || error),

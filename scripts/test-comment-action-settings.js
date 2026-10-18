@@ -25,6 +25,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
   enableDynamicSingleCardButton: true,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showExcerptMoveNotice: true,
   showQuickCommentButton: true,
   managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
@@ -33,6 +34,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showB
   enableDynamicSingleCardButton: true,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showExcerptMoveNotice: true,
   showQuickCommentButton: true,
   managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
@@ -41,6 +43,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enabl
   enableDynamicSingleCardButton: false,
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
+  showExcerptMoveNotice: true,
   showQuickCommentButton: true,
   managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
@@ -49,6 +52,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ merge
   enableDynamicSingleCardButton: false,
   mergeToExcerptDefault: true,
   showImageExcerptText: false,
+  showExcerptMoveNotice: true,
   showQuickCommentButton: true,
   managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu",
 });
@@ -81,3 +85,10 @@ assert.strictEqual(settings.getQuickCommentMarkdown(), false);
 assert.throws(() => settings.setQuickCommentMarkdown('true'), /参数无效/);
 store.set('mncommentmanager_quick_comment_markdown', { boolValue() { return false; } });
 assert.strictEqual(settings.getQuickCommentMarkdown(), false);
+
+assert.strictEqual(settings.updateSettings({ showExcerptMoveNotice: false }).showExcerptMoveNotice, false);
+assert.strictEqual(store.get("mncommentmanager_show_excerpt_move_notice"), false);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentActionSettings.js"), "utf8"), context);
+assert.strictEqual(context.__MN_COMMENT_ACTION_SETTINGS__.getSettings().showExcerptMoveNotice, false);
+assert.strictEqual(settings.updateSettings({ showExcerptMoveNotice: "true" }).showExcerptMoveNotice, false);
+assert.strictEqual(settings.updateSettings({ showExcerptMoveNotice: true }).showExcerptMoveNotice, true);

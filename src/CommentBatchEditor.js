@@ -49,7 +49,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
     if (normalized.types.length > 0) {
       const typeMatches = normalized.types.some((type) => {
         const capabilities = comment.capabilities || {};
-        if (type === "text") return capabilities.hasText === true && capabilities.isHtml !== true && capabilities.isMarkdown !== true;
+        if (type === "text") return capabilities.hasText === true && capabilities.isHtml !== true && capabilities.isMarkdown !== true && comment.type !== "linkComment" && comment.type !== "summaryComment";
         if (type === "markdown") return capabilities.isMarkdown === true;
         if (type === "html") return capabilities.isHtml === true;
         if (type === "image") return capabilities.hasImage === true;
@@ -124,7 +124,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
         const capabilities = comment.capabilities || {};
         if (capabilities.isHtml) counts.html += 1;
         if (capabilities.isMarkdown) counts.markdown += 1;
-        if (capabilities.hasText && !capabilities.isHtml && !capabilities.isMarkdown) counts.text += 1;
+        if (capabilities.hasText && !capabilities.isHtml && !capabilities.isMarkdown && comment.type !== "linkComment" && comment.type !== "summaryComment") counts.text += 1;
         if (capabilities.hasImage) counts.image += 1;
         if (comment.type === "linkComment" || comment.type === "summaryComment") counts.link += 1;
       });

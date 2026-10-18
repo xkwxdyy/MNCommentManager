@@ -885,6 +885,7 @@ function App() {
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
   const [showImageExcerptText, setShowImageExcerptText] = useState(false);
+  const [showExcerptMoveNotice, setShowExcerptMoveNotice] = useState(true);
   const [mergeDefaultLoadError, setMergeDefaultLoadError] = useState("");
   const [deletePressing, setDeletePressing] = useState(false);
   const [singleDeletePressing, setSingleDeletePressing] = useState(null);
@@ -951,6 +952,15 @@ function App() {
     [excerptSelected, selectedIndices],
   );
   currentViewRef.current = { snapshot, selection: contentSelection };
+  const externalCardSwitchStateRef = useRef(null);
+  externalCardSwitchStateRef.current = { dialog, workflowManager, actionButtonSettings, moduleSettingsOpen, moduleResult, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, loading };
+  useEffect(() => {
+    window.__MNCommentManagerCanSwitchCard = () => {
+      const state = externalCardSwitchStateRef.current;
+      return !!state && !Object.values(state).some(Boolean) && !commandInFlightRef.current && !overlayOpeningRef.current && !panelCloseRef.current && !mergeDefaultPersistenceRef.current.busy && Object.keys(window.__MNBridgePending || {}).length === 0;
+    };
+    return () => { delete window.__MNCommentManagerCanSwitchCard; };
+  }, []);
   const filterCounts = useMemo(() => (
     comments.reduce((counts, comment) => {
       const key = getTypeMeta(comment).filter;
@@ -1297,6 +1307,7 @@ function App() {
           if (!appMountedRef.current) return;
           setMergeToExcerptDefault(settings?.mergeToExcerptDefault === true);
           setShowImageExcerptText(settings?.showImageExcerptText === true);
+          setShowExcerptMoveNotice(settings?.showExcerptMoveNotice !== false);
           setMergeDefaultLoadError("");
         })
         .catch((error) => {
@@ -1538,37 +1549,53 @@ function App() {
     return true;
   };
 
-  const executeMoveSelection = async (targetIndex, message) => {
-    if (!requireSelection()) return;
-    await runCommand("moveContentSelection", {
-      noteId: snapshot.noteId,
-      selection: contentSelection,
+  const executeMoveSelection = async (targetIndex, message, selection = contentSelection, returnFocusTarget = null) => {
+    const noteId = snapshot.noteId;
+    const move = () => runCommand("moveContentSelection", {
+      noteId,
+      selection,
       targetIndex,
-    }, { message: message || "内容位置已更新" });
+    }, { message: message || "内容位置已更新", expectedNoteId: noteId });
+    if (!selection.excerptSelected || !showExcerptMoveNotice) return move();
+    const confirmation = {
+      focusManaged: true,
+      closeOnConfirmSuccess: true,
+      title: "移动摘录前需转换卡片",
+      body: "移动原生摘录需要先将当前卡片转为非摘录版，原摘录随后作为普通评论完成本次移动。转换会改变卡片 ID，相关链接按现有转换规则迁移。转换和移动可以通过撤销恢复。是否继续？",
+      checkboxLabel: "不再提示",
+      checkboxDescription: "点击“转换并移动”后保存；评论管理设置中可以重新开启。",
+      confirmText: "转换并移动",
+      returnFocusTarget,
+      returnFocusFallback: document.getElementById("selection-summary"),
+      onConfirm: async (_value, { checked }) => {
+        if (currentNoteIdRef.current !== noteId) throw new Error("当前卡片已切换，请取消后重新选择内容");
+        if (checked) {
+          const saved = await persistActionButtonSetting(
+            (changes) => MNBridge.send("updateActionButtonSettings", changes),
+            () => MNBridge.send("getActionButtonSettings"),
+            "showExcerptMoveNotice", false, "移动摘录时显示转换提示",
+          );
+          if (appMountedRef.current && saved.settings) setShowExcerptMoveNotice(saved.settings.showExcerptMoveNotice !== false);
+          if (saved.kind === "error") throw new Error(saved.message);
+        }
+        if (!appMountedRef.current || externalCardSwitchStateRef.current?.dialog !== confirmation) return;
+        if (currentNoteIdRef.current !== noteId) throw new Error("当前卡片已切换，请取消后重新选择内容");
+        // Close before mutation so a partial conversion cannot be retried from the old selection.
+        setDialog(null);
+        restoreFocusAfterDialogClose(returnFocusTarget, confirmation.returnFocusFallback);
+        await move();
+      },
+    };
+    setDialog(confirmation);
   };
 
   const moveSelection = async (targetIndex, message, returnFocusTarget = null) => {
     if (!requireSelection()) return;
-    if (!excerptSelected) {
-      await executeMoveSelection(targetIndex, message);
-      return;
-    }
-    if (excerpt?.conversion?.eligible !== true) {
+    if (excerptSelected && excerpt?.conversion?.eligible !== true) {
       notifyStatus(getExcerptConversionError(excerpt));
       return;
     }
-    setDialog({
-      focusManaged: true,
-      closeBeforeConfirm: true,
-      title: "移动摘录前需转换卡片",
-      body: "这是卡片自身的摘录，不是普通评论。继续后会先把当前卡片转为非摘录版，再按当前完整选区自动完成移动。",
-      confirmText: "转换并移动",
-      returnFocusTarget,
-      returnFocusFallback: document.getElementById("selection-summary"),
-      onConfirm: async () => {
-        await executeMoveSelection(targetIndex, message);
-      },
-    });
+    await executeMoveSelection(targetIndex, message, contentSelection, returnFocusTarget);
   };
 
   const getCommentPosition = (index) => commentPositions.get(index) ?? -1;
@@ -2357,6 +2384,7 @@ function App() {
       const settings = await MNBridge.send("getActionButtonSettings");
       if (!appMountedRef.current || actionButtonSettingsSessionRef.current !== sessionId) return;
       setShowImageExcerptText(settings?.showImageExcerptText === true);
+      setShowExcerptMoveNotice(settings?.showExcerptMoveNotice !== false);
       setActionButtonSettings({ values: settings, returnFocusTarget, sessionId });
     } catch (error) {
       if (appMountedRef.current && actionButtonSettingsSessionRef.current === sessionId) notifyStatus(normalizeError(error));
@@ -2371,6 +2399,7 @@ function App() {
   const updateActionButtonSettings = async (changes, sessionId) => {
     const settings = await MNBridge.send("updateActionButtonSettings", changes);
     if (appMountedRef.current) setShowImageExcerptText(settings?.showImageExcerptText === true);
+    if (appMountedRef.current) setShowExcerptMoveNotice(settings?.showExcerptMoveNotice !== false);
     setActionButtonSettings((current) => applyActionButtonSettingsForSession(current, sessionId, settings));
     return settings;
   };
@@ -2378,6 +2407,7 @@ function App() {
   const reloadActionButtonSettings = async (sessionId) => {
     const settings = await MNBridge.send("getActionButtonSettings");
     if (appMountedRef.current) setShowImageExcerptText(settings?.showImageExcerptText === true);
+    if (appMountedRef.current) setShowExcerptMoveNotice(settings?.showExcerptMoveNotice !== false);
     setActionButtonSettings((current) => applyActionButtonSettingsForSession(current, sessionId, settings));
     return settings;
   };
@@ -2665,6 +2695,19 @@ function App() {
                 </span>
                 {rangePicking && rangeAnchor === 0 ? <span className="range-anchor-label">起点</span> : null}
                 <span className="excerpt-lock" title="卡片自身内容，转换为普通评论后才能移动" aria-label="原生摘录固定在评论列表上方">锁定</span>
+                <div className="comment-inline-actions" aria-label="摘录快捷操作">
+                  <Button className="quick-action-btn" disabled title="原生摘录已在最上方" aria-label="上移摘录">↑</Button>
+                  <Button
+                    className="quick-action-btn"
+                    disabled={loading || !!dialog || comments.length === 0 || excerpt?.conversion?.eligible !== true}
+                    title={excerpt?.conversion?.eligible !== true ? getExcerptConversionError(excerpt) : comments.length === 0 ? "已在最下方" : "转为非摘录版并下移一位"}
+                    aria-label="下移摘录"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      return executeMoveSelection(2, "已下移一位", makeContentSelection(true, []), event.currentTarget);
+                    }}
+                  >↓</Button>
+                </div>
               </div>
               <div className="comment-body excerpt-body">
                 {normalizeImageSource(excerpt) ? <img src={normalizeImageSource(excerpt)} alt="当前卡片的原生摘录" /> : null}
@@ -3657,6 +3700,18 @@ function ActionButtonSettingsDialog({
           <span>
             <strong>显示图片摘录文本</strong>
             <small>默认关闭。开启后，在图片摘录下方显示其文本内容；关闭只隐藏显示，原文仍会保留。</small>
+          </span>
+        </label>
+        <label className={savingKey === "showExcerptMoveNotice" ? "dialog-check saving" : "dialog-check"}>
+          <input
+            type="checkbox"
+            checked={settings?.showExcerptMoveNotice !== false}
+            disabled={busy}
+            onChange={(event) => saveSetting("showExcerptMoveNotice", event.target.checked, "移动摘录时显示转换提示")}
+          />
+          <span>
+            <strong>移动摘录时显示转换提示</strong>
+            <small>默认开启。移动摘录前先确认转换；关闭后直接转换并移动，操作失败时仍会显示错误信息。</small>
           </span>
         </label>
         <div className="dialog-actions">
@@ -4931,7 +4986,7 @@ function TextDialog({ dialog, loading, onClose }) {
           <p className="dialog-error" role="alert">保存失败：{submissionError}</p>
         ) : null}
         <div className="dialog-actions">
-          <Button className="secondary" disabled={busy} onClick={requestClose}>取消</Button>
+          {dialog.hideCancel !== true ? <Button className="secondary" disabled={busy} onClick={requestClose}>取消</Button> : null}
           <Button
             className={dialog.danger ? "danger" : "primary"}
             disabled={busy}

@@ -1,0 +1,14 @@
+{
+  "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/dist/excerpt-move/mn-comment-manager-v0.1.25-excerpt-confirm.mnaddon",
+  "sha256": "3313f20343221b2eb26e0e61e1c4de3390c945b4b7ffe0fbeb251c3b876e1785",
+  "size": 667387,
+  "fileCount": 38,
+  "addonid": "marginnote.extension.mncommentmanager",
+  "zipIntegrity": true,
+  "javascriptSyntax": true,
+  "isolatedBuild": true,
+  "frontendPassed": 255,
+  "excerptMoveTestsPassed": 22,
+  "nodeScriptsPassed": 4,
+  "installed": false
+}

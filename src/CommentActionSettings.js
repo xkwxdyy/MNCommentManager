@@ -3,6 +3,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
   const DYNAMIC_BUTTON_ENABLED_KEY = "mncommentmanager_enable_dynamic_single_card_button";
   const MERGE_TO_EXCERPT_DEFAULT_KEY = "mncommentmanager_merge_to_excerpt_default";
   const SHOW_IMAGE_EXCERPT_TEXT_KEY = "mncommentmanager_show_image_excerpt_text";
+  const SHOW_EXCERPT_MOVE_NOTICE_KEY = "mncommentmanager_show_excerpt_move_notice";
   const QUICK_COMMENT_MARKDOWN_KEY = "mncommentmanager_quick_comment_markdown";
   const ACTION_DEFAULTS = { managementTapAction: "manager", managementHoldAction: "menu", addTapAction: "quickInput", addHoldAction: "menu" };
   const ACTIONS = ["manager", "quickInput", "menu", "none"];
@@ -40,6 +41,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
       enableDynamicSingleCardButton: readBoolean(DYNAMIC_BUTTON_ENABLED_KEY, true),
       mergeToExcerptDefault: readBoolean(MERGE_TO_EXCERPT_DEFAULT_KEY, false),
       showImageExcerptText: readBoolean(SHOW_IMAGE_EXCERPT_TEXT_KEY, false),
+      showExcerptMoveNotice: readBoolean(SHOW_EXCERPT_MOVE_NOTICE_KEY, true),
       showQuickCommentButton: readBoolean("mncommentmanager_show_quick_comment_button", true),
     };
     Object.keys(ACTION_DEFAULTS).forEach((key) => {
@@ -61,6 +63,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
     if (typeof next.enableDynamicSingleCardButton === "boolean") writeBoolean(DYNAMIC_BUTTON_ENABLED_KEY, next.enableDynamicSingleCardButton);
     if (typeof next.mergeToExcerptDefault === "boolean") writeBoolean(MERGE_TO_EXCERPT_DEFAULT_KEY, next.mergeToExcerptDefault);
     if (typeof next.showImageExcerptText === "boolean") writeBoolean(SHOW_IMAGE_EXCERPT_TEXT_KEY, next.showImageExcerptText);
+    if (typeof next.showExcerptMoveNotice === "boolean") writeBoolean(SHOW_EXCERPT_MOVE_NOTICE_KEY, next.showExcerptMoveNotice);
     if (typeof next.showQuickCommentButton === "boolean") writeBoolean("mncommentmanager_show_quick_comment_button", next.showQuickCommentButton);
     Object.keys(ACTION_DEFAULTS).forEach((key) => {
       if (next[key] === undefined) return;

@@ -1,0 +1,185 @@
+{
+  "success": true,
+  "passed": 17,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "moves a text excerpt on the first click and shows information after the receipt",
+          "status": "passed",
+          "title": "moves a text excerpt on the first click and shows information after the receipt",
+          "duration": 259.59620799999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "moves a image excerpt on the first click and shows information after the receipt",
+          "status": "passed",
+          "title": "moves a image excerpt on the first click and shows information after the receipt",
+          "duration": 124.63008400000035,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "does not include unrelated selected comments in an inline move",
+          "status": "passed",
+          "title": "does not include unrelated selected comments in an inline move",
+          "duration": 131.792958,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "persists no-more-notices, retains it after remount, and allows re-enabling in settings",
+          "status": "passed",
+          "title": "persists no-more-notices, retains it after remount, and allows re-enabling in settings",
+          "duration": 277.90066700000034,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "shows the notice again for another conversion unless disabled",
+          "status": "passed",
+          "title": "shows the notice again for another conversion unless disabled",
+          "duration": 290.2396249999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "does not save a checked preference when the information dialog is dismissed",
+          "status": "passed",
+          "title": "does not save a checked preference when the information dialog is dismissed",
+          "duration": 122.8415,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "keeps the notice open on preference failure and retries without repeating the move",
+          "status": "passed",
+          "title": "keeps the notice open on preference failure and retries without repeating the move",
+          "duration": 131.9925830000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reconciles a lost preference receipt with a read, without repeating the move",
+          "status": "passed",
+          "title": "reconciles a lost preference receipt with a read, without repeating the move",
+          "duration": 137.06725000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "disables unsupported conversion: noParent",
+          "status": "passed",
+          "title": "disables unsupported conversion: noParent",
+          "duration": 70.57029199999988,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "disables unsupported conversion: unsupportedMedia",
+          "status": "passed",
+          "title": "disables unsupported conversion: unsupportedMedia",
+          "duration": 68.09445800000049,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "does not convert an excerpt with no lower comment",
+          "status": "passed",
+          "title": "does not convert an excerpt with no lower comment",
+          "duration": 48.51420800000051,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reports a partial result even when conversion notices are off",
+          "status": "passed",
+          "title": "reports a partial result even when conversion notices are off",
+          "duration": 96.6292910000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reports conversion failure without opening a success dialog",
+          "status": "passed",
+          "title": "reports conversion failure without opening a success dialog",
+          "duration": 86.15333400000054,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "does not show conversion information for an ordinary comment move",
+          "status": "passed",
+          "title": "does not show conversion information for an ordinary comment move",
+          "duration": 92.67333400000007,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "keeps the disabled preference after a failed attempt to re-enable it in settings",
+          "status": "passed",
+          "title": "keeps the disabled preference after a failed attempt to re-enable it in settings",
+          "duration": 40.566499999999905,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "waits for completion and ignores double-clicks and receipts from a previous card",
+          "status": "passed",
+          "title": "waits for completion and ignores double-clicks and receipts from a previous card",
+          "duration": 34.710040999999364,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "moves the whole selected range through the existing batch action without a pre-confirmation",
+          "status": "passed",
+          "title": "moves the whole selected range through the existing batch action without a pre-confirmation",
+          "duration": 116.28479100000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1792298345847,
+      "endTime": 1792298347977.285,
+      "status": "passed",
+      "message": "",
+      "name": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/web/src/App.excerpt-move.test.jsx"
+    }
+  ]
+}

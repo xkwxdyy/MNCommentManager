@@ -1,0 +1,27 @@
+
+> mn-comment-manager@0.1.28 build
+> node scripts/build-release.js
+
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 45 modules transformed.
+rendering chunks...
+computing gzip size...
+src/web-dist/assets/app.css      428.41 kB │ gzip: 275.48 kB
+src/web-dist/assets/app.iife.js  702.18 kB │ gzip: 213.32 kB
+
+✓ built in 427ms
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 21 modules transformed.
+rendering chunks...
+computing gzip size...
+src/web-dist/quick-assets/quick-comment.css        6.31 kB │ gzip:  1.93 kB
+src/web-dist/quick-assets/quick-comment.iife.js  212.96 kB │ gzip: 67.49 kB
+
+✓ built in 77ms
+Web build successful: /Users/xiakangwei/.codex/worktrees/release-v0-1-28/mncommentmanager/src/web-dist/index.html
+Build successful: mn-comment-manager-v0.1.28.mnaddon
+npm notice
+npm notice New minor version of npm available! 11.5.1 -> 11.21.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.21.1
+npm notice To update run: npm install -g npm@11.21.1
+npm notice

@@ -13,6 +13,7 @@ JSB.require("CommentBatchEditor");
 JSB.require("CommentWorkflowRunner");
 JSB.require("CommentWorkflowMenu");
 JSB.require("CommentActionSettings");
+JSB.require("FloatingControlLayout");
 JSB.require("BatchCommentActions");
 JSB.require("DynamicCommentActions");
 JSB.require("CommentModuleOperations");
@@ -20,6 +21,7 @@ JSB.require("WebBridgeCommands");
 JSB.require("PanelContentBounds");
 JSB.require("WebPanelController");
 JSB.require("QuickCommentController");
+JSB.require("ExternalCardEditor");
 JSB.require("MNCommentManagerAddon");
 
 JSB.newAddon = function (mainPath) {

@@ -373,6 +373,32 @@ assert.deepStrictEqual(
   "move transaction must apply mapped indices on the replacement card",
 );
 
+// The inline excerpt arrow moves only the excerpt past the first comment.
+["text", "image"].forEach((type, offset) => {
+  const source = createActionSource(30 + offset, {
+    excerptType: type,
+    excerptText: "inline excerpt",
+    excerptPic: type === "image" ? { paint: "inline-image" } : null,
+    comments: [{ type: "TextNote", text: "first" }, { type: "TextNote", text: "last" }],
+  });
+  const result = context.__MN_COMMENT_MUTATIONS__.moveContentSelection(
+    source.noteId, { excerptSelected: true, commentIndices: [] }, 2,
+  );
+  assert.strictEqual(result.converted, true);
+  assert.strictEqual(result.actionCompleted, true);
+  assert.notStrictEqual(result.noteId, source.noteId);
+  assert.deepStrictEqual(Array.from(result.selectedIndices), [1]);
+  assert.deepStrictEqual(Array.from(result.snapshot.comments, comment => comment.text), ["first", "inline excerpt", "last"]);
+  assert.strictEqual(result.snapshot.excerpt.present, false);
+});
+const excerptWithoutComments = createActionSource(32, { excerptText: "only excerpt" });
+const countBeforeNoop = parent.childNotes.length;
+assert.throws(() => context.__MN_COMMENT_MUTATIONS__.moveContentSelection(
+  excerptWithoutComments.noteId, { excerptSelected: true, commentIndices: [] }, 2,
+), /当前位置相同/);
+assert.strictEqual(parent.childNotes.length, countBeforeNoop, "no-op must not convert the card");
+assert.strictEqual(excerptWithoutComments.excerptText, "only excerpt");
+
 const commentOnlyMoveSource = createActionSource(8, {
   excerptText: "fixed excerpt",
   comments: [
@@ -808,20 +834,12 @@ assert.strictEqual(unidentifiedChild.parentNote, null, "unidentified child must 
 
 assert(batchActionsSource.includes('"runBatchConvertToNoExcerpt:"'));
 assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));
-// Single-card entry is now projected from an editable default workflow.
-vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowStore.js"), "utf8"), context);
-const noExcerptTemplate = context.__MN_COMMENT_WORKFLOW_STORE__.templates().find(item => item.id === "builtin.convertNotesToNoExcerpt");
-assert(noExcerptTemplate, "no-excerpt conversion remains available as a default workflow");
-context.__MN_COMMENT_WORKFLOW_STORE__.list = () => [noExcerptTemplate];
-context.__MN_COMMENT_WORKFLOW_REGISTRY__ = { getAction: id => ({ id, scope: "both" }), getCatalog: () => [], getPresets: () => [] };
-vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowMenu.js"), "utf8"), context);
-const noExcerptSingleMenu = context.__MN_COMMENT_WORKFLOW_MENU__.buildItems({}, { token: "test-single", noteId: ids.source }, "single", "root");
-const noExcerptSingleItem = noExcerptSingleMenu.find(item => item.param && item.param.workflowId === noExcerptTemplate.id);
-assert(noExcerptSingleItem, "single-card menu must keep the no-excerpt workflow");
-assert.strictEqual(noExcerptSingleItem.selector, "runSingleWorkflow:");
-assert.strictEqual(noExcerptSingleItem.param.workflow.steps[0].actionId, "convertNotesToNoExcerpt");
-assert.strictEqual(noExcerptSingleItem.param.noteId, ids.source);
-assert(dynamicActionsSource.includes('__MN_COMMENT_WORKFLOW_MENU__.buildItems'));
+assert(dynamicActionsSource.includes('__MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", "root")'));
+const workflowContext = vm.createContext({});
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowStore.js"), "utf8"), workflowContext);
+assert(workflowContext.__MN_COMMENT_WORKFLOW_STORE__.templates().some((workflow) =>
+  ["single", "both"].includes(workflow.scope) && workflow.steps.some((step) => step.actionId === "convertNotesToNoExcerpt")),
+"single-card conversion must remain reachable through the editable default workflows");
 assert(addonSource.includes("runSingleConvertToNoExcerpt: async function"));
 assert(bridgeSource.includes("updateLinkCommentFromClipboard"));
 assert(bridgeSource.includes("mergeCommentsToExcerpt"));

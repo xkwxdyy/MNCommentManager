@@ -26,12 +26,12 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     };
   }
 
-  function getCurrentNoteComments() {
-    return __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
+  function getCurrentNoteComments(context) {
+    return typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined" ? __MN_CARD_EDITOR_MNCommentManagerAddon.getSnapshot(context && context.controller) : __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
   }
 
-  function refreshCurrentNote() {
-    return __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
+  function refreshCurrentNote(context) {
+    return typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined" ? __MN_CARD_EDITOR_MNCommentManagerAddon.getSnapshot(context && context.controller) : __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
   }
 
   function moveComments(context, payload) {

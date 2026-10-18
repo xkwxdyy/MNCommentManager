@@ -1,0 +1,16 @@
+[
+  {
+    "type": "text",
+    "cancelledWithoutMutation": true,
+    "confirmedMoveRequests": 1,
+    "successNoticeAbsent": true,
+    "errors": []
+  },
+  {
+    "type": "image",
+    "cancelledWithoutMutation": true,
+    "confirmedMoveRequests": 1,
+    "successNoticeAbsent": true,
+    "errors": []
+  }
+]

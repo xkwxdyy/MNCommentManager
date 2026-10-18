@@ -1,0 +1,12 @@
+{
+  "version": "0.1.28",
+  "package": "/Users/xiakangwei/.codex/worktrees/release-v0-1-28/mncommentmanager/Resources/releases/v0.1.28/package/mn-comment-manager-v0.1.28.mnaddon",
+  "size": 668173,
+  "sha256": "2f098a2dc7e4b5c6f27f5bdb056d679f2136838f5471a8a66ad5d164b36621bd",
+  "zipValid": true,
+  "runtimeFiles": 38,
+  "syntaxValid": true,
+  "webResourcesPresent": true,
+  "bilingualEntryUnique": true,
+  "bundledFallbackVersion": "0.1.27"
+}

@@ -157,7 +157,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
     let snapshot = null;
     try {
-      snapshot = __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
+      snapshot = typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined" ? __MN_CARD_EDITOR_MNCommentManagerAddon.getSnapshot(controller) : __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
     } catch (error) {
       snapshot = {
         noteId: "",
@@ -330,6 +330,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function performCloseWindow(controller) {
+    if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(controller);
     controller._requestedView = "";
     if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerRequestedView='';");
     controller.view.hidden = true;
@@ -592,6 +593,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       closePanel: performCloseWindow,
     };
 
+    if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.validateCommand(controller, message.command, message.payload);
     const result = handler(context, message.payload);
     if (!isPromiseLike(result)) {
       coordinateHandwritingPreviewRefresh(controller, getSnapshotFromResult(result));
@@ -797,6 +799,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function showPanel(controller, options) {
     const panelOptions = options && typeof options === "object" ? options : {};
+    if (!panelOptions.externalCardEditor && typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(controller);
     controller._requestedView = panelOptions.requestedView === "workflow" ? "workflow" : "";
     controller.panelMode = panelOptions.mode === "batch" ? "batch" : "single";
     const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;

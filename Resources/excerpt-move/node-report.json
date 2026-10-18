@@ -1,0 +1,374 @@
+[
+  {
+    "script": "scripts/test-action-button-settings-dialog.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "action button settings dialog regression passed\n"
+  },
+  {
+    "script": "scripts/test-batch-comment-selection-lifecycle.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "batch comment selection lifecycle regression passed\n"
+  },
+  {
+    "script": "scripts/test-batch-no-excerpt-conversion.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "[MN Comment Manager] MN Comment Manager:CommentMutations: 新建空白子卡片缺少稳定 noteId {\n  parentNoteId: 'CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC',\n  requestedDocId: '',\n  requestedPageNumber: null,\n  returnedType: 'object'\n}\nbatch no-excerpt conversion tests passed\n"
+  },
+  {
+    "script": "scripts/test-batch-operation-lifecycle.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "batch operation and stale-preview lifecycle regression passed\n"
+  },
+  {
+    "script": "scripts/test-batch-recording-close-guard.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "batch recording close guard regression passed\n"
+  },
+  {
+    "script": "scripts/test-batch-recording-save.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "batch recording save regression passed\n"
+  },
+  {
+    "script": "scripts/test-batch-workflow-partial-result.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "batch workflow partial-result regression passed\n"
+  },
+  {
+    "script": "scripts/test-bridge-error-correlation.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "bridge error correlation regression passed\n"
+  },
+  {
+    "script": "scripts/test-bridge-request-lifecycle.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "bridge request lifecycle regression passed\n"
+  },
+  {
+    "script": "scripts/test-comment-action-settings.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment action settings tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-batch-editor.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment batch editor tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-edit-refresh.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment edit refresh regression ok\n"
+  },
+  {
+    "script": "scripts/test-comment-fold.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "comment fold adapter, bridge, batch and workflow tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-move-refresh.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment move refresh regression ok\n"
+  },
+  {
+    "script": "scripts/test-comment-quick-action-touch-target.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment quick-action touch target regression passed\n"
+  },
+  {
+    "script": "scripts/test-comment-quick-actions-keyboard.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "comment quick-action keyboard regression passed\n"
+  },
+  {
+    "script": "scripts/test-comment-workflow-menu.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "comment workflow menu tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-workflow-preview.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "comment workflow preview tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-workflow-registry.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "comment workflow registry tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-workflow-runner.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "comment workflow runner tests passed\n"
+  },
+  {
+    "script": "scripts/test-comment-workflow-store.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "comment workflow store tests passed\n"
+  },
+  {
+    "script": "scripts/test-dynamic-comment-actions.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "dynamic comment actions tests passed\n"
+  },
+  {
+    "script": "scripts/test-edit-dialog-focus.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "edit dialog focus regression passed\n"
+  },
+  {
+    "script": "scripts/test-edit-dialog-recovery.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "edit dialog recovery regression passed\n"
+  },
+  {
+    "script": "scripts/test-external-card-editor.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "PASS external card editor target, duplicate, drafts, late requests, timeout, window and lifecycle\n"
+  },
+  {
+    "script": "scripts/test-extra-narrow-action-order.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "selection action menu visual and keyboard order regression passed\n"
+  },
+  {
+    "script": "scripts/test-handwriting-preview.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "[MN Comment Manager] handwriting preview failed: {\"drawingHash\":\"invalidDrawing\",\"code\":\"invalid-magic-header\",\"message\":\"无法识别当前手写数据格式\",\"pending\":false}\n[MN Comment Manager] handwriting preview failed: {\"drawingHash\":\"delayedDrawing\",\"code\":\"drawing-media-missing\",\"message\":\"找不到手写媒体数据\",\"pending\":true}\nhandwriting preview regression ok\n"
+  },
+  {
+    "script": "scripts/test-html-conversion-fidelity.js",
+    "passed": true,
+    "seconds": 0.99,
+    "output": "PASS HTML fidelity: semantic Markdown round trips, raw HTML source, unsupported structure/style/link rejection\n"
+  },
+  {
+    "script": "scripts/test-html-conversion-integrity.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "HTML conversion integrity: verified append/move/delete, failure preservation, status and repeated calls passed\n"
+  },
+  {
+    "script": "scripts/test-inline-merge-dialog-recovery.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "inline merge dialog recovery regression passed\n"
+  },
+  {
+    "script": "scripts/test-invalid-link-cleanup-dialog.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "invalid link cleanup dialog regression passed\n"
+  },
+  {
+    "script": "scripts/test-invalid-link-cleanup.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "invalid link cleanup tests passed\n"
+  },
+  {
+    "script": "scripts/test-link-quick-actions-keyboard.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "link quick-action keyboard regression passed\n"
+  },
+  {
+    "script": "scripts/test-main-command-lifecycle.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "main command and overlay lifecycle regression passed\n"
+  },
+  {
+    "script": "scripts/test-main-delete-button-keyboard.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "main delete button keyboard regression passed\n"
+  },
+  {
+    "script": "scripts/test-main-shell-dark-narrow-layout.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "main shell dark and narrow layout regression passed\n"
+  },
+  {
+    "script": "scripts/test-main-workspace-extra-narrow-layout.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "main workspace extra-narrow layout regression passed\n"
+  },
+  {
+    "script": "scripts/test-markdown-link-edit-dialog-focus.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "markdown link edit dialog focus regression passed\n"
+  },
+  {
+    "script": "scripts/test-markdown-link-edit-dialog-recovery.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "markdown link edit dialog recovery regression passed\n"
+  },
+  {
+    "script": "scripts/test-markdown-link-quick-actions-keyboard.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "markdown inline-link quick-action keyboard regression passed\n"
+  },
+  {
+    "script": "scripts/test-merged-markdown.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "merged markdown classification regression ok\nmerged markdown canonical edit regression ok\nmerged markdown merge capability regression ok\n"
+  },
+  {
+    "script": "scripts/test-panel-top-chrome.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "panel top chrome compatibility tests passed\n"
+  },
+  {
+    "script": "scripts/test-quick-comment-keyboard-safety.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "{\"cycles\":120,\"confirmedComments\":40,\"retainedDrafts\":80,\"replayedSubmissions\":80,\"rejectedLatePackets\":240,\"addedComments\":40,\"passed\":true}\n"
+  },
+  {
+    "script": "scripts/test-quick-comment-keyboard.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "quick comment placement and keyboard tests passed\n"
+  },
+  {
+    "script": "scripts/test-quick-comment-top-chrome.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "quick comment top chrome and keyboard tests passed\n"
+  },
+  {
+    "script": "scripts/test-quick-comment-transitions.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "[\n  {\n    \"name\": \"reopen-during-pending-close\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"old-host-focus-must-not-steal-new-input\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"saved-close-delivery-loss-must-not-reveal-white-canvas\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"old-exit-watchdog-must-not-close-a-recovered-input\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"reopen-after-save-during-exit-keeps-a-fresh-target\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"late-recovery-must-not-reveal-an-accepted-close\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"missing-page-readiness-closes-without-losing-draft\",\n    \"passed\": true\n  }\n]\n"
+  },
+  {
+    "script": "scripts/test-quick-comment-window-placement.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "quick comment window placement tests passed\n"
+  },
+  {
+    "script": "scripts/test-quick-comment.js",
+    "passed": true,
+    "seconds": 0.08,
+    "output": "quick comment native tests passed\n"
+  },
+  {
+    "script": "scripts/test-responsive-action-order.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "selection action menu visual and keyboard order regression passed\n"
+  },
+  {
+    "script": "scripts/test-runtime-dependency-isolation.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "runtime dependency tests passed\n"
+  },
+  {
+    "script": "scripts/test-selection-main-state.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "selection target and main view-state regression passed\n"
+  },
+  {
+    "script": "scripts/test-single-workflow-menu.js",
+    "passed": true,
+    "seconds": 0.05,
+    "output": "single workflow menu tests passed\n"
+  },
+  {
+    "script": "scripts/test-text-dialog-confirmation-focus.js",
+    "passed": true,
+    "seconds": 0.07,
+    "output": "TextDialog confirmation focus regression passed\n"
+  },
+  {
+    "script": "scripts/test-undo-helper.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "[MN Comment Manager] outer completed (0ms, no-global-refresh)\n[MN Comment Manager] broken completed (0ms, no-global-refresh)\nundo helper tests passed\n"
+  },
+  {
+    "script": "scripts/test-update-manifest.js",
+    "passed": true,
+    "seconds": 0.18,
+    "output": "update-manifest identity regression: ok\n"
+  },
+  {
+    "script": "scripts/test-web-entry-release-hygiene.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "web entry, manifest test, and release-style hygiene regression passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-manager-delete-ui.js",
+    "passed": true,
+    "seconds": 0.03,
+    "output": "workflow manager delete UI regression passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-manager-focus.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "workflow manager focus regression passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-manager-native-entry.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "workflow manager native entry lifecycle tests passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-manager-unsaved-draft.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "workflow manager unsaved draft regression passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-mutation-lifecycle.js",
+    "passed": true,
+    "seconds": 0.06,
+    "output": "workflow mutation and pending-close lifecycle regression passed\n"
+  },
+  {
+    "script": "scripts/test-workflow-parameters.js",
+    "passed": true,
+    "seconds": 0.04,
+    "output": "Workflow parameters: catalog, defaults, native preflight/save/preview, late edits and legacy compatibility passed\n"
+  }
+]

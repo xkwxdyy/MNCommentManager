@@ -116,6 +116,9 @@ function loadAddon({
       },
     },
     __MN_BATCH_COMMENT_ACTIONS__: {
+      disposeButton(addon, reason) {
+        batchCalls.push({ type: "disposeButton", addon, reason });
+      },
       hideButton(addon, reason) {
         batchCalls.push({ type: "hideButton", addon, reason });
       },
@@ -219,6 +222,7 @@ function loadAddon({
     "CommentWorkflowRunner",
     "CommentWorkflowMenu",
     "CommentActionSettings",
+    "FloatingControlLayout",
     "BatchCommentActions",
     "DynamicCommentActions",
     "CommentModuleOperations",
@@ -226,6 +230,7 @@ function loadAddon({
     "PanelContentBounds",
     "WebPanelController",
     "QuickCommentController",
+    "ExternalCardEditor",
     "MNCommentManagerAddon",
   ]);
   assert.strictEqual(result.addon.mainPath, "/addons/marginnote.extension.mncommentmanager");
@@ -344,12 +349,16 @@ function loadAddon({
   assert(result.logs.some((message) => message.includes("single-card runKeepFirstContent failed")));
   assert(result.logs.some((message) => message.includes("initialized with MN Utils runtime")));
 
+  result.batchCalls.length = 0;
   result.dynamicCalls.length = 0;
   result.context.self.webController.view.superview = { id: "panel-host" };
   delete result.context.MNUtil;
   delete result.context.MNNote;
   result.members.sceneDidDisconnect();
   assert.deepStrictEqual(result.dynamicCalls, [
+    { type: "disposeButton", addon: result.context.self, reason: "scene.disconnect" },
+  ]);
+  assert.deepStrictEqual(result.batchCalls, [
     { type: "disposeButton", addon: result.context.self, reason: "scene.disconnect" },
   ]);
   assert.strictEqual(result.panelRemovals.length, 1, "disconnect must remove the panel even after MN Utils unloads");

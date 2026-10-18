@@ -1,0 +1,389 @@
+[
+  {
+    "test": "test-action-button-settings-dialog.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "action button settings dialog regression passed\n"
+  },
+  {
+    "test": "test-batch-comment-selection-lifecycle.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "batch comment selection lifecycle regression passed\n"
+  },
+  {
+    "test": "test-batch-no-excerpt-conversion.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "[MN Comment Manager] MN Comment Manager:CommentMutations: 新建空白子卡片缺少稳定 noteId {\n  parentNoteId: 'CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC',\n  requestedDocId: '',\n  requestedPageNumber: null,\n  returnedType: 'object'\n}\nbatch no-excerpt conversion tests passed\n"
+  },
+  {
+    "test": "test-batch-operation-lifecycle.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "batch operation and stale-preview lifecycle regression passed\n"
+  },
+  {
+    "test": "test-batch-recording-close-guard.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "batch recording close guard regression passed\n"
+  },
+  {
+    "test": "test-batch-recording-save.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "batch recording save regression passed\n"
+  },
+  {
+    "test": "test-batch-workflow-partial-result.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "batch workflow partial-result regression passed\n"
+  },
+  {
+    "test": "test-bridge-error-correlation.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "bridge error correlation regression passed\n"
+  },
+  {
+    "test": "test-bridge-request-lifecycle.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "bridge request lifecycle regression passed\n"
+  },
+  {
+    "test": "test-comment-action-settings.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "comment action settings tests passed\n"
+  },
+  {
+    "test": "test-comment-batch-editor.js",
+    "exitCode": 0,
+    "seconds": 0.07,
+    "output": "comment batch editor tests passed\n",
+    "finalFilterRegression": true
+  },
+  {
+    "test": "test-comment-edit-refresh.js",
+    "exitCode": 0,
+    "seconds": 0.09,
+    "output": "comment edit refresh regression ok\n"
+  },
+  {
+    "test": "test-comment-fold.js",
+    "exitCode": 0,
+    "seconds": 0.08,
+    "output": "comment fold adapter, bridge, batch and workflow tests passed\n"
+  },
+  {
+    "test": "test-comment-move-refresh.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "comment move refresh regression ok\n"
+  },
+  {
+    "test": "test-comment-quick-action-touch-target.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "comment quick-action touch target regression passed\n"
+  },
+  {
+    "test": "test-comment-quick-actions-keyboard.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "comment quick-action keyboard regression passed\n"
+  },
+  {
+    "test": "test-comment-workflow-menu.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "comment workflow menu tests passed\n"
+  },
+  {
+    "test": "test-comment-workflow-preview.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "comment workflow preview tests passed\n"
+  },
+  {
+    "test": "test-comment-workflow-registry.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "comment workflow registry tests passed\n"
+  },
+  {
+    "test": "test-comment-workflow-runner.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "comment workflow runner tests passed\n"
+  },
+  {
+    "test": "test-comment-workflow-store.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "comment workflow store tests passed\n"
+  },
+  {
+    "test": "test-dynamic-comment-actions.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "dynamic comment actions tests passed\n"
+  },
+  {
+    "test": "test-edit-dialog-focus.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "edit dialog focus regression passed\n"
+  },
+  {
+    "test": "test-edit-dialog-recovery.js",
+    "exitCode": 0,
+    "seconds": 0.07,
+    "output": "edit dialog recovery regression passed\n"
+  },
+  {
+    "test": "test-external-card-editor.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "PASS external card editor target, duplicate, drafts, late requests, timeout, window and lifecycle\n"
+  },
+  {
+    "test": "test-extra-narrow-action-order.js",
+    "exitCode": 0,
+    "seconds": 0.23,
+    "output": "selection action menu visual and keyboard order regression passed\n"
+  },
+  {
+    "test": "test-handwriting-preview.js",
+    "exitCode": 0,
+    "seconds": 0.08,
+    "output": "[MN Comment Manager] handwriting preview failed: {\"drawingHash\":\"invalidDrawing\",\"code\":\"invalid-magic-header\",\"message\":\"无法识别当前手写数据格式\",\"pending\":false}\n[MN Comment Manager] handwriting preview failed: {\"drawingHash\":\"delayedDrawing\",\"code\":\"drawing-media-missing\",\"message\":\"找不到手写媒体数据\",\"pending\":true}\nhandwriting preview regression ok\n"
+  },
+  {
+    "test": "test-html-conversion-fidelity.js",
+    "exitCode": 0,
+    "seconds": 0.79,
+    "output": "PASS HTML fidelity: semantic Markdown round trips, raw HTML source, unsupported structure/style/link rejection\n"
+  },
+  {
+    "test": "test-html-conversion-integrity.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "HTML conversion integrity: verified append/move/delete, failure preservation, status and repeated calls passed\n"
+  },
+  {
+    "test": "test-inline-merge-dialog-recovery.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "inline merge dialog recovery regression passed\n"
+  },
+  {
+    "test": "test-invalid-link-cleanup-dialog.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "invalid link cleanup dialog regression passed\n"
+  },
+  {
+    "test": "test-invalid-link-cleanup.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "invalid link cleanup tests passed\n"
+  },
+  {
+    "test": "test-link-quick-actions-keyboard.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "link quick-action keyboard regression passed\n"
+  },
+  {
+    "test": "test-main-command-lifecycle.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "main command and overlay lifecycle regression passed\n"
+  },
+  {
+    "test": "test-main-delete-button-keyboard.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "main delete button keyboard regression passed\n"
+  },
+  {
+    "test": "test-main-shell-dark-narrow-layout.js",
+    "exitCode": 0,
+    "seconds": 0.07,
+    "output": "main shell dark and narrow layout regression passed\n"
+  },
+  {
+    "test": "test-main-workspace-extra-narrow-layout.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "main workspace extra-narrow layout regression passed\n"
+  },
+  {
+    "test": "test-markdown-link-edit-dialog-focus.js",
+    "exitCode": 0,
+    "seconds": 0.07,
+    "output": "markdown link edit dialog focus regression passed\n"
+  },
+  {
+    "test": "test-markdown-link-edit-dialog-recovery.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "markdown link edit dialog recovery regression passed\n"
+  },
+  {
+    "test": "test-markdown-link-quick-actions-keyboard.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "markdown inline-link quick-action keyboard regression passed\n"
+  },
+  {
+    "test": "test-merged-markdown.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "merged markdown classification regression ok\nmerged markdown canonical edit regression ok\nmerged markdown merge capability regression ok\n"
+  },
+  {
+    "test": "test-panel-top-chrome.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "panel top chrome compatibility tests passed\n"
+  },
+  {
+    "test": "test-quick-comment-keyboard-safety.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "{\"cycles\":120,\"confirmedComments\":40,\"retainedDrafts\":80,\"replayedSubmissions\":80,\"rejectedLatePackets\":240,\"addedComments\":40,\"passed\":true}\n"
+  },
+  {
+    "test": "test-quick-comment-keyboard.js",
+    "exitCode": 0,
+    "seconds": 0.09,
+    "output": "quick comment placement and keyboard tests passed\n"
+  },
+  {
+    "test": "test-quick-comment-top-chrome.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "quick comment top chrome and keyboard tests passed\n"
+  },
+  {
+    "test": "test-quick-comment-transitions.js",
+    "exitCode": 0,
+    "seconds": 0.08,
+    "output": "[\n  {\n    \"name\": \"reopen-during-pending-close\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"old-host-focus-must-not-steal-new-input\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"saved-close-delivery-loss-must-not-reveal-white-canvas\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"old-exit-watchdog-must-not-close-a-recovered-input\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"reopen-after-save-during-exit-keeps-a-fresh-target\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"late-recovery-must-not-reveal-an-accepted-close\",\n    \"passed\": true\n  },\n  {\n    \"name\": \"missing-page-readiness-closes-without-losing-draft\",\n    \"passed\": true\n  }\n]\n"
+  },
+  {
+    "test": "test-quick-comment-window-placement.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "quick comment window placement tests passed\n"
+  },
+  {
+    "test": "test-quick-comment.js",
+    "exitCode": 0,
+    "seconds": 0.07,
+    "output": "quick comment native tests passed\n"
+  },
+  {
+    "test": "test-responsive-action-order.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "selection action menu visual and keyboard order regression passed\n"
+  },
+  {
+    "test": "test-runtime-dependency-isolation.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "runtime dependency tests passed\n"
+  },
+  {
+    "test": "test-selection-main-state.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "selection target and main view-state regression passed\n"
+  },
+  {
+    "test": "test-single-workflow-menu.js",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "single workflow menu tests passed\n"
+  },
+  {
+    "test": "test-text-dialog-confirmation-focus.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "TextDialog confirmation focus regression passed\n"
+  },
+  {
+    "test": "test-undo-helper.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "[MN Comment Manager] outer completed (0ms, no-global-refresh)\n[MN Comment Manager] broken completed (0ms, no-global-refresh)\nundo helper tests passed\n"
+  },
+  {
+    "test": "test-update-manifest.js",
+    "exitCode": 0,
+    "seconds": 0.18,
+    "output": "update-manifest identity regression: ok\n"
+  },
+  {
+    "test": "test-web-entry-release-hygiene.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "web entry, manifest test, and release-style hygiene regression passed\n",
+    "initialExitCode": 1,
+    "initialFailure": "Build assets were not generated yet"
+  },
+  {
+    "test": "test-workflow-manager-delete-ui.js",
+    "exitCode": 0,
+    "seconds": 0.05,
+    "output": "workflow manager delete UI regression passed\n"
+  },
+  {
+    "test": "test-workflow-manager-focus.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "workflow manager focus regression passed\n"
+  },
+  {
+    "test": "test-workflow-manager-native-entry.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "workflow manager native entry lifecycle tests passed\n"
+  },
+  {
+    "test": "test-workflow-manager-unsaved-draft.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "workflow manager unsaved draft regression passed\n"
+  },
+  {
+    "test": "test-workflow-mutation-lifecycle.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "workflow mutation and pending-close lifecycle regression passed\n"
+  },
+  {
+    "test": "test-workflow-parameters.js",
+    "exitCode": 0,
+    "seconds": 0.04,
+    "output": "Workflow parameters: catalog, defaults, native preflight/save/preview, late edits and legacy compatibility passed\n"
+  },
+  {
+    "test": "test-comment-modules.mjs",
+    "exitCode": 0,
+    "seconds": 0.06,
+    "output": "✔ full-list boundaries preserve empty modules and repeated headings (1.41475ms)\n✔ nested Markdown levels and HtmlMD markers remain indivisible (0.554625ms)\n✔ matching modes and explicit heading levels determine boundaries (0.141125ms)\n✔ body-only selection excludes all descendant structure headings and retains unrelated selection (0.127958ms)\n✔ configuration validates card overrides and detects invalid profiles (0.398875ms)\n✔ native generated rules produce the same module tree and signature (3.42475ms)\n✔ native config saves atomically, restores after reload, and rejects stale revisions (1.968667ms)\n✔ corrupt, empty, newer files and failed writes are preserved (3.718667ms)\n✔ module movement includes headings, respects siblings, and rejects stale snapshots before mutation (1.780833ms)\n✔ body movement preserves order when selection straddles a destination and excludes headings (1.378166ms)\n✔ module extraction derives its scope natively, including hidden descendants (1.152708ms)\n✔ configuration readback ignores dictionary key enumeration order (0.1205ms)\n✔ structure signature detects media-only changes and ignores comment collapse (0.117542ms)\n✔ native merged Markdown and text types use the same heading and text rules (0.071959ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 21.683583\n"
+  },
+  {
+    "test": "test-comment-selection-geometry.mjs",
+    "exitCode": 0,
+    "seconds": 0.58,
+    "output": "✔ 500 variable-position rows are measured once and scroll does not invalidate positions (82.404542ms)\n✔ narrow gaps choose the nearest comment, large blank areas cannot start a range (13.060875ms)\n✔ native excerpt and module headings are excluded even when close to a comment (6.082708ms)\n✔ resize and image load invalidate geometry without re-observing every row (6.464875ms)\n✔ hidden and ineligible rows cannot become range endpoints (5.643875ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 128.870834\n"
+  }
+]

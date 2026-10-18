@@ -202,8 +202,16 @@ assert.strictEqual((dialogSource.match(/onClick=\{requestClose\}/g) || []).lengt
 assert.ok(dialogSource.includes("ref={focusManaged ? dialogRef : undefined}"), "the modal section must expose the focus boundary");
 assert.ok(dialogSource.includes("tabIndex={focusManaged ? -1 : undefined}"), "the modal container must remain a fallback focus target");
 
+const moveNotice = extractConstArrow(source, "executeMoveSelection");
+assert.ok(moveNotice.includes("focusManaged: true"));
+assert.ok(moveNotice.includes("closeOnConfirmSuccess: true"));
+assert.ok(!moveNotice.includes("hideCancel: true"), "conversion confirmation must allow cancellation");
+assert.ok(moveNotice.includes('document.getElementById("selection-summary")'));
+assert.ok(moveNotice.includes("if (!selection.excerptSelected || !showExcerptMoveNotice) return move()"), "only excerpt conversion may require confirmation");
+assert.ok(moveNotice.includes("await move()"), "confirmation must preserve the original move intent");
+assert.ok(!extractConstArrow(source, "moveSelection").includes("setDialog"), "selection moves must use the shared conversion confirmation");
+
 const confirmationCases = [
-  { name: "moveSelection", fallback: "selection-summary", expected: "executeMoveSelection" },
   { name: "deleteSelection", fallback: "selection-summary", expected: "executeDeleteSelection" },
   { name: "confirmBidirectionalDelete", fallback: "selection-summary", expected: 'runCommand("deleteBidirectionalLinks"' },
   { name: "confirmSingleBidirectionalDelete", fallback: "comment-list", expected: 'runCommand("deleteBidirectionalLinks"' },
@@ -233,7 +241,7 @@ const extractSource = extractConstArrow(source, "openExtractDialog");
 assert.ok(extractSource.startsWith("const openExtractDialog = (event) =>"), "child-note extraction must capture the exact process button");
 
 const moveSource = extractConstArrow(source, "moveSelection");
-assert.ok(moveSource.startsWith("const moveSelection = async (targetIndex, message, returnFocusTarget = null) =>"), "all move confirmation entry points must be able to retain their trigger");
+assert.ok(moveSource.startsWith("const moveSelection = async (targetIndex, message, returnFocusTarget = null) =>"), "movement confirmation must retain its invoking control and stable fallback");
 const moveStepSource = extractConstArrow(source, "moveByStep");
 assert.ok(moveStepSource.includes('moveSelection(first - 1, "已上移一位", returnFocusTarget)'), "step-up must forward its exact trigger");
 assert.ok(moveStepSource.includes('moveSelection(last + 2, "已下移一位", returnFocusTarget)'), "step-down must forward its exact trigger");

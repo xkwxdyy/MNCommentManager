@@ -84,6 +84,7 @@ function createMNCommentManagerAddon(mainPath) {
     MNUtil.addObserver(addon, "onPopupMenuOnNote:", "PopupMenuOnNote");
     MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnNote");
     addon.mnCommentManagerInitialized = true;
+    if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.register(addon);
     console.log("[MN Comment Manager] initialized with MN Utils runtime");
     return true;
   }
@@ -190,7 +191,7 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   function syncVisiblePanel(addon, reason) {
-    if (!addon || !addon.webController) return;
+    if (!addon || !addon.webController || addon.webController.externalCardEditorSession) return;
     const view = addon.webController.view;
     if (!view || !view.window || view.hidden) return;
     __MN_WEB_API_MNCommentManagerAddon.syncCurrentNote(addon.webController, reason);
@@ -246,7 +247,18 @@ function createMNCommentManagerAddon(mainPath) {
       await initializeAddonWhenReady(self, false);
     },
 
+    addonWillDisconnect: function () {
+      __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
+      __MN_BATCH_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
+      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
+    },
+
+    notebookWillClose: function () {
+      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);
+    },
+
     sceneDidDisconnect: function () {
+      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
       const runtimeAvailable = hasMNUtilsRuntime();
       if (self.mnCommentManagerInitialized && runtimeAvailable) {
         MNUtil.removeObserver(self, "mindmapViewOnMultipleSelection");
@@ -256,6 +268,7 @@ function createMNCommentManagerAddon(mainPath) {
       }
       if (typeof __MN_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
       __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "scene.disconnect");
+      __MN_BATCH_COMMENT_ACTIONS__.disposeButton(self, "scene.disconnect");
 
       if (self.webController && self.webController.view && self.webController.view.superview) {
         self.webController.view.removeFromSuperview();
@@ -267,6 +280,7 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     notebookWillOpen: async function () {
+      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);
       if (!(await initializeAddonWhenReady(self, true))) return;
       if (self.quickCommentController) __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
       if (!self.webController) {
@@ -356,6 +370,7 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     onMindmapViewOnMultipleSelection: function (sender) {
+      if (self.webController && self.webController.externalCardEditorSession) return;
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "multipleSelection");
         const hasBatchSelection = __MN_BATCH_COMMENT_ACTIONS__.handleMultipleSelection(self, sender);
@@ -376,6 +391,10 @@ function createMNCommentManagerAddon(mainPath) {
       } catch (error) {
         console.log(`[MN Comment Manager] bottom toolbar close failed: ${error && error.message ? error.message : error}`);
       }
+    },
+
+    batchCommentButtonTouchDown: function () {
+      __MN_BATCH_COMMENT_ACTIONS__.beginInteraction(self);
     },
 
     batchCommentButtonTapped: function (button) {

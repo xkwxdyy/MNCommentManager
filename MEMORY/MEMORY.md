@@ -48,3 +48,42 @@
 - 2026-10-13｜v0.1.27已通过Arc网页上传到MNCommentManager目录28467434；现有助手完整下载、ZIP及SHA-256一致性核验通过。主站和旧版兼容站的更新清单及双语日志均已部署并逐字节核验，真实下载清单已更新；GitHub标签和附件保持原样，本机插件未替换。服务器旧文件备份保留，设备验收继续待完成。报告见 Resources/releases/v0.1.27/cloud-publication-report.json。
 
 - 2026-10-13｜mn-release已按用户要求纳入Arc上传、完整下载校验及主站和兼容站清单与日志部署。完整发版默认连续完成该流程；真实下载清单在包体核验后更新且继续不提交。旧同名入口读取统一流程，失败时保留已完成发布并只继续缺失步骤；技能维护不触发发布。
+
+- 2026-10-18｜摘录移动已按最新要求调整为转换前确认，替代“完成后告知”；保留“不再提示”及设置恢复。前端 255 项、相关原生及焦点检查、最终包生产脚本模拟通过。已备份安装并正常重启；真实摘录待验收。证据见 [修复验证](../Resources/excerpt-move/confirmation-validation.md)及[待办.md](待办.md)。
+
+- 2026-10-14｜坚果云冲突按内容完成整合：快速输入、按钮配置、键盘与中文组词保护、工作流管理和顶部避让已在原工作目录共同保留，回归及本地构建通过。原冲突文件可恢复归档，版本仍为 0.1.25，设备待验收；详情见[合并记录](../Resources/nutstore-content-merge/2026-10-14.md)。
+
+- 快速输入层级与键盘收起（2026-10-13）：在独立 v0.1.26 工作目录完成相对内容视图插入、键盘通知联动、同步下移渐隐和草稿保护；完整前端、原生与包内模拟通过，测试包已备份安装并正常重启。MN5 透明及 iPad、iPhone 动画仍待验收，跟踪 #71、#72。原工作目录的业务源码和同步冲突保留，详见 Resources/quick-input/keyboard-dismissal/validation.md。
+
+- 统一工作流菜单（2026-10-13）：用户已确认内置操作转为可编辑的默认工作流，保留出厂模板。当前工作目录已实现独立展示位置与手动排序、复制和恢复；验证与剩余宿主验收见事实和待办记录。本次未安装、提交或发布，其他独立工作目录的改动保留。
+
+
+- 快速输入安全复审（2026-10-13）：已复现并修正组词快照过早取得、关闭失败正文回退及保存开始时提前关闭的竞争。前端228项、专项45项、57个Node脚本、原生120轮及包内浏览器连续操作通过；审查版已备份安装并重启。实机输入法及MN5透明度仍待验收，详见 Resources/quick-input/keyboard-safety-review/review.md。
+
+- 2026-10-13｜工作流生命周期与易用性优化：设置页面优先展示操作摘要和菜单位置，编辑、筛选及管理内容按需展开；复制、恢复、保存反馈、键盘焦点和原生入口生命周期已调整。前端 217 项、相关原生脚本 19 个及隔离构建通过；本轮实际布局与真实 MarginNote 尚未验收，未安装、提交或发布。说明见 `Resources/workflow-menu/易用性与生命周期优化.md`，验证摘要见同目录 `validation.json`。
+
+- 2026-10-13｜工作流测试包已按用户要求安装到本机 MarginNote，32 个文件与包内一致；评论面板及“菜单与工作流”设置已打开。当前安装版本为 0.1.25，此前的 0.1.26 快速输入审查版已完整备份，安装报告见 `Resources/workflow-menu/local-install-report.json`。完整操作与跨设备验收继续保留。
+
+- 2026-10-13｜透明问题再次反馈后已准备窗口层级局部修复，前端45项和原生回归通过；宿主直接致因未证实，MN5仍待实际验收。当前本机已换成0.1.25工作流测试版，独立0.1.26修复包未安装。完整补丁及测试包见 Resources/quick-input/transparency-followup/validation.md，跟踪 Issue #71。
+
+- 2026-10-13｜用户授权安装并测试窗口层级修复包；本机已安装0.1.26测试版，原0.1.25工作流测试版完整备份。安装文件与包内一致，实际包内原生回归及前端45项通过；主面板能打开，快速输入和拖拽实际测试因坐标操作返回noWindowsAvailable未完成。见 Resources/quick-input/transparency-followup/local-install-report.json。
+
+- 2026-10-13｜第三方面板源码只读检查：MNUtils及Monaco采用窗口挂载，Monaco显示时明确把自身面板与网页的图层透明度恢复为1并置顶；MNBrowser显示时恢复此前透明度并在学习视图内置顶。未发现已检查代码直接修改MNCommentManager面板或明确标注MN5透明问题的专用修复；MNToolbar存在共享视图索引和移除操作，尚无本次触发证据。未修改插件或运行新界面测试，证据见 Resources/quick-input/transparency-followup/external-panels-evidence.json。
+
+- 2026-10-13｜宿主开发者说明已记录：MN5顶部胶囊保护区域与插件视图重叠会触发透明度限制；hg 21156、21171报告把上限由0.25提高为0.6并加有限次数提示，尚不能认定已上线。后续以原生覆盖范围避让为方案草案，主面板保留自由拖动；原草案状态已由后续实施记录替代。原文与草案见 Resources/quick-input/transparency-followup/host-developer-report.md 和 host-protection-prd.md。
+
+- 2026-10-13｜顶部胶囊避让已按用户要求尝试实施并通过脚本更新本机0.1.26测试版。36个安装文件一致，应用正常重启；前端213项、Node脚本60个及裁剪视口交互通过。暂停设置保留，实际透明度待验收。实现与报告见 Resources/quick-input/transparency-followup/top-chrome-avoidance/validation.md，Issue #71保持开放。
+
+- 2026-10-13｜顶部避让测试包的MN5实际显示获得初步反馈：用户截图显示快速输入文字、背景和操作清晰，并反馈“好像可以了”。该场景初步验收通过；自动拖动与重开对照因noWindowsAvailable未完成，完整验收仍保留。记录见 Resources/quick-input/transparency-followup/top-chrome-avoidance/mn5-visibility-report.json。
+
+- 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已完成GitHub稳定版发布。发布提交和标签为c2731ca，前端247项、Node脚本63个、包内原生与网页交互通过，附件下载SHA-256一致。当前原目录仍保留v0.1.25基础和全部既有改动；完整整合源码位于本聊天附着的release-v0-1-27工作区，已推送main。真实下载清单已随网盘发布更新，本机安装未替换，设备验收待办保留，见 Resources/releases/v0.1.27.md。
+
+- 2026-10-13｜用户授权通过网页自动上传v0.1.27并完成清单发布，替代先前手动上传边界。Chrome网盘入口重定向至登录页面；页面扩展框架导致cdp_extension_access_denied，读取和截图失败，恢复请求超时，发布会话已停止。上传尚未发生，公开清单仍为v0.1.26；v0.1.27清单草稿保留实际历史，未部署。待登录页面恢复后继续自动发布，授权持续有效。报告见 Resources/releases/v0.1.27/pan123-upload-attempt.json。
+
+- 2026-10-17｜已按确认方案接入 Pinner 卡片编辑协议，支持明确卡片 ID、独立目标会话、切换预检、取消与迟到响应隔离；相关 Native、前端和网页构建通过，未打包或安装。详见[实施记录](../../mnpinner/docs/reviews/2026-10-17-card-pin-editor-implementation.md)与[事实](事实.md)。
+
+- 2026-10-17｜包含定向编辑协议的 CM 0.1.25 已本机打包安装并重启；37 个包内文件与 dist/安装目录一致，压缩发行包专项回归通过，原安装 0.1.26 已完整备份。Pinner 原生编辑按钮部分验收通过；CM 按钮实际打开与保存受本机 WebKit 无障碍点击崩溃阻塞，仍待验收。更新此前“本次未安装”的阶段记录，见[本机报告](../../mnpinner/docs/reviews/2026-10-17-card-pin-editor-local-install.md)。
+
+- 2026-10-18｜评论管理器已接入通用跟随按钮规则；源码回归与原生构建或压缩校验通过，未归档或安装，Mac/iPad 待验收。见[跨插件实施记录](../../mnpinner/docs/reviews/2026-10-18-follow-button-collision-implementation.md)、[事实](事实.md)和[待办](待办.md)。
+
+- 2026-10-18｜v0.1.28 正在发布，正式包与本次回归已核验；发布工作区基于远端 main，原目录保留。见 Resources/releases/v0.1.28/package-report.json。

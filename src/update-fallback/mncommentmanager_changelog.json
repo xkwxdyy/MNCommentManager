@@ -1,8 +1,43 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-13T14:11:53Z",
+  "updatedAt": "2026-10-18T07:18:29.143285Z",
   "entries": [
+    {
+      "version": "0.1.28",
+      "channel": "stable",
+      "date": "2026-10-18",
+      "items": [
+        {
+          "zh": "支持从 Pinner 打开指定卡片的评论管理器，固定编辑目标，并保护未完成操作、取消与迟到请求。",
+          "en": "Open Comment Manager for a specific card from Pinner, keeping the editing target fixed and guarding unfinished operations, cancellations, and late requests."
+        },
+        {
+          "zh": "原生摘录新增下移入口；移动前确认卡片转换和链接迁移，支持取消、不再提示及设置恢复。",
+          "en": "Native excerpts gain a move-down action. Confirm card conversion and link migration before moving, with cancellation, an option to skip future prompts, and a setting to restore prompts."
+        },
+        {
+          "zh": "浮动按钮与 Pinner、Literature 采用统一避让规则，覆盖迟到控件、触摸期间位置保持、无空间隐藏和停用清理。",
+          "en": "Floating controls share placement priorities with Pinner and Literature, handling delayed controls, touch holds, hiding when space is unavailable, and cleanup on unload."
+        },
+        {
+          "zh": "修复文本及图片摘录首次移动的转换和排序；位置不变时不转换卡片。",
+          "en": "Fix conversion and ordering on the first move of text and image excerpts. No-op moves do not convert the card."
+        },
+        {
+          "zh": "改善 Catalyst 下拉选项的触摸选择、滑动取消、短暂失焦和 Escape 焦点恢复。",
+          "en": "Improve Catalyst dropdown touch selection, scroll cancellation, transient blur handling, and focus restoration after Escape."
+        },
+        {
+          "zh": "单卡菜单依据可用空间调整方向和宽度，普通文本筛选和统计排除链接及摘要评论。",
+          "en": "Single-card menus adapt their direction and width to available space. Plain-text filtering and counts exclude link and summary comments."
+        },
+        {
+          "zh": "摘录转换、链接迁移、撤销与重做、Pinner 定向编辑及各设备浮动按钮和触摸操作仍待真实设备验收。",
+          "en": "Excerpt conversion, link migration, undo and redo, Pinner-targeted editing, floating controls, and touch interactions still require device acceptance."
+        }
+      ]
+    },
     {
       "version": "0.1.27",
       "channel": "stable",

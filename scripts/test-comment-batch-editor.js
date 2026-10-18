@@ -72,4 +72,14 @@ context.__MN_COMMENT_MUTATIONS__.mergeContentSelection = () => ({
 const partial = editor.mergeSelected([note("A")], {}, {});
 assert.strictEqual(partial.failed, 1);
 assert.strictEqual(JSON.stringify(partial.convertedNoteMap), '{"A":"A2"}', "partial failures must retain replacement IDs");
+snapshots.C = { noteId: "C", comments: [
+  { index: 0, text: "plain", type: "textComment", capabilities: { hasText: true } },
+  { index: 1, text: "linked card", type: "linkComment", capabilities: { hasText: true } },
+  { index: 2, text: "summary", type: "summaryComment", capabilities: { hasText: true } },
+] };
+assert.deepStrictEqual(editor.selectCommentIndices(note("C"), { types: ["text"] }), [0], "plain-text operations must leave link and summary comments untouched");
+assert.deepStrictEqual(editor.selectCommentIndices(note("C"), { types: ["link"] }), [1, 2]);
+const mixedCounts = editor.buildOverview([note("C")])[0].commentCounts;
+assert.strictEqual(mixedCounts.text, 1);
+assert.strictEqual(mixedCounts.link, 2);
 console.log("comment batch editor tests passed");

@@ -1,0 +1,32 @@
+{
+  "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/dist/excerpt-move/mn-comment-manager-v0.1.25-excerpt-confirm.mnaddon",
+  "sha256": "bd5583161948961874859ab731e70afbb11e8c9f3a1c35144fc7f69e782621f9",
+  "size": 662186,
+  "fileCount": 37,
+  "addonid": "marginnote.extension.mncommentmanager",
+  "zipIntegrity": true,
+  "javascriptSyntax": true,
+  "isolatedBuild": true,
+  "frontendPassed": 255,
+  "excerptMoveTestsPassed": 22,
+  "nodeScriptsPassed": 4,
+  "installed": true,
+  "changedInstalledFiles": [
+    "web-dist/assets/app.js"
+  ],
+  "nativeResourcesPreservedFromInstallation": true,
+  "packedUIIntegrationPassed": true,
+  "extensionDir": "/Users/xiakangwei/Library/Containers/QReader.MarginStudy.easy/Data/Library/MarginNote Extensions/marginnote.extension.mncommentmanager",
+  "appPath": "/Applications/MarginNote 5.app",
+  "backup": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/dist/excerpt-move/before-confirmation-install-20261018-150837.zip",
+  "backupSHA256": "134a1f4a23b491f3d537cf710ecdccba0aaa9412524fe7bdd7883c4e99bfa5bd",
+  "deviceAcceptanceCompleted": false,
+  "installedFilesMatchPackage": true,
+  "installedFileCount": 37,
+  "gracefulQuit": true,
+  "restarted": true,
+  "restartProcessVerified": true,
+  "processIds": [
+    "50179"
+  ]
+}

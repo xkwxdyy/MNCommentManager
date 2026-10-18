@@ -251,6 +251,21 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   }
 
   function resolveButtonFrame(addon, context) {
+    const preferred = resolvePreferredButtonFrame(addon, context);
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ === "undefined") return preferred;
+    if (!context || !context.anchorRect) return null;
+    const host = getHostView(addon);
+    const frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, {
+      priority: 40,
+      preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: BUTTON_WIDTH, height: BUTTON_HEIGHT },
+      width: BUTTON_WIDTH, height: BUTTON_HEIGHT, ownViews: [addon.batchCommentButton],
+      anchor: context.anchorRect, avoid: [context.anchorRect], previous: context._floatingGroupFrame
+    });
+    context._floatingGroupFrame = frame;
+    return frame;
+  }
+
+  function resolvePreferredButtonFrame(addon, context) {
     const hostView = getHostView(addon);
     const bounds = hostView && hostView.bounds ? hostView.bounds : null;
     if (!bounds || !context || !context.anchorRect) return null;
@@ -277,6 +292,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const bottomY = Number(anchor.y || 0) + Number(anchor.height || 0) + BUTTON_GAP;
     const centerX = Number(anchor.x || 0) + Number(anchor.width || 0) * 0.5 - BUTTON_WIDTH * 0.5;
     const candidates = [
+      // Reserve a separate row above the toolbar for the comments action.
+      // Pinner can appear or move after this layout, including into the row just above it.
+      { x: centerX, y: topY - BUTTON_HEIGHT - BUTTON_GAP, score: -80 },
       { x: rightX, y: centerY, score: 0 },
       { x: leftX, y: centerY, score: 20 },
       { x: rightX, y: topY, score: 40 },
@@ -367,6 +385,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       try { button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1.0), 0); } catch (error) {}
       try { button.titleLabel.font = UIFont.boldSystemFontOfSize(14); } catch (error) {}
       try { button.accessibilityLabel = "MN Comment Manager 批量处理"; } catch (error) {}
+      try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTouchDown:", 1 << 0); } catch (error) {}
       try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTapped:", 1 << 6); } catch (error) {}
       try {
         MNButton.addLongPressGesture(button, addon, "batchCommentButtonLongPressed:", 0.45);
@@ -390,6 +409,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
   function hideButton(addon, reason, options) {
     try {
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.batchCommentButton]);
       const popover = addon && addon.batchCommentMenuPopoverController;
       addon.batchCommentMenuPopoverController = null;
       if (popover && typeof popover.dismissPopoverAnimated === "function") {
@@ -404,19 +424,31 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
         try { button.userInteractionEnabled = false; } catch (error) {}
       }
       if (!(options && options.preserveContext === true)) addon.batchCommentContext = null;
+      addon.batchCommentInteractionUntil = 0;
       console.log(`[MN Comment Manager] batch button hidden: ${reason || ""}`);
     } catch (error) {
       console.log(`[MN Comment Manager] hide batch button failed: ${error && error.message ? error.message : error}`);
     }
   }
 
+  function disposeButton(addon, reason) {
+    if (!addon) return false;
+    const button = addon.batchCommentButton;
+    hideButton(addon, reason || "dispose");
+    try { if (button && button.removeFromSuperview) button.removeFromSuperview(); } catch (_) {}
+    addon.batchCommentButton = null;
+    return !!button;
+  }
+
   function showForContext(addon, context) {
+    if (!addon || addon.window !== MNUtil.currentWindow || !__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) return false;
+    if (Number(addon && addon.batchCommentInteractionUntil || 0) > Date.now() || addon && addon.batchCommentMenuPopoverController) return false;
     const latest = addon.batchCommentContext;
     if (!latest || !context || String(latest.token || "") !== String(context.token || "")) return false;
     const button = ensureButton(addon);
     if (!button) return false;
     const frame = resolveButtonFrame(addon, context);
-    if (!frame) return false;
+    if (!frame) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; return false; }
     button.frame = frame;
     button.hidden = false;
     try { button.enabled = true; } catch (error) {}
@@ -456,6 +488,11 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     delay(INITIAL_SHOW_DELAY, function () {
       showForContext(addon, context);
     });
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") {
+      __MN_ADDON_FLOATING_LAYOUT__.settle(delay,
+        () => addon.batchCommentContext === context && addon.window === MNUtil.currentWindow && __MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton,
+        () => showForContext(addon, context));
+    }
     return true;
   }
 
@@ -865,7 +902,14 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
+  function beginInteraction(addon) {
+    addon.batchCommentInteractionUntil = Date.now() + 900;
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze([addon.batchCommentButton], 900);
+  }
+
   return {
+    disposeButton,
+    beginInteraction,
     handleMultipleSelection,
     hideButton,
     handleMultipleSelectionClosed,

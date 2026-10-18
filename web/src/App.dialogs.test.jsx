@@ -428,3 +428,23 @@ it("does not reopen a closed batch editor after a late save receipt", async () =
   expect(host.querySelector('.batch-editor')).toBeNull();
   expect(host.querySelector('.batch-recording-close-dialog')).toBeNull();
 });
+
+
+it("blocks external card switching while an edit dialog or workflow draft is open", async () => {
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(true);
+  window.__MNBridgePending = { loadingCard: {} };
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
+  delete window.__MNBridgePending;
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(true);
+  await click(host.querySelector('#comment-0 input[type="checkbox"]'));
+  await click(button("编辑文本"));
+  const input = host.querySelector('.dialog textarea');
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
+  expect(input.value).toBe("原文");
+  await key(input, "Escape");
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(true);
+  await click(button("工作流"));
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
+  await addFilter();
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
+});

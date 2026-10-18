@@ -203,6 +203,23 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   }
 
   function resolveButtonFrame(addon, context) {
+    const preferred = resolvePreferredButtonFrame(addon, context);
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ === "undefined") return preferred;
+    if (!context || !context.anchorRect) return null;
+    const host = getHostView(addon);
+    let anchor = context.anchorRect;
+    try { if (host && typeof host.convertRectFromView === "function") anchor = host.convertRectFromView(anchor, addon.window); } catch (_) { return null; }
+    const frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, {
+      priority: 30,
+      preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: (__MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE), height: BUTTON_SIZE },
+      width: (__MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE), height: BUTTON_SIZE, ownViews: [addon.dynamicCommentButton, addon.dynamicAddCommentButton],
+      anchor, avoid: [anchor], previous: context._floatingGroupFrame
+    });
+    context._floatingGroupFrame = frame;
+    return frame;
+  }
+
+  function resolvePreferredButtonFrame(addon, context) {
     const hostView = getHostView(addon);
     const bounds = hostView && hostView.bounds;
     if (!bounds || !context || !context.anchorRect) return null;
@@ -284,6 +301,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function hideButton(addon, reason) {
     try {
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.dynamicCommentButton, addon.dynamicAddCommentButton]);
       const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
       const addButton = addon && addon.dynamicAddCommentButton;
@@ -315,12 +333,15 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   }
 
   function showForContext(addon, context) {
+    if (!addon || addon.window !== MNUtil.currentWindow || !__MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton) return false;
+    if (Number(addon && addon.dynamicCommentInteractionUntil || 0) > Date.now() || addon && addon.dynamicCommentMenuPopoverController) return false;
     if (!addon || !context || !addon.dynamicCommentContext || addon.dynamicCommentContext.token !== context.token) return false;
     refreshAnchorRect(context);
     const button = ensureButton(addon);
     const frame = resolveButtonFrame(addon, context);
     if (!button || !frame) {
-      if (addon.dynamicAddCommentButton) addon.dynamicAddCommentButton.hidden = true;
+      if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
+      if (addon.dynamicAddCommentButton) { addon.dynamicAddCommentButton.hidden = true; addon.dynamicAddCommentButton.enabled = false; addon.dynamicAddCommentButton.userInteractionEnabled = false; }
       return false;
     }
     button.frame = { x: frame.x, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
@@ -352,12 +373,15 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     addon.dynamicCommentContext = context;
     delay(INITIAL_SHOW_DELAY, () => showForContext(addon, context));
     // Other addons reveal their controls after the popup notification has finished.
-    [0.12, 0.3].forEach((seconds) => delay(seconds, () => {
+    const settle = typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined"
+      ? (callback) => __MN_ADDON_FLOATING_LAYOUT__.settle(delay, () => !!addon.dynamicCommentContext && addon.dynamicCommentContext.token === context.token, callback)
+      : (callback) => [0.12, 0.3].forEach(seconds => delay(seconds, callback));
+    settle(() => {
       if (isCurrentWindow(addon) && (!addon.quickCommentController || addon.quickCommentController._quickClosePending || Number(addon.quickCommentController._quickExiting || 0) === 1) && !addon.dynamicCommentMenuPopoverController &&
           Number(addon.dynamicCommentInteractionUntil || 0) <= Date.now() &&
           __MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton &&
           addon.dynamicCommentContext && addon.dynamicCommentContext.token === context.token) showForContext(addon, context);
-    }));
+    });
     return true;
   }
 
@@ -375,12 +399,44 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     return true;
   }
 
+  function presentSingleMenu(sender, items, requestedWidth, preferredPosition) {
+    let width = requestedWidth;
+    let position = preferredPosition;
+    try {
+      const view = MNUtil.studyView;
+      const bounds = view && view.bounds;
+      const rect = sender && typeof sender.convertRectToView === 'function'
+        ? sender.convertRectToView(sender.bounds, view) : null;
+      if (bounds && rect && Number(bounds.width) > 16 && Number(bounds.height) > 0) {
+        const x = Number(rect.x), y = Number(rect.y), w = Number(rect.width), h = Number(rect.height);
+        const leftEdge = Number(bounds.x || 0), topEdge = Number(bounds.y || 0);
+        if ([x, y, w, h, leftEdge, topEdge, Number(bounds.width), Number(bounds.height), Number(width)].every(Number.isFinite)) {
+          width = Math.min(Number(width), Number(bounds.width) - 16);
+          const left = x - leftEdge, right = leftEdge + Number(bounds.width) - x - w;
+          const needed = width + 12;
+          if (position === 0 && left < needed) {
+            position = right >= needed || right > left ? 4 : 0;
+          } else if (position === 4 && right < needed) {
+            position = left >= needed || left > right ? 0 : 4;
+          }
+          if ((position === 0 || position === 4) && Math.max(left, right) < needed) {
+            const above = y - topEdge, below = topEdge + Number(bounds.height) - y - h;
+            position = below >= above ? 3 : 2;
+          }
+        }
+      }
+    } catch (_) {
+      // Keep the existing presentation path if the host cannot provide geometry.
+    }
+    return MNUtil.getPopoverAndPresent(sender, items, width, position);
+  }
+
   function openMenu(addon, button) {
     const context = addon && addon.dynamicCommentContext;
     debug("menu.open", { hasContext: !!context, noteId: context && context.noteId, token: context && context.token });
     if (!context || !context.note) { hideButton(addon, "menu.noContext"); return false; }
     const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", "root");
-    const popover = MNUtil.getPopoverAndPresent(button || addon.dynamicCommentButton, items, 280, 0);
+    const popover = presentSingleMenu(button || addon.dynamicCommentButton, items, 280, 0);
     if (!popover) { hideButton(addon, "menu.presentFailed"); return false; }
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -400,7 +456,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     addon.dynamicCommentMenuStack.push({ items: addon.dynamicCommentMenuItems || [], width: 280, position: 0 });
     addon.dynamicCommentMenuTransitioning = true;
     const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", param.section || "saved");
-    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 320, 0);
+    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 320, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -414,7 +470,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (!Array.isArray(stack) || stack.length === 0) return false;
     const previous = stack.pop();
     addon.dynamicCommentMenuTransitioning = true;
-    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, previous.items, previous.width || 280, previous.position || 0);
+    const popover = presentSingleMenu(addon.dynamicCommentButton, previous.items, previous.width || 280, previous.position || 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -468,7 +524,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       item("  Markdown 行内链接", "markdown"),
       item("  全部失效链接", "all"),
     ];
-    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 280, 0);
+    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 280, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -481,7 +537,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (!Array.isArray(stack) || stack.length === 0) return false;
     const items = stack.pop();
     addon.dynamicCommentMenuTransitioning = true;
-    const popover = MNUtil.getPopoverAndPresent(addon.dynamicCommentButton, items, 280, 0);
+    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 280, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -514,6 +570,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   function beginInteraction(addon) {
     try {
       if (!addon || !addon.dynamicCommentContext) return false;
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze([addon.dynamicCommentButton, addon.dynamicAddCommentButton], TOUCH_INTERACTION_HOLD_MS);
       addon.dynamicCommentInteractionUntil = Date.now() + TOUCH_INTERACTION_HOLD_MS;
       return true;
     } catch (_) {
