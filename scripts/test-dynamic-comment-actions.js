@@ -275,6 +275,76 @@ for (const marker of ['_quickClosePending', '_quickExiting']) {
 }
 addon.quickCommentController = null;
 actions.disposeButton(addon, 'transition-test.done');
+
+const ids = ['management', 'add', 'move'];
+const properties = { management: 'dynamicCommentButton', add: 'dynamicAddCommentButton', move: 'dynamicMoveCommentButton' };
+const keys = { management: 'showManagementButton', add: 'showQuickCommentButton', move: 'showMoveCommentButton' };
+const permutations = ids.flatMap(first => ids.filter(id => id !== first).map(second => [first, second, ids.find(id => id !== first && id !== second)]));
+let combinations = 0;
+for (const count of [0, 1, 2]) {
+  context.MNNote.new = noteId => ({ noteId, comments: Array.from({ length: count }, () => ({})) });
+  for (const order of permutations) for (let mask = 0; mask < 8; mask++) {
+    actions.disposeButton(addon, 'combination.reset'); timers.length = 0;
+    Object.assign(configured, { enableDynamicSingleCardButton: true, dynamicButtonOrder: order });
+    ids.forEach((id, index) => { configured[keys[id]] = !!(mask & (1 << index)); });
+    assert(actions.handlePopupMenuOnNote(addon, sender)); takePrimaryTimer().callback();
+    const expected = order.filter(id => configured[keys[id]] && (id !== 'move' || count > 1));
+    const actual = ids.filter(id => addon[properties[id]] && !addon[properties[id]].hidden)
+      .sort((a, b) => addon[properties[a]].frame.x - addon[properties[b]].frame.x);
+    assert.deepStrictEqual(actual, expected, `combination ${mask}, comments ${count}, order ${order}`);
+    expected.forEach((id, index) => {
+      const button = addon[properties[id]];
+      assert.strictEqual(button.enabled, true);
+      assert.strictEqual(button.userInteractionEnabled, true);
+      assert.strictEqual(button.frame.x, addon[properties[expected[0]]].frame.x + index * 48, 'hidden buttons must not leave gaps');
+    });
+    ids.filter(id => !expected.includes(id)).forEach(id => assert(!addon[properties[id]], 'disabled buttons need no native view'));
+    combinations++;
+  }
+}
+assert.strictEqual(combinations, 144);
+
+// Turning off the management button leaves the add button as the real menu anchor.
+Object.assign(configured, { showManagementButton: false, showQuickCommentButton: true, showMoveCommentButton: false, addTapAction: 'menu' });
+actions.disposeButton(addon, 'add-only.reset'); timers.length = 0;
+actions.handlePopupMenuOnNote(addon, sender); takePrimaryTimer().callback();
+assert.strictEqual(addon.dynamicCommentButton, null);
+assert.strictEqual(actions.dispatchAction(addon, false, false), false, 'disabled management actions are ignored');
+assert.strictEqual(actions.dispatchAction(addon, true, false), true);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.button, addon.dynamicAddCommentButton);
+actions.openSingleWorkflows(addon, { noteId: 'single-note', section: 'links' });
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.button, addon.dynamicAddCommentButton);
+actions.backSingleWorkflowMenu(addon);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.button, addon.dynamicAddCommentButton);
+actions.openSingleInvalidLinkMenu(addon);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.button, addon.dynamicAddCommentButton);
+actions.backSingleInvalidLinkMenu(addon);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController.button, addon.dynamicAddCommentButton);
+
+const dismissedOnSettings = addon.dynamicCommentMenuPopoverController;
+actions.beginInteraction(addon);
+configured.showQuickCommentButton = false;
+actions.refreshButtons(addon);
+assert.deepStrictEqual(dismissedOnSettings.dismissCalls, [false]);
+assert.strictEqual(addon.dynamicCommentMenuPopoverController, null);
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, true);
+assert.strictEqual(addon.dynamicAddCommentButton.enabled, false);
+assert.strictEqual(addon.dynamicAddCommentButton.userInteractionEnabled, false);
+assert.strictEqual(actions.dispatchAction(addon, true, false), false, 'a queued tap cannot run after disabling a button');
+assert.strictEqual(addon.dynamicCommentInteractionUntil, 0);
+timers.forEach(timer => timer.callback()); timers.length = 0;
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, true, 'settle timers cannot reveal disabled buttons');
+configured.showQuickCommentButton = true;
+actions.refreshButtons(addon);
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, false, 'a retained popup context can reveal an enabled button again');
+configured.enableDynamicSingleCardButton = false;
+actions.refreshButtons(addon);
+assert.strictEqual(addon.dynamicAddCommentButton.hidden, true);
+assert.strictEqual(addon.dynamicCommentContext, null);
+assert.strictEqual(configured.showQuickCommentButton, true, 'master switch must not erase individual choices');
+assert.strictEqual(actions.isButtonEnabled('move'), false);
+actions.disposeButton(addon, 'combinations.done');
+console.log(`dynamic button combinations: ${combinations}; add-only menus, live switches and delayed callbacks passed`);
 console.log("dynamic comment actions tests passed");
 })().catch((error) => {
   console.error(error);

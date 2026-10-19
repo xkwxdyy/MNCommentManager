@@ -23,6 +23,9 @@ const settings = context.__MN_COMMENT_ACTION_SETTINGS__;
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
   showBatchButton: true,
   enableDynamicSingleCardButton: true,
+  showManagementButton: true,
+  showMoveCommentButton: true,
+  dynamicButtonOrder: ["management", "add", "move"],
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
   showExcerptMoveNotice: true,
@@ -32,6 +35,9 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showBatchButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: true,
+  showManagementButton: true,
+  showMoveCommentButton: true,
+  dynamicButtonOrder: ["management", "add", "move"],
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
   showExcerptMoveNotice: true,
@@ -41,6 +47,9 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showB
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enableDynamicSingleCardButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
+  showManagementButton: true,
+  showMoveCommentButton: true,
+  dynamicButtonOrder: ["management", "add", "move"],
   mergeToExcerptDefault: false,
   showImageExcerptText: false,
   showExcerptMoveNotice: true,
@@ -50,6 +59,9 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enabl
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ mergeToExcerptDefault: true }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
+  showManagementButton: true,
+  showMoveCommentButton: true,
+  dynamicButtonOrder: ["management", "add", "move"],
   mergeToExcerptDefault: true,
   showImageExcerptText: false,
   showExcerptMoveNotice: true,
@@ -92,3 +104,21 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentAction
 assert.strictEqual(context.__MN_COMMENT_ACTION_SETTINGS__.getSettings().showExcerptMoveNotice, false);
 assert.strictEqual(settings.updateSettings({ showExcerptMoveNotice: "true" }).showExcerptMoveNotice, false);
 assert.strictEqual(settings.updateSettings({ showExcerptMoveNotice: true }).showExcerptMoveNotice, true);
+
+const order = ["move", "add", "management"];
+settings.updateSettings({ showManagementButton: false, showMoveCommentButton: false, dynamicButtonOrder: order });
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentActionSettings.js"), "utf8"), context);
+const reloaded = context.__MN_COMMENT_ACTION_SETTINGS__.getSettings();
+assert.strictEqual(reloaded.showManagementButton, false);
+assert.strictEqual(reloaded.showMoveCommentButton, false);
+assert.deepStrictEqual(Array.from(reloaded.dynamicButtonOrder), order);
+assert.strictEqual(typeof store.get("mncommentmanager_dynamic_button_order"), "string");
+for (const invalid of [[], ["add"], ["move", "add", "add"], ["move", "add", "unknown"], "move,add,management", null]) {
+  assert.throws(() => settings.updateSettings({ showManagementButton: true, dynamicButtonOrder: invalid }), /顺序无效/);
+  assert.strictEqual(settings.getSettings().showManagementButton, false, "invalid order must fail before any setting is written");
+}
+for (const raw of ["not json", "[]", '["move","add","add"]']) {
+  store.set("mncommentmanager_dynamic_button_order", raw);
+  assert.deepStrictEqual(Array.from(settings.getSettings().dynamicButtonOrder), ["management", "add", "move"]);
+}
+console.log("dynamic button preferences survive reload and reject invalid order");

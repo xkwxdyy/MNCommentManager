@@ -2,7 +2,7 @@
 var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
   const root = typeof globalThis !== "undefined" ? globalThis : Function("return this")();
   const shared = root.__MN_ADDON_FLOATING_LAYOUT_V1__;
-  if (shared && shared.revision === 2) return shared;
+  if (shared && shared.revision >= 3) return shared;
   return root.__MN_ADDON_FLOATING_LAYOUT_V1__ = (function () {
   const ranks = { 9205101: 10, 9205103: 10, 762041: 20, 9304102: 30, 9304103: 30, 9304104: 30, 9304101: 40 };
   const holds = [];
@@ -105,8 +105,8 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
     }
     function walk(parent, depth) {
       const children = array(parent.subviews);
-      // Unknown children may escape a non-clipping container; reserve the host then.
-      if (children.truncated) { out.incomplete = true; reserve(parent.clipsToBounds ? visibleRect(parent, host) : rect(host.bounds)); }
+      // An incomplete scan is diagnostic, not evidence that the entire host is occupied.
+      if (children.truncated) out.incomplete = true;
       for (let i = 0; i < children.length; i++) {
         const view = children[i];
         if (!view || own.some(v => same(v, view))) continue;
@@ -114,12 +114,6 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
         if (rank === opts.priority || (rank > opts.priority && !held(view))) continue;
         const r = visibleRect(view, host);
         if (!r || content(view)) continue;
-        if (--budget < 0 || depth > 6) {
-          out.incomplete = true;
-          const nested = array(view.subviews);
-          reserve(view.clipsToBounds || !nested.length && !nested.truncated ? r : rect(host.bounds));
-          continue;
-        }
         const compact = r.width <= 480 && r.height <= 200 && r.width * r.height <= 70000;
         if (rank || view.mntoolbar === true || (compact && control(view))) { out.push(r); continue; }
         // A clear compact UIView may contain buttons, a label, and an icon.
@@ -128,6 +122,12 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
           const childRank = ranks[Number(child && child.tag)];
           return !(childRank >= opts.priority && !held(child)) && visibleRect(child, host) && control(child);
         })) { out.push(r); continue; }
+        if (--budget < 0 || depth > 6) {
+          out.incomplete = true;
+          // Reserve only the observed local footprint; unknown descendants must not veto every position.
+          if (compact) reserve(r);
+          continue;
+        }
         walk(view, depth + 1);
       }
     }
@@ -168,6 +168,6 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
     [0.04, 0.12, 0.3, 0.8, 1.6].forEach(seconds => schedule(seconds, function () { if (active()) refresh(); }));
   }
   // Upgrade the existing object so earlier-loaded addons also receive the fix.
-  return Object.assign(shared || {}, { revision: 2, collect, place, visibleRect, freeze, release, settle });
+  return Object.assign(shared || {}, { revision: 3, collect, place, visibleRect, freeze, release, settle });
   })();
 })();

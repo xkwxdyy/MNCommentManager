@@ -34,9 +34,12 @@ it("disables duplicate clicks while pending, keeps errors visible, and supports 
   MNBridge.send.mockImplementationOnce(() => new Promise((resolve, reject) => { fail = reject; }));
   await act(async () => host.querySelector("button").click());
   expect([...host.querySelectorAll("button")].every(button => button.disabled)).toBe(true);
+  expect(host.querySelector("button").classList.contains("is-opening")).toBe(true);
+  expect(host.querySelector("button .help-video-trailing")?.textContent).toBe("打开中…");
   await act(async () => host.querySelectorAll("button")[1].click());
   expect(MNBridge.send).toHaveBeenCalledTimes(1);
   await act(async () => fail(new Error("test failure")));
+  expect(host.querySelector("button").classList.contains("is-opening")).toBe(false);
   expect(host.querySelector('[role="alert"]').textContent).toContain("test failure");
   expect(host.querySelector("details").open).toBe(true);
   await act(async () => host.querySelector("button").click());
@@ -44,8 +47,15 @@ it("disables duplicate clicks while pending, keeps errors visible, and supports 
   expect(host.querySelector("details").open).toBe(false);
 });
 
-it("closes on Escape or outside pointer without a bridge request", async () => {
+it("closes on Escape or outside pointer without a bridge request and supports ArrowDown/ArrowUp focus cycling", async () => {
   const summary = host.querySelector("summary");
+  const buttons = host.querySelectorAll("button");
+  await act(async () => summary.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })));
+  expect(document.activeElement).toBe(buttons[0]);
+  await act(async () => buttons[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })));
+  expect(document.activeElement).toBe(buttons[1]);
+  await act(async () => buttons[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })));
+  expect(document.activeElement).toBe(buttons[0]);
   await act(async () => summary.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
   expect(host.querySelector("details").open).toBe(false);
   expect(document.activeElement).toBe(summary);

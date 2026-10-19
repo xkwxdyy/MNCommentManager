@@ -223,7 +223,10 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     const settings = __MN_COMMENT_ACTION_SETTINGS__.updateSettings(payload);
     if (settings.showBatchButton !== true) __MN_BATCH_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
     if (settings.enableDynamicSingleCardButton !== true) __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
-    else __MN_DYNAMIC_COMMENT_ACTIONS__.refreshButtons(context.addon);
+    else if (["enableDynamicSingleCardButton", "showManagementButton", "showQuickCommentButton", "showMoveCommentButton", "dynamicButtonOrder",
+      "managementTapAction", "managementHoldAction", "addTapAction", "addHoldAction"].some((key) => payload && payload[key] !== undefined)) {
+      __MN_DYNAMIC_COMMENT_ACTIONS__.refreshButtons(context.addon);
+    }
     return settings;
   }
 

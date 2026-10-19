@@ -136,3 +136,113 @@ it("persists per-button click and hold actions and the add-button visibility thr
   await click(hold); await click(host.querySelector('[role="option"][data-value="none"]'));
   expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { addHoldAction: 'none' });
 });
+
+it("independently disables every floating button, preserves choices under the master switch, and restores them after reopening", async () => {
+  await click(button("设置"));
+  const checkbox = label => [...host.querySelectorAll('.action-button-settings label')]
+    .find(node => node.querySelector('strong')?.textContent === label)?.querySelector('input');
+  for (const [label, key] of [['显示管理按钮', 'showManagementButton'], ['显示添加评论按钮', 'showQuickCommentButton'], ['显示移动评论按钮', 'showMoveCommentButton']]) {
+    expect(checkbox(label).checked).toBe(true);
+    await click(checkbox(label));
+    expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { [key]: false });
+    expect(checkbox(label).checked).toBe(false);
+  }
+  await click(checkbox('单卡时显示浮动按钮'));
+  expect(settings.enableDynamicSingleCardButton).toBe(false);
+  expect(checkbox('显示管理按钮').disabled).toBe(false);
+  await click(checkbox('显示管理按钮'));
+  await click(checkbox('单卡时显示浮动按钮'));
+  expect(settings.showManagementButton).toBe(true);
+  expect(settings.showQuickCommentButton).toBe(false);
+  expect(settings.showMoveCommentButton).toBe(false);
+  await click(button('完成')); await click(button('设置'));
+  expect(checkbox('显示管理按钮').checked).toBe(true);
+  expect(checkbox('显示添加评论按钮').checked).toBe(false);
+  expect(checkbox('显示移动评论按钮').checked).toBe(false);
+});
+
+it("saves reordered buttons through Native and checks array contents across a lost response", async () => {
+  await click(button('设置'));
+  const order = () => [...host.querySelectorAll('.dynamic-button-setting')].map(row => row.dataset.buttonId);
+  const arrow = name => host.querySelector(`button[aria-label="${name}"]`);
+  expect(arrow('前移：显示管理按钮').disabled).toBe(true);
+  expect(arrow('后移：显示移动评论按钮').disabled).toBe(true);
+  await click(arrow('前移：显示移动评论按钮'));
+  expect(settings.dynamicButtonOrder).toEqual(['management', 'move', 'add']);
+  expect(order()).toEqual(settings.dynamicButtonOrder);
+  expect(host.querySelector('.action-button-settings [role=status]').textContent).toContain('已保存');
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation(async (command, payload) => {
+    if (command === 'updateActionButtonSettings') {
+      settings = { ...settings, ...payload };
+      throw new Error('测试排序回执丢失');
+    }
+    const result = await send(command, payload);
+    return JSON.parse(JSON.stringify(result));
+  });
+  await click(arrow('前移：显示移动评论按钮'));
+  expect(order()).toEqual(['move', 'management', 'add']);
+  expect(host.querySelector('.action-button-settings [role=alert]').textContent).toContain('已生效');
+  await click(button('完成')); await click(button('设置'));
+  expect(order()).toEqual(['move', 'management', 'add']);
+});
+
+it("keeps the existing order when Native rejects a reorder", async () => {
+  await click(button('设置'));
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation(async (command, payload) => {
+    if (command === 'updateActionButtonSettings') throw new Error('测试排序保存失败');
+    return send(command, payload);
+  });
+  await click(host.querySelector('button[aria-label="前移：显示移动评论按钮"]'));
+  expect([...host.querySelectorAll('.dynamic-button-setting')].map(row => row.dataset.buttonId)).toEqual(['management', 'add', 'move']);
+  expect(host.querySelector('.action-button-settings [role=alert]').textContent).toContain('测试排序保存失败');
+});
+
+it("updates live preview pills, rank badges, and keeps action selectors attached to their button cards", async () => {
+  await click(button('设置'));
+  expect(host.querySelector('.statusbar .status-message')?.textContent).toBe('评论管理设置已打开');
+  await click(button('完成'));
+  expect(host.querySelector('.statusbar .status-message')?.textContent).toBe('当前卡片已就绪');
+
+  await click(button('设置'));
+  const card = (id) => host.querySelector(`.dynamic-button-setting[data-button-id="${id}"]`);
+  const summary = () => host.querySelector('.dynamic-button-preview-summary')?.textContent;
+  expect(summary()).toBe('显示 3 / 3 项');
+  expect(card('management').querySelector('[aria-label="管理按钮单击"]')).not.toBeNull();
+  expect(card('add').querySelector('[aria-label="添加按钮单击"]')).not.toBeNull();
+  expect(card('move').querySelector('.dynamic-action-settings')).toBeNull();
+  expect(card('add').querySelector('.dynamic-button-rank-badge').textContent).toBe('左起第 2 位');
+
+  const previewPills = host.querySelectorAll('.dynamic-button-preview-pill');
+  await click(previewPills[2]);
+  expect(document.activeElement).toBe(card('move').querySelector('input[type="checkbox"]'));
+  expect(card('move').classList.contains('is-highlighted')).toBe(true);
+
+  await click(card('management').querySelector('input[type="checkbox"]'));
+  expect(summary()).toBe('显示 2 / 3 项');
+  expect(card('management').querySelector('.dynamic-button-rank-badge').textContent).toBe('已隐藏');
+  expect(card('add').querySelector('.dynamic-button-rank-badge').textContent).toBe('左起第 1 位');
+
+  await act(async () => {
+    card('add').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true, cancelable: true }));
+  });
+  expect([...host.querySelectorAll('.dynamic-button-setting')].map(row => row.dataset.buttonId)).toEqual(['add', 'management', 'move']);
+  expect(card('add').classList.contains('is-just-moved')).toBe(true);
+  expect(host.querySelector('.dynamic-button-setting').querySelector('[aria-label="添加按钮单击"]')).not.toBeNull();
+
+  await click(card('add').querySelector('[role="combobox"][aria-label="添加按钮单击"]'));
+  await click(host.querySelector('[role="option"][data-value="none"]'));
+  await click(card('add').querySelector('[role="combobox"][aria-label="添加按钮长按"]'));
+  await click(host.querySelector('[role="option"][data-value="none"]'));
+  expect(card('add').querySelector('.dynamic-action-noop-hint')?.textContent).toContain('不执行操作');
+
+  const master = [...host.querySelectorAll('.action-button-settings label')]
+    .find(node => node.querySelector('strong')?.textContent === '单卡时显示浮动按钮')?.querySelector('input');
+  await click(master);
+  expect(summary()).toBe('总开关已关');
+  expect(host.querySelector('.dynamic-button-master-off-banner')?.textContent).toContain('已暂停显示');
+  expect(card('add').querySelector('.dynamic-button-rank-badge').textContent).toContain('已暂停');
+  await click(button('完成'));
+  expect(host.querySelector('.statusbar .status-message')?.textContent).toBe('当前卡片已就绪');
+});

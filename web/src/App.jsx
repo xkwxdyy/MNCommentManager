@@ -206,6 +206,9 @@ function summarizeInvalidLinkCleanupPreview(preview) {
 async function persistActionButtonSetting(onChange, onReload, key, nextValue, label) {
   let updateError = null;
   let settings = null;
+  const matches = (value) => Array.isArray(nextValue)
+    ? Array.isArray(value) && value.length === nextValue.length && value.every((id, index) => id === nextValue[index])
+    : value === nextValue;
 
   try {
     settings = await onChange({ [key]: nextValue });
@@ -213,13 +216,13 @@ async function persistActionButtonSetting(onChange, onReload, key, nextValue, la
     updateError = error;
   }
 
-  if (settings && settings[key] === nextValue) {
+  if (settings && matches(settings[key])) {
     return { kind: "success", message: `“${label}”已保存`, settings };
   }
 
   try {
     const refreshed = await onReload();
-    if (refreshed && refreshed[key] === nextValue) {
+    if (refreshed && matches(refreshed[key])) {
       return {
         kind: updateError ? "warning" : "success",
         message: updateError
@@ -2396,6 +2399,7 @@ function App() {
       setShowImageExcerptText(settings?.showImageExcerptText === true);
       setShowExcerptMoveNotice(settings?.showExcerptMoveNotice !== false);
       setActionButtonSettings({ values: settings, returnFocusTarget, sessionId });
+      notifyStatus("评论管理设置已打开");
     } catch (error) {
       if (appMountedRef.current && actionButtonSettingsSessionRef.current === sessionId) notifyStatus(normalizeError(error));
     } finally {
@@ -2425,6 +2429,11 @@ function App() {
   const closeActionButtonSettings = () => {
     actionButtonSettingsSessionRef.current += 1;
     setActionButtonSettings(null);
+    setStatus((current) => (
+      current === "正在打开评论管理设置…" || current === "评论管理设置已打开"
+        ? "当前卡片已就绪"
+        : current
+    ));
   };
 
   const openWorkflowManager = async (event) => {
@@ -3065,7 +3074,14 @@ function App() {
           initialWorkflows={workflowManager.workflows}
           initialTemplates={workflowManager.templates}
           returnFocusTarget={workflowManager.returnFocusTarget}
-          onClose={() => setWorkflowManager(null)}
+          onClose={() => {
+            setWorkflowManager(null);
+            setStatus((current) => (
+              current === "正在打开工作流管理器…" || current === "菜单与工作流设置已打开"
+                ? "当前卡片已就绪"
+                : current
+            ));
+          }}
           onStatus={notifyStatus}
         />
       ) : null}
@@ -3597,16 +3613,116 @@ function ActionButtonSettingsDialog({
   const mountedRef = useRef(false);
   const closeRequestedRef = useRef(false);
   const savingRef = useRef("");
+  const justMovedTimerRef = useRef(null);
   const [savingKey, setSavingKey] = useState("");
   const [feedback, setFeedback] = useState(null);
+  const [highlightedButtonId, setHighlightedButtonId] = useState("");
+  const [justMovedButtonId, setJustMovedButtonId] = useState("");
   const busy = loading || !!savingKey;
+  const actionShortLabels = {
+    manager: "评论管理器",
+    quickInput: "添加评论",
+    menu: "处理菜单",
+    none: "不执行操作",
+  };
+  const buttonOptions = {
+    management: {
+      key: "showManagementButton",
+      shortLabel: "管理",
+      label: "显示管理按钮",
+      hint: "单击与长按的动作可以分别设置。",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="3.5" width="14" height="13" rx="2.5" />
+          <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4.5" />
+        </svg>
+      ),
+      actions: [
+        ["managementTapAction", "管理按钮单击", "manager"],
+        ["managementHoldAction", "管理按钮长按", "menu"],
+      ],
+    },
+    add: {
+      key: "showQuickCommentButton",
+      shortLabel: "添加评论",
+      label: "显示添加评论按钮",
+      hint: "单击与长按的动作可以分别设置。",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H8.5L5 17v-2.5H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5Z" />
+          <path d="M10 7.25v4.5M7.75 9.5h4.5" />
+        </svg>
+      ),
+      actions: [
+        ["addTapAction", "添加按钮单击", "quickInput"],
+        ["addHoldAction", "添加按钮长按", "menu"],
+      ],
+    },
+    move: {
+      key: "showMoveCommentButton",
+      shortLabel: "移动评论",
+      label: "显示移动评论按钮",
+      hint: "移动按钮仅在卡片至少有两条评论时显示。",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M7 4.5v11M7 4.5 4.5 7M7 4.5 9.5 7" />
+          <path d="M13 15.5v-11M13 15.5 10.5 13M13 15.5 15.5 13" />
+        </svg>
+      ),
+      actions: [],
+    },
+  };
+  const buttonOrder = settings?.dynamicButtonOrder || ["management", "add", "move"];
+  const singleCardEnabled = settings?.enableDynamicSingleCardButton === true;
+  const visibleButtonIds = buttonOrder.filter((id) => buttonOptions[id] && settings?.[buttonOptions[id].key] !== false);
+
+  const focusButtonCard = (id) => {
+    setHighlightedButtonId(id);
+    const card = dialogRef.current?.querySelector(`[data-button-id="${id}"]`);
+    if (!card) return;
+    card.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    if (checkbox && !checkbox.disabled) checkbox.focus();
+  };
+
+  const moveButton = (index, offset) => {
+    const movedId = buttonOrder[index];
+    const nextIndex = index + offset;
+    if (!movedId || nextIndex < 0 || nextIndex >= buttonOrder.length) return;
+    const next = [...buttonOrder];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    setHighlightedButtonId(movedId);
+    setJustMovedButtonId(movedId);
+    if (justMovedTimerRef.current) clearTimeout(justMovedTimerRef.current);
+    justMovedTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setJustMovedButtonId("");
+    }, 720);
+    saveSetting("dynamicButtonOrder", next, "浮动按钮顺序");
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => {
+        if (!mountedRef.current || !dialogRef.current) return;
+        const card = dialogRef.current.querySelector(`[data-button-id="${movedId}"]`);
+        if (!card) return;
+        const orderButtons = card.querySelectorAll(".dynamic-button-order-actions button");
+        const preferred = offset < 0 ? orderButtons[0] : orderButtons[1];
+        const fallback = offset < 0 ? orderButtons[1] : orderButtons[0];
+        const target = preferred && !preferred.disabled ? preferred : fallback;
+        if (target && !target.disabled && card.contains(document.activeElement)) {
+          target.focus();
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     mountedRef.current = true;
     const dialogElement = dialogRef.current;
     const preferredTarget = firstCheckboxRef.current?.disabled ? null : firstCheckboxRef.current;
     focusInitialDialogControl(dialogElement, preferredTarget);
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      if (justMovedTimerRef.current) clearTimeout(justMovedTimerRef.current);
+    };
   }, []);
 
   const requestClose = () => {
@@ -3662,86 +3778,271 @@ function ActionButtonSettingsDialog({
           keepFocusWithinDialog(event, dialogRef.current);
         }}
       >
-        <h2 id="action-button-settings-title">评论管理设置</h2>
-        <p id="action-button-settings-description">这些设置会立即保存，并在下次打开笔记本时继续生效。</p>
-        {feedback ? (
-          <p
-            id="action-button-settings-status"
-            className={`action-button-settings-status ${feedback.kind}`}
-            role={feedback.kind === "error" || feedback.kind === "warning" ? "alert" : "status"}
-          >
-            {feedback.message}
-          </p>
-        ) : null}
-        <label className={savingKey === "showBatchButton" ? "dialog-check saving" : "dialog-check"}>
-          <input
-            ref={firstCheckboxRef}
-            type="checkbox"
-            checked={settings?.showBatchButton === true}
-            disabled={busy}
-            onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选时显示评论按钮")}
-          />
-          <span>
-            <strong>多选时显示评论按钮</strong>
-            <small>默认开启。关闭后，多选卡片不再显示“评论”批处理入口。</small>
-          </span>
-        </label>
-        <label className={savingKey === "enableDynamicSingleCardButton" ? "dialog-check saving" : "dialog-check"}>
-          <input
-            type="checkbox"
-            checked={settings?.enableDynamicSingleCardButton === true}
-            disabled={busy}
-            onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡浮动按钮")}
-          />
-          <span>
-            <strong>单卡时显示浮动按钮</strong>
-            <small>管理、添加评论与滑轨移动采用浮动入口；移动按钮仅在卡片至少有两条评论时显示。</small>
-          </span>
-        </label>
-        <label className="dialog-check">
-          <input type="checkbox" checked={settings?.showQuickCommentButton !== false} disabled={busy}
-            onChange={(event) => saveSetting("showQuickCommentButton", event.target.checked, "添加评论按钮")} />
-          <span><strong>显示添加评论按钮</strong><small>关闭后只显示管理按钮，管理按钮仍可配置为快速输入入口。</small></span>
-        </label>
-        <div className="dynamic-action-settings">
-          {[
-            ["managementTapAction", "管理按钮单击", "manager"],
-            ["managementHoldAction", "管理按钮长按", "menu"],
-            ["addTapAction", "添加按钮单击", "quickInput"],
-            ["addHoldAction", "添加按钮长按", "menu"],
-          ].map(([key, label, fallback]) => <label key={key}><span>{label}</span>
-            <HtmlSelect aria-label={label} value={settings?.[key] || fallback} disabled={busy}
-              onChange={(event) => saveSetting(key, event.target.value, label)}>
-              <option value="manager">打开评论管理器</option><option value="quickInput">添加评论</option>
-              <option value="menu">打开处理菜单</option><option value="none">不执行操作</option>
-            </HtmlSelect>
-          </label>)}
+        <header className="action-button-settings-header">
+          <div className="action-button-settings-title-row">
+            <h2 id="action-button-settings-title">评论管理设置</h2>
+            <span className={`action-button-settings-pill${busy ? " is-saving" : ""}`} aria-hidden="true">
+              <span className="action-button-settings-pill-dot" />
+              {busy ? "保存中…" : "即时生效"}
+            </span>
+          </div>
+          <p id="action-button-settings-description">这些设置会立即保存，并在下次打开笔记本时继续生效。</p>
+          {feedback ? (
+            <p
+              id="action-button-settings-status"
+              className={`action-button-settings-status ${feedback.kind}`}
+              role={feedback.kind === "error" || feedback.kind === "warning" ? "alert" : "status"}
+            >
+              {feedback.message}
+            </p>
+          ) : null}
+        </header>
+
+        <div className="action-button-settings-body">
+          <div className="settings-section">
+            <div className="settings-section-header">
+              <h3>卡片浮动入口</h3>
+              <span>单选或多选卡片旁显示的快捷操作入口</span>
+            </div>
+
+            <label className={savingKey === "showBatchButton" ? "dialog-check saving" : "dialog-check"}>
+              <input
+                ref={firstCheckboxRef}
+                type="checkbox"
+                checked={settings?.showBatchButton === true}
+                disabled={busy}
+                onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选时显示评论按钮")}
+              />
+              <span>
+                <strong>多选时显示评论按钮</strong>
+                <small>默认开启。关闭后，多选卡片不再显示“评论”批处理入口。</small>
+              </span>
+            </label>
+
+            <div className={`single-card-settings-group${singleCardEnabled ? "" : " is-master-off"}`}>
+              <label className={savingKey === "enableDynamicSingleCardButton" ? "dialog-check settings-master-check saving" : "dialog-check settings-master-check"}>
+                <input
+                  type="checkbox"
+                  checked={singleCardEnabled}
+                  disabled={busy}
+                  onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡浮动按钮")}
+                />
+                <span>
+                  <strong>单卡时显示浮动按钮</strong>
+                  <small>总开关。关闭后隐藏全部浮动按钮，保留各按钮的开关、顺序和动作设置。</small>
+                </span>
+              </label>
+
+              <fieldset className={`dynamic-button-settings${savingKey === "dynamicButtonOrder" ? " saving" : ""}`}>
+                <legend>浮动按钮与顺序</legend>
+                <p>列表顺序对应按钮从左到右的显示顺序。各按钮可以任意组合，也可以全部关闭；隐藏的按钮不占位置。</p>
+
+                {!singleCardEnabled ? (
+                  <div className="dynamic-button-master-off-banner" aria-hidden="true">
+                    <span className="dynamic-button-master-off-badge">已暂停显示</span>
+                    <span>单卡总开关已关闭；你仍可在下方预先调整各按钮的开关、顺位与动作。</span>
+                  </div>
+                ) : null}
+
+                <div className="dynamic-button-preview" aria-hidden="true">
+                  <div className="dynamic-button-preview-head">
+                    <span className="dynamic-button-preview-label">左 → 右浮动条预览（点击可定位对应设置）</span>
+                    <span className={`dynamic-button-preview-summary${!singleCardEnabled || visibleButtonIds.length === 0 ? " is-muted" : ""}`}>
+                      {!singleCardEnabled
+                        ? "总开关已关"
+                        : visibleButtonIds.length === 0
+                          ? "全部隐藏"
+                          : `显示 ${visibleButtonIds.length} / ${buttonOrder.length} 项`}
+                    </span>
+                  </div>
+                  <div className="dynamic-button-preview-track">
+                    <span className="dynamic-button-preview-card-anchor">选中卡片</span>
+                    <span className="dynamic-button-preview-arrow">→</span>
+                    <div className="dynamic-button-preview-pills">
+                      {buttonOrder.map((id) => {
+                        const option = buttonOptions[id];
+                        if (!option) return null;
+                        const enabled = settings?.[option.key] !== false;
+                        const activeRank = visibleButtonIds.indexOf(id) + 1;
+                        const isHighlighted = highlightedButtonId === id;
+                        return (
+                          <span
+                            key={id}
+                            role="presentation"
+                            className={`dynamic-button-preview-pill${enabled && singleCardEnabled ? " is-active" : " is-muted"}${isHighlighted ? " is-highlighted" : ""}`}
+                            onClick={() => focusButtonCard(id)}
+                            onMouseEnter={() => setHighlightedButtonId(id)}
+                            onMouseLeave={() => setHighlightedButtonId((curr) => (curr === id ? "" : curr))}
+                          >
+                            <span className="dynamic-button-preview-dot">{enabled ? activeRank : "–"}</span>
+                            <span className="dynamic-button-preview-icon">{option.icon}</span>
+                            <span>{option.shortLabel}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dynamic-button-list">
+                  {buttonOrder.map((id, index) => {
+                    const option = buttonOptions[id];
+                    if (!option) return null;
+                    const isEnabled = settings?.[option.key] !== false;
+                    const visibleRank = visibleButtonIds.indexOf(id) + 1;
+                    const isHighlighted = highlightedButtonId === id;
+                    const isJustMoved = justMovedButtonId === id;
+                    const isCardSaving =
+                      savingKey === option.key ||
+                      savingKey === "dynamicButtonOrder" ||
+                      option.actions.some(([actionKey]) => savingKey === actionKey);
+                    const allActionsNoop =
+                      option.actions.length > 0 &&
+                      option.actions.every(([actionKey, , fallback]) => (settings?.[actionKey] || fallback) === "none");
+                    const actionSummaryText =
+                      option.actions.length > 0
+                        ? option.actions
+                            .map(([actionKey, actionLabel, fallback]) => {
+                              const gestureName = actionLabel.endsWith("长按") ? "长按" : "单击";
+                              const mode = settings?.[actionKey] || fallback;
+                              return `${gestureName}：${actionShortLabels[mode] || mode}`;
+                            })
+                            .join(" · ")
+                        : "固定动作：打开评论上下移动面板";
+                    return (
+                      <div
+                        className={`dynamic-button-setting${isEnabled ? "" : " is-unchecked"}${isCardSaving ? " saving" : ""}${isHighlighted ? " is-highlighted" : ""}${isJustMoved ? " is-just-moved" : ""}`}
+                        key={id}
+                        data-button-id={id}
+                        onMouseEnter={() => setHighlightedButtonId(id)}
+                        onMouseLeave={() => setHighlightedButtonId((curr) => (curr === id ? "" : curr))}
+                        onFocusCapture={() => setHighlightedButtonId(id)}
+                        onKeyDown={(event) => {
+                          if (busy || !event.altKey) return;
+                          if (event.key === "ArrowUp" && index > 0) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            moveButton(index, -1);
+                          } else if (event.key === "ArrowDown" && index < buttonOrder.length - 1) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            moveButton(index, 1);
+                          }
+                        }}
+                      >
+                        <div className="dynamic-button-setting-top">
+                          <label className={savingKey === option.key ? "dialog-check saving" : "dialog-check"}>
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              disabled={busy}
+                              onChange={(event) => saveSetting(option.key, event.target.checked, option.label)}
+                            />
+                            <span>
+                              <span className="dynamic-button-title-line">
+                                <span className={`dynamic-button-card-icon${isEnabled && singleCardEnabled ? " is-on" : ""}`}>
+                                  {option.icon}
+                                </span>
+                                <strong>{option.label}</strong>
+                                <span className={`dynamic-button-rank-badge${isEnabled && singleCardEnabled ? " is-on" : ""}`}>
+                                  {isEnabled ? (singleCardEnabled ? `左起第 ${visibleRank} 位` : `顺位 ${visibleRank} · 已暂停`) : "已隐藏"}
+                                </span>
+                              </span>
+                              <small>{option.hint}</small>
+                              <span className="dynamic-button-action-summary" aria-hidden="true">{actionSummaryText}</span>
+                            </span>
+                          </label>
+                          <div className="dynamic-button-order-actions" role="group" aria-label={`${option.label}排序`}>
+                            <Button
+                              className="secondary compact"
+                              disabled={busy || index === 0}
+                              title={`前移：${option.label}（Alt+↑）`}
+                              aria-label={`前移：${option.label}`}
+                              onClick={() => moveButton(index, -1)}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              className="secondary compact"
+                              disabled={busy || index === buttonOrder.length - 1}
+                              title={`后移：${option.label}（Alt+↓）`}
+                              aria-label={`后移：${option.label}`}
+                              onClick={() => moveButton(index, 1)}
+                            >
+                              ↓
+                            </Button>
+                          </div>
+                        </div>
+
+                        {option.actions.length > 0 ? (
+                          <div className="dynamic-action-settings">
+                            {option.actions.map(([key, label, fallback]) => (
+                              <label key={key} className={savingKey === key ? "dynamic-action-field saving" : "dynamic-action-field"}>
+                                <span>{label}</span>
+                                <HtmlSelect
+                                  aria-label={label}
+                                  value={settings?.[key] || fallback}
+                                  disabled={busy}
+                                  onChange={(event) => saveSetting(key, event.target.value, label)}
+                                >
+                                  <option value="manager">打开评论管理器</option>
+                                  <option value="quickInput">添加评论</option>
+                                  <option value="menu">打开处理菜单</option>
+                                  <option value="none">不执行操作</option>
+                                </HtmlSelect>
+                              </label>
+                            ))}
+                            {isEnabled && allActionsNoop ? (
+                              <p className="dynamic-action-noop-hint">
+                                当前单击与长按均设为“不执行操作”，点击该浮动按钮将不会触发任何动作。
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="settings-section-header">
+              <h3>摘录与操作提示</h3>
+              <span>面板内图片摘录的显示方式与移动前确认提示</span>
+            </div>
+
+            <label className={savingKey === "showImageExcerptText" ? "dialog-check saving" : "dialog-check"}>
+              <input
+                type="checkbox"
+                checked={settings?.showImageExcerptText === true}
+                disabled={busy}
+                onChange={(event) => saveSetting("showImageExcerptText", event.target.checked, "显示图片摘录文本")}
+              />
+              <span>
+                <strong>显示图片摘录文本</strong>
+                <small>默认关闭。开启后，在图片摘录下方显示其文本内容；关闭只隐藏显示，原文仍会保留。</small>
+              </span>
+            </label>
+
+            <label className={savingKey === "showExcerptMoveNotice" ? "dialog-check saving" : "dialog-check"}>
+              <input
+                type="checkbox"
+                checked={settings?.showExcerptMoveNotice !== false}
+                disabled={busy}
+                onChange={(event) => saveSetting("showExcerptMoveNotice", event.target.checked, "移动摘录时显示转换提示")}
+              />
+              <span>
+                <strong>移动摘录时显示转换提示</strong>
+                <small>默认开启。移动原生摘录前弹窗提示将先转为非摘录版；关闭后直接转换并移动（失败时仍会提示）。</small>
+              </span>
+            </label>
+          </div>
         </div>
-        <label className={savingKey === "showImageExcerptText" ? "dialog-check saving" : "dialog-check"}>
-          <input
-            type="checkbox"
-            checked={settings?.showImageExcerptText === true}
-            disabled={busy}
-            onChange={(event) => saveSetting("showImageExcerptText", event.target.checked, "显示图片摘录文本")}
-          />
-          <span>
-            <strong>显示图片摘录文本</strong>
-            <small>默认关闭。开启后，在图片摘录下方显示其文本内容；关闭只隐藏显示，原文仍会保留。</small>
-          </span>
-        </label>
-        <label className={savingKey === "showExcerptMoveNotice" ? "dialog-check saving" : "dialog-check"}>
-          <input
-            type="checkbox"
-            checked={settings?.showExcerptMoveNotice !== false}
-            disabled={busy}
-            onChange={(event) => saveSetting("showExcerptMoveNotice", event.target.checked, "移动摘录时显示转换提示")}
-          />
-          <span>
-            <strong>移动摘录时显示转换提示</strong>
-            <small>默认开启。移动原生摘录前弹窗提示将先转为非摘录版；关闭后直接转换并移动（失败时仍会提示）。</small>
-          </span>
-        </label>
-        <div className="dialog-actions">
+
+        <div className="dialog-actions action-button-settings-footer">
+          <span className="action-button-settings-footer-hint">按 Esc 或点击遮罩也可关闭 · 排序支持 Alt+↑/↓</span>
           <Button className="primary" onClick={requestClose}>完成</Button>
         </div>
       </section>

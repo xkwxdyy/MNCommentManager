@@ -1,5 +1,13 @@
 # 项目记忆索引
 
+- 2026-10-19｜当前任务授权按各插件技能提交 Git 并上传 123 网盘；生产包与新旧远端包摘要已核验，现有同名包内容不同，覆盖等待明确授权。当前没有上传或部署，版本保留；记录见 [提交与网盘准备](../Resources/dynamic-button-publication/submission.md)。
+
+- 2026-10-19｜已按确认修复评论、文献、Pinner 的稳定显示并完成备份测试安装和正常重启，848 个文件一致。源码与包内回放通过，Mac 大小卡片及连续点选结束后显示已观察；密集投递、设备耗时及 iPad 仍待验收，文献开关恢复原关闭状态。此前“修复草案待确认”已由本次实施替代，详见[验证记录](../Resources/dynamic-button-stability/validation.md)。
+
+- 2026-10-19｜用户再次确认浮动图标仍不稳定，并要求参照 Toolbar、ChatAI 深查，追加 Pinner 与快速连续点选。生产函数回放完成 36 组时序、75 组快速序列及共同几何、矩形契约对照，复现整个宿主占位拒绝显示、评论字符串矩形遗漏、Pinner 旧关闭误隐藏与零延迟、Literature 同卡重开消失。当时完成调查并提出草案；后续确认、实施与安装以上方最新记录为准。见[调查报告](../Resources/dynamic-button-comparison/research.md)、[修复草案](../Resources/dynamic-button-comparison/repair-plan.md)，跟踪 #67、MN-Addons #673、[#684](https://github.com/xkwxdyy/MN-Addons/issues/684)。
+
+- 2026-10-19｜浮动按钮已支持管理、添加、移动独立开关、全部关闭及排序；后续大小卡片不稳定反馈已尝试修正事件锚点、迟到菜单、旧菜单阻断、正文扫描和面板同步路径；用户再次复现后，剩余缺陷以上方最新调查为准。67 个 Node.js 脚本、48 个集成场景及实际压缩包回归通过，最终 0.1.29 测试包已备份安装并正常重启；真实设备显示稳定性与时延待验收。Issue #67、#84 保持开放，见[最新验证](../Resources/dynamic-button-visibility/validation.md)。
+
 - 2026-10-19｜v0.1.29 已完成 GitHub、Arc 网盘上传及主站和兼容站更新源发布；附件和下载包摘要一致。67 个 Node.js 脚本、281 项前端及 63 项模型测试通过，原目录同步发布提交，真实设备与插件内更新检查仍待验收；帮助视频宿主退出问题 #682 保持开放，见[发布记录](../Resources/releases/v0.1.29.md)。
 
 - 2026-10-19｜未启用 MNBrowser 的首轮 Mac 内置浏览器链接与宣传播放通过，但重复验证出现宿主 WebKit 空回调异常；评论管理器已补明确回执返回值并重新安装，文献入门复测仍发生退出。当前 MNBrowser 仍停用，恢复坐标操作受接口错误阻塞；整体仅部分通过，[#682](https://github.com/xkwxdyy/MN-Addons/issues/682)开放，见[回退验收记录](../../docs/help-videos-2026-10-19.md)。

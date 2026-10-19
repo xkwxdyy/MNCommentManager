@@ -11,6 +11,14 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   const INITIAL_SHOW_DELAY = 0.02;
   const POPUP_CLOSE_HIDE_DELAY = 0.18;
   const TOUCH_INTERACTION_HOLD_MS = 900;
+  const BUTTON_IDS = ["management", "add", "move"];
+  const BUTTON_PROPERTIES = { management: "dynamicCommentButton", add: "dynamicAddCommentButton", move: "dynamicMoveCommentButton" };
+
+  function isButtonEnabled(id) {
+    const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings();
+    return settings.enableDynamicSingleCardButton === true &&
+      settings[id === "management" ? "showManagementButton" : id === "add" ? "showQuickCommentButton" : "showMoveCommentButton"] !== false;
+  }
 
   function delay(seconds, callback) {
     NSTimer.scheduledTimerWithTimeInterval(Math.max(0, Number(seconds || 0)), false, function () {
@@ -52,18 +60,24 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     try {
       if (!parent || Number(depth || 0) > 8) return null;
       if (typeof parent.viewWithTag === "function") {
-        const found = parent.viewWithTag(Number(tag));
-        if (found) return found;
+        return parent.viewWithTag(Number(tag)) || null;
       }
       const children = toArrayLike(parent.subviews);
       for (let index = 0; index < children.length; index += 1) {
         const child = children[index];
         if (Number(child && child.tag) === Number(tag)) return child;
+        const className = String(child && (typeof child.class === "function" ? child.class() : child.className) || "");
+        if (child && (child.noteId || child.noteid || /scroll|webview|textview|mindmap|pdf|collection|table|notecell|cardcell/i.test(className))) continue;
         const nested = findSubviewByTag(child, tag, Number(depth || 0) + 1);
         if (nested) return nested;
       }
     } catch (_) {}
     return null;
+  }
+
+  function findHostedButton(host, tag) {
+    // These buttons are direct study-view children; do not search through card content.
+    return toArrayLike(host && host.subviews).find((view) => Number(view.tag) === tag) || null;
   }
 
   function rectFromView(view, hostView) {
@@ -120,6 +134,23 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     }
   }
 
+  function validRect(value) {
+    if (!value) return null;
+    if (typeof value === "string") {
+      try { value = MNUtil.parseWinRect(value); } catch (_) { return null; }
+    }
+    if (!value || typeof value !== "object") return null;
+    const rect = { x: Number(value.x ?? value.origin?.x ?? 0), y: Number(value.y ?? value.origin?.y ?? 0), width: Number(value.width ?? value.size?.width), height: Number(value.height ?? value.size?.height) };
+    return Object.keys(rect).every((key) => Number.isFinite(rect[key])) && rect.width > 0 && rect.height > 0 ? rect : null;
+  }
+
+  function currentPopup() {
+    try {
+      const popup = typeof PopupMenu !== "undefined" && PopupMenu && typeof PopupMenu.currentMenu === "function" ? PopupMenu.currentMenu() : null;
+      return popup && popup.visible !== false && popup.visible !== 0 ? popup : null;
+    } catch (_) { return null; }
+  }
+
   function resolveContext(addon, sender) {
     try {
       const userInfo = sender && sender.userInfo ? sender.userInfo : {};
@@ -134,22 +165,20 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       const note = MNNote.new(noteId, false);
       if (!note || !note.noteId) { debug("context.note-create-failed", { noteId }); return null; }
       const hostView = getHostView(addon);
-      let anchorRect = null;
-      try {
-        const popup = typeof PopupMenu !== "undefined" && PopupMenu && typeof PopupMenu.currentMenu === "function" ? PopupMenu.currentMenu() : null;
-        anchorRect = popup ? (popup.targetWinRect || popup.frame || null) : null;
-      } catch (_) {}
-      anchorRect = anchorRect || userInfo.winRect || null;
-      if (!anchorRect) { debug("context.no-anchor", { noteId }); return null; }
+      const eventRect = validRect(userInfo.winRect);
+      const popup = currentPopup();
+      const anchorRect = eventRect || validRect(popup && popup.targetWinRect);
       const result = {
         token: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         note,
         noteId: String(note.noteId),
         sender,
-        anchorRect: { x: Number(anchorRect.x || 0), y: Number(anchorRect.y || 0), width: Number(anchorRect.width || 0), height: Number(anchorRect.height || 0) },
+        anchorRect,
+        anchorFromEvent: !!eventRect,
+        receivedAt: Date.now(),
         hostView,
       };
-      debug("context.resolved", { noteId: result.noteId, token: result.token, hasAnchor: true });
+      debug("context.resolved", { noteId: result.noteId, token: result.token, hasAnchor: !!anchorRect });
       return result;
     } catch (_) {
       debug("context.exception");
@@ -159,11 +188,10 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function refreshAnchorRect(context) {
     try {
-      const popup = typeof PopupMenu !== "undefined" && PopupMenu && typeof PopupMenu.currentMenu === "function" ? PopupMenu.currentMenu() : null;
-      const rect = popup && (popup.targetWinRect || popup.frame);
-      if (rect && Number(rect.width || 0) > 0 && Number(rect.height || 0) > 0) {
-        context.anchorRect = { x: Number(rect.x || 0), y: Number(rect.y || 0), width: Number(rect.width || 0), height: Number(rect.height || 0) };
-      }
+      // The notification belongs to this card; currentMenu may still belong to the previous card.
+      if (context.anchorFromEvent) return;
+      const popup = currentPopup(), rect = validRect(popup && popup.targetWinRect);
+      if (rect) context.anchorRect = rect;
     } catch (_) {}
   }
 
@@ -204,27 +232,36 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   }
 
   function buttonGroup(context) {
-    const adding = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false;
+    const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings();
     // All serialized comments currently support canMove; counting needs no media snapshot.
     const comments = context && context.note && context.note.comments;
-    const moving = Array.isArray(comments) && comments.length > 1;
-    const count = 1 + (adding ? 1 : 0) + (moving ? 1 : 0);
-    return { adding, moving, width: count * BUTTON_SIZE + (count - 1) * GROUP_GAP };
+    const ids = (settings.dynamicButtonOrder || BUTTON_IDS).filter((id) =>
+      settings[id === "management" ? "showManagementButton" : id === "add" ? "showQuickCommentButton" : "showMoveCommentButton"] !== false &&
+      (id !== "move" || Array.isArray(comments) && comments.length > 1));
+    return { ids, width: ids.length * BUTTON_SIZE + Math.max(0, ids.length - 1) * GROUP_GAP };
   }
 
   function resolveButtonFrame(addon, context, group) {
-    const preferred = resolvePreferredButtonFrame(addon, context, group);
-    if (typeof __MN_ADDON_FLOATING_LAYOUT__ === "undefined") return preferred;
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ === "undefined") return resolvePreferredButtonFrame(addon, context, group);
     if (!context || !context.anchorRect) return null;
     const host = getHostView(addon);
     let anchor = context.anchorRect;
     try { if (host && typeof host.convertRectFromView === "function") anchor = host.convertRectFromView(anchor, addon.window); } catch (_) { return null; }
-    const frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, {
+    const popupRect = rectFromView(currentPopup(), host);
+    const options = {
       priority: 30,
-      preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: group.width, height: BUTTON_SIZE },
+      preferred: { x: anchor.x + anchor.width + BUTTON_GAP, y: anchor.y + (anchor.height - BUTTON_SIZE) / 2, width: group.width, height: BUTTON_SIZE },
       width: group.width, height: BUTTON_SIZE, ownViews: [addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton],
-      anchor, avoid: [anchor], previous: context._floatingGroupFrame
-    });
+      anchor, previous: context._floatingGroupFrame
+    };
+    const avoid = popupRect ? [popupRect] : [];
+    let frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, Object.assign({}, options, { avoid: [anchor].concat(avoid) }));
+    context._placement = "outside-card";
+    if (!frame) {
+      // Large cards can fill the host. Keep menus and controls clear, allowing a card-edge fallback.
+      frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, Object.assign({}, options, { avoid }));
+      context._placement = "card-edge";
+    }
     context._floatingGroupFrame = frame;
     return frame;
   }
@@ -276,7 +313,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const tag = moving ? MOVE_BUTTON_TAG : adding ? ADD_BUTTON_TAG : BUTTON_TAG;
     let button = addon[property];
     if (!button) {
-      const staleButton = findSubviewByTag(hostView, tag);
+      const staleButton = findHostedButton(hostView, tag);
       try { if (staleButton && staleButton.removeFromSuperview) staleButton.removeFromSuperview(); } catch (_) {}
     }
     if (!button) {
@@ -315,9 +352,10 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function hideButton(addon, reason) {
     try {
+      dismissMenu(addon, false);
       if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
       if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton]);
-      const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
+      const button = addon && (addon.dynamicCommentButton || findHostedButton(getHostView(addon), BUTTON_TAG));
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
       const addButton = addon && addon.dynamicAddCommentButton;
       if (addButton) { addButton.hidden = true; addButton.enabled = false; addButton.userInteractionEnabled = false; }
@@ -326,6 +364,10 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       if (addon) {
         addon.dynamicCommentContext = null;
         addon.dynamicCommentMenuPopoverController = null;
+        addon.dynamicCommentMenuAnchor = null;
+        addon.dynamicCommentMenuStack = [];
+        addon.dynamicCommentMenuItems = [];
+        addon.dynamicCommentMenuTransitioning = false;
         addon.dynamicCommentInteractionUntil = 0;
         addon.dynamicCommentTapSuppressedUntil = 0;
       }
@@ -335,7 +377,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function disposeButton(addon, reason) {
     try {
-      const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
+      const button = addon && (addon.dynamicCommentButton || findHostedButton(getHostView(addon), BUTTON_TAG));
       hideButton(addon, reason || "dispose");
       if (button && button.removeFromSuperview) button.removeFromSuperview();
       const addButton = addon && addon.dynamicAddCommentButton;
@@ -357,37 +399,33 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (Number(addon && addon.dynamicCommentInteractionUntil || 0) > Date.now() || addon && (addon.dynamicCommentMenuPopoverController || addon.dynamicMoveRailView)) return false;
     if (!addon || !context || !addon.dynamicCommentContext || addon.dynamicCommentContext.token !== context.token) return false;
     refreshAnchorRect(context);
-    const button = ensureButton(addon);
     const group = buttonGroup(context);
-    const frame = resolveButtonFrame(addon, context, group);
-    if (!button || !frame) {
+    BUTTON_IDS.forEach((id) => {
+      const button = addon[BUTTON_PROPERTIES[id]];
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
-      if (addon.dynamicAddCommentButton) { addon.dynamicAddCommentButton.hidden = true; addon.dynamicAddCommentButton.enabled = false; addon.dynamicAddCommentButton.userInteractionEnabled = false; }
-      if (addon.dynamicMoveCommentButton) { addon.dynamicMoveCommentButton.hidden = true; addon.dynamicMoveCommentButton.enabled = false; addon.dynamicMoveCommentButton.userInteractionEnabled = false; }
+    });
+    if (!group.ids.length) {
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release(BUTTON_IDS.map((id) => addon[BUTTON_PROPERTIES[id]]));
+      context._floatingGroupFrame = null;
       return false;
     }
-    button.frame = { x: frame.x, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
-    button.hidden = false;
-    button.enabled = true;
-    button.userInteractionEnabled = true;
-    try { button.superview.bringSubviewToFront(button); } catch (_) {}
-    const adding = group.adding;
-    const addButton = ensureButton(addon, true);
-    if (addButton) {
-      addButton.frame = { x: frame.x + BUTTON_SIZE + GROUP_GAP, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
-      addButton.hidden = !adding;
-      addButton.enabled = adding;
-      addButton.userInteractionEnabled = adding;
-      try { if (adding) addButton.superview.bringSubviewToFront(addButton); } catch (_) {}
+    const buttons = group.ids.map((id) => ensureButton(addon, id === "move" ? "move" : id === "add"));
+    const frame = resolveButtonFrame(addon, context, group);
+    if (buttons.some((button) => !button) || !frame) {
+      const reason = context.anchorRect ? "no-space" : "anchor-pending";
+      if (context._lastLayoutStatus !== reason) debug("buttons.unavailable", { reason, noteId: context.noteId, anchor: context.anchorRect, host: getHostView(addon) && getHostView(addon).bounds });
+      context._lastLayoutStatus = reason;
+      return false;
     }
-    const moveButton = ensureButton(addon, "move");
-    if (moveButton) {
-      moveButton.frame = { x: frame.x + (adding ? 2 : 1) * (BUTTON_SIZE + GROUP_GAP), y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
-      moveButton.hidden = !group.moving;
-      moveButton.enabled = group.moving;
-      moveButton.userInteractionEnabled = group.moving;
-      try { if (group.moving) moveButton.superview.bringSubviewToFront(moveButton); } catch (_) {}
-    }
+    buttons.forEach((button, index) => {
+      button.frame = { x: frame.x + index * (BUTTON_SIZE + GROUP_GAP), y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
+      button.hidden = false;
+      button.enabled = true;
+      button.userInteractionEnabled = true;
+      try { button.superview.bringSubviewToFront(button); } catch (_) {}
+    });
+    if (context._lastLayoutStatus !== "visible") debug("buttons.visible", { noteId: context.noteId, elapsedMs: Date.now() - context.receivedAt, placement: context._placement, frame });
+    context._lastLayoutStatus = "visible";
     return true;
   }
 
@@ -400,9 +438,15 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     }
     const context = resolveContext(addon, sender);
     if (!context) { hideButton(addon, "noSingleNote"); return false; }
+    dismissMenu(addon, false);
+    addon.dynamicCommentMenuAnchor = null;
+    addon.dynamicCommentMenuStack = [];
+    addon.dynamicCommentMenuItems = [];
+    addon.dynamicCommentMenuTransitioning = false;
     if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
     addon.dynamicCommentInteractionUntil = 0;
     addon.dynamicCommentContext = context;
+    try { showForContext(addon, context); } catch (error) { debug("buttons.initial-failed", String(error && error.message || error)); }
     delay(INITIAL_SHOW_DELAY, () => showForContext(addon, context));
     // Other addons reveal their controls after the popup notification has finished.
     const settle = typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined"
@@ -430,6 +474,9 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       if (addon.dynamicMoveRailView) return;
       const remaining = Number(addon.dynamicCommentInteractionUntil || 0) - Date.now();
       if (remaining > 0) return;
+      const popup = currentPopup(), target = validRect(popup && popup.targetWinRect), anchor = addon.dynamicCommentContext.anchorRect;
+      if (popup && (popup.visible === true || popup.visible === 1) && target && anchor &&
+          ["x", "y", "width", "height"].every((key) => Math.abs(target[key] - anchor[key]) < 1)) return;
       hideButton(addon, "popup.closed");
     });
     return true;
@@ -472,13 +519,19 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     debug("menu.open", { hasContext: !!context, noteId: context && context.noteId, token: context && context.token });
     if (!context || !context.note) { hideButton(addon, "menu.noContext"); return false; }
     const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", "root");
-    const popover = presentSingleMenu(button || addon.dynamicCommentButton, items, 280, 0);
+    addon.dynamicCommentMenuAnchor = button || menuAnchor(addon);
+    const popover = presentSingleMenu(addon.dynamicCommentMenuAnchor, items, 280, 0);
     if (!popover) { hideButton(addon, "menu.presentFailed"); return false; }
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
     addon.dynamicCommentMenuItems = items;
     debug("menu.presented", { itemCount: items.length, hasWorkflowEntry: items.some((entry) => entry.selector === "openSingleWorkflows:") });
     return true;
+  }
+
+  function menuAnchor(addon) {
+    return addon.dynamicCommentMenuAnchor || BUTTON_IDS.map((id) => addon[BUTTON_PROPERTIES[id]])
+      .find((button) => button && !button.hidden);
   }
 
   function openSingleWorkflows(addon, sender) {
@@ -492,7 +545,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     addon.dynamicCommentMenuStack.push({ items: addon.dynamicCommentMenuItems || [], width: 280, position: 0 });
     addon.dynamicCommentMenuTransitioning = true;
     const items = __MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", param.section || "saved");
-    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 320, 0);
+    const popover = presentSingleMenu(menuAnchor(addon), items, 320, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -506,7 +559,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (!Array.isArray(stack) || stack.length === 0) return false;
     const previous = stack.pop();
     addon.dynamicCommentMenuTransitioning = true;
-    const popover = presentSingleMenu(addon.dynamicCommentButton, previous.items, previous.width || 280, previous.position || 0);
+    const popover = presentSingleMenu(menuAnchor(addon), previous.items, previous.width || 280, previous.position || 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -560,7 +613,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       item("  Markdown 行内链接", "markdown"),
       item("  全部失效链接", "all"),
     ];
-    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 280, 0);
+    const popover = presentSingleMenu(menuAnchor(addon), items, 280, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -573,7 +626,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     if (!Array.isArray(stack) || stack.length === 0) return false;
     const items = stack.pop();
     addon.dynamicCommentMenuTransitioning = true;
-    const popover = presentSingleMenu(addon.dynamicCommentButton, items, 280, 0);
+    const popover = presentSingleMenu(menuAnchor(addon), items, 280, 0);
     if (!popover) return false;
     popover.delegate = addon;
     addon.dynamicCommentMenuPopoverController = popover;
@@ -693,6 +746,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   }
 
   function dispatchAction(addon, adding, holding, sender) {
+    if (!isCurrentWindow(addon) || !isButtonEnabled(adding ? "add" : "management")) return false;
     if (!holding && consumeTapSuppression(addon)) return false;
     if (holding) suppressTapAfterLongPress(addon);
     if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
@@ -702,7 +756,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const context = addon.dynamicCommentContext;
     if (action === "none") return false;
     if (!context || !context.noteId) throw new Error("未读取到当前卡片");
-    if (action === "menu") return openMenu(addon, sender || addon.dynamicCommentButton);
+    if (action === "menu") return openMenu(addon, sender || addon[BUTTON_PROPERTIES[adding ? "add" : "management"]]);
     if (action === "quickInput") {
       __MN_QUICK_COMMENT_MNCommentManagerAddon.open(addon, context);
       if (holding) suppressTapAfterLongPress(addon);
@@ -717,9 +771,18 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     return true;
   }
   function refreshButtons(addon) {
-    if (addon && addon.dynamicCommentContext && !addon.quickCommentController) showForContext(addon, addon.dynamicCommentContext);
+    if (!addon) return;
+    dismissMenu(addon, false);
+    addon.dynamicCommentMenuAnchor = null;
+    addon.dynamicCommentMenuStack = [];
+    if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
+    addon.dynamicCommentInteractionUntil = 0;
+    addon.dynamicCommentTapSuppressedUntil = 0;
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release(BUTTON_IDS.map((id) => addon[BUTTON_PROPERTIES[id]]));
+    if (!__MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton) { hideButton(addon, "settings.disabled"); return; }
+    if (addon.dynamicCommentContext && !addon.quickCommentController) showForContext(addon, addon.dynamicCommentContext);
   }
-  return { dispatchAction, refreshButtons, handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, openSingleWorkflows, backSingleWorkflowMenu, showSingleWorkflowMissing, runSingleWorkflow, openSingleInvalidLinkMenu, backSingleInvalidLinkMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
+  return { isButtonEnabled, dispatchAction, refreshButtons, handlePopupMenuOnNote, handlePopupMenuClosed, hideButton, disposeButton, openMenu, openSingleWorkflows, backSingleWorkflowMenu, showSingleWorkflowMissing, runSingleWorkflow, openSingleInvalidLinkMenu, backSingleInvalidLinkMenu, handleMenuDismissed, beginInteraction, suppressTapAfterLongPress, consumeTapSuppression,
     runKeepFirstContent: (addon, sender) => runAction(addon, sender, "keepFirstContentForNotes"),
     runConvertHtmlToMarkdown: (addon, sender) => runAction(addon, sender, "convertHtmlCommentsToMarkdownForNotes"),
     runConvertToNoExcerpt: (addon, sender) => runAction(addon, sender, "convertNotesToNoExcerptForNotes"),

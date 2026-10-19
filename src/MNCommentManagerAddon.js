@@ -370,12 +370,19 @@ function createMNCommentManagerAddon(mainPath) {
       if (self.window !== MNUtil.currentWindow) return;
       if (isPopupMenuExtendNote(sender)) return;
       __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "singleNote");
-      syncVisiblePanel(self, "popup-menu-note");
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.handlePopupMenuOnNote(self, sender);
       } catch (error) {
         console.log(`[MN Comment Manager] dynamic single-card button failed: ${error && error.message ? error.message : error}`);
       }
+      const addon = self;
+      const generation = Number(addon.mnCommentManagerPopupSyncGeneration || 0) + 1;
+      addon.mnCommentManagerPopupSyncGeneration = generation;
+      NSTimer.scheduledTimerWithTimeInterval(0.04, false, function () {
+        if (addon.window !== MNUtil.currentWindow || addon.mnCommentManagerPopupSyncGeneration !== generation) return;
+        try { syncVisiblePanel(addon, "popup-menu-note"); }
+        catch (error) { console.log(`[MN Comment Manager] popup panel sync failed: ${error && error.message ? error.message : error}`); }
+      });
     },
 
     onClosePopupMenuOnNote: function (sender) {
@@ -509,7 +516,10 @@ function createMNCommentManagerAddon(mainPath) {
     dynamicAddCommentButtonTapped: function (sender) {
       return dispatchDynamicButton(self, true, false, sender);
     },
-    dynamicMoveCommentButtonTapped: function (sender) { return runMovePanelAction(self, "open", sender); },
+    dynamicMoveCommentButtonTapped: function (sender) {
+      if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isButtonEnabled("move")) return false;
+      return runMovePanelAction(self, "open", sender);
+    },
     openMoveCommentActions: function (sender) { return runMovePanelAction(self, "select", sender); },
     dynamicMoveRailPanned: function (sender) { return runMovePanelAction(self, "gesture", sender); },
     dynamicMoveStepBegan: function (sender) { return runMovePanelAction(self, "stepBegan", sender); },

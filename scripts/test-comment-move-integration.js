@@ -679,5 +679,130 @@ test('host resizing cancels in-flight input and notebook close cleans up the ses
   assert.equal(s.state(), null);
 });
 
+test('production floating layout honors every button combination and order after live changes', () => {
+  const s = setup(), ids = ['management', 'add', 'move'];
+  const properties = ['dynamicCommentButton', 'dynamicAddCommentButton', 'dynamicMoveCommentButton'];
+  const keys = ['showManagementButton', 'showQuickCommentButton', 'showMoveCommentButton'];
+  const permutations = ids.flatMap(first => ids.filter(id => id !== first).map(second => [first, second, ids.find(id => id !== first && id !== second)]));
+  for (const order of permutations) for (let mask = 0; mask < 8; mask++) {
+    s.settings.dynamicButtonOrder = order;
+    keys.forEach((key, index) => { s.settings[key] = !!(mask & (1 << index)); });
+    s.actions.beginInteraction(s.addon);
+    s.actions.refreshButtons(s.addon);
+    const visible = properties.filter(property => !s.addon[property].hidden).sort((a, b) => s.addon[a].frame.x - s.addon[b].frame.x);
+    assert.deepEqual(visible, order.filter(id => s.settings[keys[ids.indexOf(id)]]).map(id => properties[ids.indexOf(id)]));
+    properties.forEach(property => {
+      assert.equal(s.addon[property].enabled, visible.includes(property));
+      assert.equal(s.addon[property].userInteractionEnabled, visible.includes(property));
+    });
+    visible.forEach((property, index) => {
+      assert.equal(s.addon[property].frame.x, s.addon[visible[0]].frame.x + index * 48);
+      assert(s.addon[property].frame.x >= 0);
+      assert(s.addon[property].frame.x + 44 <= s.host.bounds.width);
+    });
+  }
+});
+
+test('disabling the move button cancels pending holds and blocks delayed native selectors', () => {
+  const s = setup(), before = s.order(); s.choose(1);
+  const sender = s.press(); s.advance(500);
+  s.settings.showMoveCommentButton = false;
+  s.actions.refreshButtons(s.addon);
+  assert.equal(s.state(), null);
+  assert.equal(s.addon.dynamicMoveCommentButton.hidden, true);
+  assert.equal(s.open(), false);
+  s.advance(1000); s.release(sender);
+  assert.equal(s.nativeMoves.length, 0);
+  assert.deepEqual(s.order(), before);
+  s.settings.enableDynamicSingleCardButton = false;
+  assert.equal(s.open(), false);
+});
+
+test('large cards retain floating buttons while the native menu remains unobstructed', () => {
+  const s = setup(), bounds = s.host.bounds;
+  const menu = new s.context.UIView({ x: 100, y: 10, width: 280, height: 40 });
+  menu.visible = true; menu.targetWinRect = { x: 0, y: 0, width: bounds.width, height: bounds.height };
+  s.host.addSubview(menu); s.context.PopupMenu = { currentMenu: () => menu };
+  s.actions.hideButton(s.addon, 'large-card.reset');
+  s.actions.handlePopupMenuOnNote(s.addon, { userInfo: { noteId: 'one', winRect: menu.targetWinRect } });
+  s.advance(400);
+  assert.equal(s.addon.dynamicCommentButton.hidden, false, 'deferred layout must retain the large-card fallback');
+  for (const view of [s.addon.dynamicCommentButton, s.addon.dynamicAddCommentButton, s.addon.dynamicMoveCommentButton]) {
+    assert(!intersects(view.frame, menu.frame), 'card-edge fallback must still avoid the native menu');
+    assert(view.frame.x >= 0 && view.frame.x + 44 <= bounds.width);
+    assert(view.frame.y >= 0 && view.frame.y + 44 <= bounds.height);
+  }
+});
+
+test('current click geometry outranks a previous popup target', () => {
+  const s = setup(), bounds = s.host.bounds;
+  s.context.PopupMenu = { currentMenu: () => ({ targetWinRect: { ...bounds }, frame: { x: 10, y: 10, width: 280, height: 40 } }) };
+  const clicked = { x: 200, y: 200, width: 80, height: 40 };
+  s.actions.handlePopupMenuOnNote(s.addon, { userInfo: { noteId: 'one', winRect: clicked } });
+  s.advance(400);
+  assert.deepEqual(JSON.parse(JSON.stringify(s.addon.dynamicCommentContext.anchorRect)), clicked);
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+});
+
+test('a popup created after the notification can supply a missing anchor', () => {
+  const s = setup(); let popup = null;
+  s.context.PopupMenu = { currentMenu: () => popup };
+  assert.equal(s.actions.handlePopupMenuOnNote(s.addon, { userInfo: { noteId: 'one' } }), true);
+  assert(s.addon.dynamicCommentContext, 'retain the card while geometry is pending');
+  s.advance(30);
+  popup = { visible: true, targetWinRect: { x: 200, y: 200, width: 100, height: 40 }, frame: { x: 200, y: 140, width: 280, height: 40 } };
+  s.advance(100);
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+});
+
+test('replaced-menu close notifications do not clear a currently visible popup', () => {
+  const s = setup();
+  const popup = { visible: true, targetWinRect: { x: 100, y: 110, width: 120, height: 50 }, frame: { x: 100, y: 50, width: 280, height: 40 } };
+  s.context.PopupMenu = { currentMenu: () => popup };
+  s.actions.handlePopupMenuClosed(s.addon); s.advance(200);
+  assert(s.addon.dynamicCommentContext);
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+  popup.visible = false;
+  s.actions.handlePopupMenuClosed(s.addon); s.advance(200);
+  assert.equal(s.addon.dynamicCommentContext, null);
+});
+
+test('the shared layout path never walks card or mindmap content to find external controls', () => {
+  const s = setup(); let reads = 0;
+  const content = new s.context.UIView({ ...s.host.bounds }); content.className = 'MindmapView';
+  Object.defineProperty(content, 'subviews', { get() { reads++; return []; } });
+  s.host.addSubview(content); s.actions.disposeButton(s.addon, 'first-reveal.reset'); s.selectCard();
+  assert.equal(reads, 0, 'legacy recursive scans must not precede the bounded shared layout');
+});
+
+test('visible-panel sync runs after floating reveal and cannot prevent button activation', () => {
+  const s = setup(); let syncs = 0;
+  s.addon.webController = { view: { window: s.addon.window, hidden: false } };
+  s.context.__MN_BATCH_COMMENT_ACTIONS__ = { hideButton() {} };
+  s.context.__MN_WEB_API_MNCommentManagerAddon = { syncCurrentNote() { syncs++; throw new Error('test snapshot failure'); } };
+  s.actions.hideButton(s.addon, 'initial-reveal.reset');
+  s.addon.onPopupMenuOnNote({ userInfo: { noteId: 'one', winRect: { x: 100, y: 110, width: 120, height: 50 } } });
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+  assert.equal(syncs, 0, 'snapshot serialization must not run in the notification call');
+  s.advance(100);
+  assert.equal(syncs, 1);
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+});
+
+test('switching cards dismisses the previous action menu before revealing the new buttons', () => {
+  const s = setup(); let dismissed = 0;
+  const previous = { dismissPopoverAnimated() { dismissed++; s.actions.handleMenuDismissed(s.addon, previous); } };
+  s.addon.dynamicCommentMenuPopoverController = previous;
+  s.addon.dynamicCommentMenuAnchor = s.addon.dynamicAddCommentButton;
+  s.actions.handlePopupMenuOnNote(s.addon, { userInfo: { noteId: 'two', winRect: { x: 300, y: 200, width: 100, height: 50 } } });
+  assert.equal(dismissed, 1);
+  assert.equal(s.addon.dynamicCommentMenuPopoverController, null);
+  assert.equal(s.addon.dynamicCommentMenuAnchor, null);
+  assert.equal(s.addon.dynamicCommentContext.noteId, 'two');
+  assert.equal(s.addon.dynamicCommentButton.hidden, false);
+  s.actions.handleMenuDismissed(s.addon, previous); s.advance(400);
+  assert.equal(s.addon.dynamicCommentContext.noteId, 'two', 'a late delegate cannot clear the new card');
+});
+
 if (failures.length) throw new AggregateError(failures.map(failure => failure.error), failures.length + ' of ' + cases + ' quick-move integration cases failed');
 console.log('Comment quick-move integration: ' + cases + ' cases passed');
