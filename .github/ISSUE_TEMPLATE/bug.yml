@@ -1,0 +1,30 @@
+name: Bug report
+description: Report reproducible Comment Manager behavior and its verification scope.
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Addon and MarginNote versions
+      description: Include the host version and build number when available.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Mac, iPad, iPhone]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected behavior and actual behavior
+      description: Include a minimal example and remove private notes, account data and credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Checks completed and device acceptance still pending
+      description: Distinguish source tests, package checks and actual device observations.
