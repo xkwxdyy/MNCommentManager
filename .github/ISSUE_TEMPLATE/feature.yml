@@ -1,0 +1,15 @@
+name: Feature request
+description: Describe a Comment Manager workflow and the desired behavior.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Current workflow and desired outcome
+      description: Explain the concrete task, current limitation and expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Platform and compatibility constraints

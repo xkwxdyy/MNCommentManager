@@ -1,0 +1,48 @@
+name: Prepare candidate release draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Intended distribution channel after acceptance
+        required: true
+        default: GitHub-Release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Install the pinned package manager without lifecycle hooks
+        run: npm install --global --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org pnpm@10.34.7
+      - name: Install frozen dependencies without lifecycle hooks
+        run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Run the reviewed explicit source checks
+        run: node ci/run-checks.mjs ci/commands.json
+      - name: Build and verify a local candidate without changing source inputs
+        run: python3 ci/build-candidate.py
+      - name: Prepare the candidate draft record
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          {
+            printf '# Candidate release draft\n\nSource commit: `%s`\n\nChannel: %s\n\n```json\n' "$GITHUB_SHA" "$CHANNEL"
+            cat artifacts/candidate-verification.json
+            printf '\n```\n\nDevice acceptance remains pending. This draft does not publish or distribute the candidate.\n'
+          } | tee artifacts/release-draft.md >> "$GITHUB_STEP_SUMMARY"

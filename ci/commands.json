@@ -1,0 +1,1505 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {
+      "name": "Syntax scripts/build-release.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/build-release.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/bump-version.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/bump-version.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-comment-module-panel.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-comment-module-panel.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-html-select-panel.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-html-select-panel.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-quick-comment-browser.cjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-quick-comment-browser.cjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-quick-comment-failure-browser.cjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-quick-comment-failure-browser.cjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-two-finger-selection.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-two-finger-selection.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/check-workflow-menu-browser.cjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/check-workflow-menu-browser.cjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/dev-web.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/dev-web.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/live-deploy.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/live-deploy.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/prepare-katex-css.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/prepare-katex-css.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/sync-comment-module-rules.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/sync-comment-module-rules.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/sync-comment-move-gesture.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/sync-comment-move-gesture.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-action-button-settings-dialog.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-action-button-settings-dialog.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-addon-updater.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-addon-updater.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-comment-selection-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-comment-selection-lifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-no-excerpt-conversion.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-no-excerpt-conversion.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-operation-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-operation-lifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-recording-close-guard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-recording-close-guard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-recording-save.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-recording-save.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-batch-workflow-partial-result.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-batch-workflow-partial-result.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-bridge-error-correlation.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-bridge-error-correlation.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-bridge-request-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-bridge-request-lifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-action-settings.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-action-settings.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-batch-editor.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-batch-editor.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-edit-refresh.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-edit-refresh.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-fold.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-fold.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-modules.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-modules.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-move-integration.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-move-integration.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-move-refresh.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-move-refresh.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-move-views.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-move-views.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-move.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-move.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-quick-action-touch-target.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-quick-action-touch-target.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-quick-actions-keyboard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-selection-geometry.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-selection-geometry.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-workflow-menu.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-workflow-menu.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-workflow-preview.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-workflow-preview.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-workflow-registry.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-workflow-registry.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-workflow-runner.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-workflow-runner.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-workflow-store.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-workflow-store.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-dynamic-comment-actions.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-dynamic-comment-actions.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-edit-dialog-focus.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-edit-dialog-focus.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-edit-dialog-recovery.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-edit-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-external-card-editor-navigation.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-external-card-editor-navigation.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-external-card-editor.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-external-card-editor.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-external-card-history-cache.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-external-card-history-cache.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-extra-narrow-action-order.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-extra-narrow-action-order.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-floating-display-lifecycle.cjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-floating-display-lifecycle.cjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-handwriting-preview.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-handwriting-preview.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-html-conversion-fidelity.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-html-conversion-fidelity.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-html-conversion-integrity.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-html-conversion-integrity.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-inline-merge-dialog-recovery.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-inline-merge-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-invalid-link-cleanup-dialog.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-invalid-link-cleanup-dialog.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-invalid-link-cleanup.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-invalid-link-cleanup.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-link-quick-actions-keyboard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-link-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-main-command-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-main-command-lifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-main-delete-button-keyboard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-main-delete-button-keyboard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-main-shell-dark-narrow-layout.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-main-shell-dark-narrow-layout.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-main-workspace-extra-narrow-layout.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-main-workspace-extra-narrow-layout.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-markdown-link-edit-dialog-focus.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-markdown-link-edit-dialog-focus.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-markdown-link-edit-dialog-recovery.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-markdown-link-edit-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-markdown-link-quick-actions-keyboard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-markdown-link-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-merged-markdown.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-merged-markdown.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-panel-top-chrome.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-panel-top-chrome.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment-keyboard-safety.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment-keyboard-safety.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment-keyboard.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment-keyboard.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment-top-chrome.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment-top-chrome.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment-transitions.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment-transitions.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment-window-placement.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment-window-placement.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-quick-comment.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-quick-comment.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-responsive-action-order.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-responsive-action-order.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-runtime-dependency-isolation.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-runtime-dependency-isolation.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-selection-main-state.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-selection-main-state.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-single-workflow-menu.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-single-workflow-menu.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-text-dialog-confirmation-focus.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-text-dialog-confirmation-focus.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-undo-helper.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-undo-helper.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-update-manifest.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-update-manifest.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-web-entry-release-hygiene.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-web-entry-release-hygiene.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-manager-delete-ui.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-manager-delete-ui.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-manager-focus.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-manager-focus.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-manager-native-entry.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-manager-native-entry.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-manager-unsaved-draft.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-manager-unsaved-draft.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-mutation-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-mutation-lifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-workflow-parameters.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-workflow-parameters.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/update-manifest.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/update-manifest.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/web-build.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/web-build.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/web-dev.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/web-dev.js"
+      ]
+    },
+    {
+      "name": "Syntax src/AddonUpdater.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/AddonUpdater.js"
+      ]
+    },
+    {
+      "name": "Syntax src/BatchCommentActions.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/BatchCommentActions.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentActionSettings.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentActionSettings.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentBatchEditor.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentBatchEditor.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentData.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentData.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentFoldState.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentFoldState.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentHtmlConversion.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentHtmlConversion.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentModuleOperations.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentModuleOperations.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentModuleRules.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentModuleRules.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentModuleStore.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentModuleStore.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMoveController.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMoveController.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMoveGesture.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMoveGesture.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMoveViews.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMoveViews.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMutations.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMutations.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentWorkflowMenu.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentWorkflowMenu.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentWorkflowRegistry.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentWorkflowRegistry.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentWorkflowRunner.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentWorkflowRunner.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentWorkflowStore.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentWorkflowStore.js"
+      ]
+    },
+    {
+      "name": "Syntax src/DynamicCommentActions.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/DynamicCommentActions.js"
+      ]
+    },
+    {
+      "name": "Syntax src/ExternalCardEditor.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/ExternalCardEditor.js"
+      ]
+    },
+    {
+      "name": "Syntax src/FloatingControlLayout.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/FloatingControlLayout.js"
+      ]
+    },
+    {
+      "name": "Syntax src/HandwritingPreview.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/HandwritingPreview.js"
+      ]
+    },
+    {
+      "name": "Syntax src/MNCommentManagerAddon.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/MNCommentManagerAddon.js"
+      ]
+    },
+    {
+      "name": "Syntax src/PanelContentBounds.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/PanelContentBounds.js"
+      ]
+    },
+    {
+      "name": "Syntax src/QuickCommentController.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/QuickCommentController.js"
+      ]
+    },
+    {
+      "name": "Syntax src/UndoGroupingHelper.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/UndoGroupingHelper.js"
+      ]
+    },
+    {
+      "name": "Syntax src/WebBridgeCommands.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/WebBridgeCommands.js"
+      ]
+    },
+    {
+      "name": "Syntax src/WebDevServerConfig.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/WebDevServerConfig.js"
+      ]
+    },
+    {
+      "name": "Syntax src/WebPanelController.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/WebPanelController.js"
+      ]
+    },
+    {
+      "name": "Syntax src/main.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/main.js"
+      ]
+    },
+    {
+      "name": "Read-only sync-comment-module-rules",
+      "argv": [
+        "node",
+        "scripts/sync-comment-module-rules.mjs",
+        "--check"
+      ]
+    },
+    {
+      "name": "Read-only sync-comment-move-gesture",
+      "argv": [
+        "node",
+        "scripts/sync-comment-move-gesture.mjs",
+        "--check"
+      ]
+    },
+    {
+      "name": "test-action-button-settings-dialog",
+      "argv": [
+        "node",
+        "scripts/test-action-button-settings-dialog.js"
+      ]
+    },
+    {
+      "name": "test-addon-updater",
+      "argv": [
+        "node",
+        "scripts/test-addon-updater.js"
+      ]
+    },
+    {
+      "name": "test-batch-comment-selection-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-batch-comment-selection-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-batch-no-excerpt-conversion",
+      "argv": [
+        "node",
+        "scripts/test-batch-no-excerpt-conversion.js"
+      ]
+    },
+    {
+      "name": "test-batch-operation-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-batch-operation-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-batch-recording-close-guard",
+      "argv": [
+        "node",
+        "scripts/test-batch-recording-close-guard.js"
+      ]
+    },
+    {
+      "name": "test-batch-recording-save",
+      "argv": [
+        "node",
+        "scripts/test-batch-recording-save.js"
+      ]
+    },
+    {
+      "name": "test-batch-workflow-partial-result",
+      "argv": [
+        "node",
+        "scripts/test-batch-workflow-partial-result.js"
+      ]
+    },
+    {
+      "name": "test-bridge-error-correlation",
+      "argv": [
+        "node",
+        "scripts/test-bridge-error-correlation.js"
+      ]
+    },
+    {
+      "name": "test-bridge-request-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-bridge-request-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-comment-action-settings",
+      "argv": [
+        "node",
+        "scripts/test-comment-action-settings.js"
+      ]
+    },
+    {
+      "name": "test-comment-batch-editor",
+      "argv": [
+        "node",
+        "scripts/test-comment-batch-editor.js"
+      ]
+    },
+    {
+      "name": "test-comment-edit-refresh",
+      "argv": [
+        "node",
+        "scripts/test-comment-edit-refresh.js"
+      ]
+    },
+    {
+      "name": "test-comment-fold",
+      "argv": [
+        "node",
+        "scripts/test-comment-fold.js"
+      ]
+    },
+    {
+      "name": "test-comment-modules",
+      "argv": [
+        "node",
+        "scripts/test-comment-modules.mjs"
+      ]
+    },
+    {
+      "name": "test-comment-move-integration",
+      "argv": [
+        "node",
+        "scripts/test-comment-move-integration.js"
+      ]
+    },
+    {
+      "name": "test-comment-move-refresh",
+      "argv": [
+        "node",
+        "scripts/test-comment-move-refresh.js"
+      ]
+    },
+    {
+      "name": "test-comment-move-views",
+      "argv": [
+        "node",
+        "scripts/test-comment-move-views.js"
+      ]
+    },
+    {
+      "name": "test-comment-move",
+      "argv": [
+        "node",
+        "scripts/test-comment-move.js"
+      ]
+    },
+    {
+      "name": "test-comment-quick-action-touch-target",
+      "argv": [
+        "node",
+        "scripts/test-comment-quick-action-touch-target.js"
+      ]
+    },
+    {
+      "name": "test-comment-quick-actions-keyboard",
+      "argv": [
+        "node",
+        "scripts/test-comment-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "test-comment-selection-geometry",
+      "argv": [
+        "node",
+        "scripts/test-comment-selection-geometry.mjs"
+      ]
+    },
+    {
+      "name": "test-comment-workflow-menu",
+      "argv": [
+        "node",
+        "scripts/test-comment-workflow-menu.js"
+      ]
+    },
+    {
+      "name": "test-comment-workflow-preview",
+      "argv": [
+        "node",
+        "scripts/test-comment-workflow-preview.js"
+      ]
+    },
+    {
+      "name": "test-comment-workflow-registry",
+      "argv": [
+        "node",
+        "scripts/test-comment-workflow-registry.js"
+      ]
+    },
+    {
+      "name": "test-comment-workflow-runner",
+      "argv": [
+        "node",
+        "scripts/test-comment-workflow-runner.js"
+      ]
+    },
+    {
+      "name": "test-comment-workflow-store",
+      "argv": [
+        "node",
+        "scripts/test-comment-workflow-store.js"
+      ]
+    },
+    {
+      "name": "test-dynamic-comment-actions",
+      "argv": [
+        "node",
+        "scripts/test-dynamic-comment-actions.js"
+      ]
+    },
+    {
+      "name": "test-edit-dialog-focus",
+      "argv": [
+        "node",
+        "scripts/test-edit-dialog-focus.js"
+      ]
+    },
+    {
+      "name": "test-edit-dialog-recovery",
+      "argv": [
+        "node",
+        "scripts/test-edit-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "test-external-card-editor-navigation",
+      "argv": [
+        "node",
+        "scripts/test-external-card-editor-navigation.js"
+      ]
+    },
+    {
+      "name": "test-external-card-editor",
+      "argv": [
+        "node",
+        "scripts/test-external-card-editor.js"
+      ]
+    },
+    {
+      "name": "test-external-card-history-cache",
+      "argv": [
+        "node",
+        "scripts/test-external-card-history-cache.js"
+      ]
+    },
+    {
+      "name": "test-extra-narrow-action-order",
+      "argv": [
+        "node",
+        "scripts/test-extra-narrow-action-order.js"
+      ]
+    },
+    {
+      "name": "test-handwriting-preview",
+      "argv": [
+        "node",
+        "scripts/test-handwriting-preview.js"
+      ]
+    },
+    {
+      "name": "test-html-conversion-fidelity",
+      "argv": [
+        "node",
+        "scripts/test-html-conversion-fidelity.js"
+      ]
+    },
+    {
+      "name": "test-html-conversion-integrity",
+      "argv": [
+        "node",
+        "scripts/test-html-conversion-integrity.js"
+      ]
+    },
+    {
+      "name": "test-inline-merge-dialog-recovery",
+      "argv": [
+        "node",
+        "scripts/test-inline-merge-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "test-invalid-link-cleanup-dialog",
+      "argv": [
+        "node",
+        "scripts/test-invalid-link-cleanup-dialog.js"
+      ]
+    },
+    {
+      "name": "test-invalid-link-cleanup",
+      "argv": [
+        "node",
+        "scripts/test-invalid-link-cleanup.js"
+      ]
+    },
+    {
+      "name": "test-link-quick-actions-keyboard",
+      "argv": [
+        "node",
+        "scripts/test-link-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "test-main-command-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-main-command-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-main-delete-button-keyboard",
+      "argv": [
+        "node",
+        "scripts/test-main-delete-button-keyboard.js"
+      ]
+    },
+    {
+      "name": "test-main-shell-dark-narrow-layout",
+      "argv": [
+        "node",
+        "scripts/test-main-shell-dark-narrow-layout.js"
+      ]
+    },
+    {
+      "name": "test-main-workspace-extra-narrow-layout",
+      "argv": [
+        "node",
+        "scripts/test-main-workspace-extra-narrow-layout.js"
+      ]
+    },
+    {
+      "name": "test-markdown-link-edit-dialog-focus",
+      "argv": [
+        "node",
+        "scripts/test-markdown-link-edit-dialog-focus.js"
+      ]
+    },
+    {
+      "name": "test-markdown-link-edit-dialog-recovery",
+      "argv": [
+        "node",
+        "scripts/test-markdown-link-edit-dialog-recovery.js"
+      ]
+    },
+    {
+      "name": "test-markdown-link-quick-actions-keyboard",
+      "argv": [
+        "node",
+        "scripts/test-markdown-link-quick-actions-keyboard.js"
+      ]
+    },
+    {
+      "name": "test-merged-markdown",
+      "argv": [
+        "node",
+        "scripts/test-merged-markdown.js"
+      ]
+    },
+    {
+      "name": "test-panel-top-chrome",
+      "argv": [
+        "node",
+        "scripts/test-panel-top-chrome.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment-keyboard-safety",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment-keyboard-safety.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment-keyboard",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment-keyboard.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment-top-chrome",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment-top-chrome.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment-transitions",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment-transitions.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment-window-placement",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment-window-placement.js"
+      ]
+    },
+    {
+      "name": "test-quick-comment",
+      "argv": [
+        "node",
+        "scripts/test-quick-comment.js"
+      ]
+    },
+    {
+      "name": "test-responsive-action-order",
+      "argv": [
+        "node",
+        "scripts/test-responsive-action-order.js"
+      ]
+    },
+    {
+      "name": "test-runtime-dependency-isolation",
+      "argv": [
+        "node",
+        "scripts/test-runtime-dependency-isolation.js"
+      ]
+    },
+    {
+      "name": "test-selection-main-state",
+      "argv": [
+        "node",
+        "scripts/test-selection-main-state.js"
+      ]
+    },
+    {
+      "name": "test-single-workflow-menu",
+      "argv": [
+        "node",
+        "scripts/test-single-workflow-menu.js"
+      ]
+    },
+    {
+      "name": "test-text-dialog-confirmation-focus",
+      "argv": [
+        "node",
+        "scripts/test-text-dialog-confirmation-focus.js"
+      ]
+    },
+    {
+      "name": "test-undo-helper",
+      "argv": [
+        "node",
+        "scripts/test-undo-helper.js"
+      ]
+    },
+    {
+      "name": "test-update-manifest",
+      "argv": [
+        "node",
+        "scripts/test-update-manifest.js"
+      ]
+    },
+    {
+      "name": "test-workflow-manager-delete-ui",
+      "argv": [
+        "node",
+        "scripts/test-workflow-manager-delete-ui.js"
+      ]
+    },
+    {
+      "name": "test-workflow-manager-focus",
+      "argv": [
+        "node",
+        "scripts/test-workflow-manager-focus.js"
+      ]
+    },
+    {
+      "name": "test-workflow-manager-native-entry",
+      "argv": [
+        "node",
+        "scripts/test-workflow-manager-native-entry.js"
+      ]
+    },
+    {
+      "name": "test-workflow-manager-unsaved-draft",
+      "argv": [
+        "node",
+        "scripts/test-workflow-manager-unsaved-draft.js"
+      ]
+    },
+    {
+      "name": "test-workflow-mutation-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-workflow-mutation-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-workflow-parameters",
+      "argv": [
+        "node",
+        "scripts/test-workflow-parameters.js"
+      ]
+    },
+    {
+      "name": "web/demos/comment-modules/test-engine.mjs",
+      "argv": [
+        "node",
+        "web/demos/comment-modules/test-engine.mjs"
+      ]
+    },
+    {
+      "name": "web/demos/comment-modules/test-gesture.mjs",
+      "argv": [
+        "node",
+        "web/demos/comment-modules/test-gesture.mjs"
+      ]
+    },
+    {
+      "name": "web/demos/comment-modules/test-store.mjs",
+      "argv": [
+        "node",
+        "web/demos/comment-modules/test-store.mjs"
+      ]
+    },
+    {
+      "name": "web/demos/comment-move/test-gesture.mjs",
+      "argv": [
+        "node",
+        "web/demos/comment-move/test-gesture.mjs"
+      ]
+    },
+    {
+      "name": "web/demos/comment-move/test-model.mjs",
+      "argv": [
+        "node",
+        "web/demos/comment-move/test-model.mjs"
+      ]
+    },
+    {
+      "name": "Explicit WebView UI unit tests",
+      "argv": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--maxWorkers=2",
+        "web/demos/comment-modules/App.test.jsx",
+        "web/src/App.conversion-history.test.jsx",
+        "web/src/App.dialogs.test.jsx",
+        "web/src/App.excerpt-move.test.jsx",
+        "web/src/App.excerpt-settings.test.jsx",
+        "web/src/App.fold.test.jsx",
+        "web/src/App.gesture.test.jsx",
+        "web/src/App.modules.test.jsx",
+        "web/src/App.reading.test.jsx",
+        "web/src/App.search.test.jsx",
+        "web/src/App.selection.test.jsx",
+        "web/src/App.workflow-fold.test.jsx",
+        "web/src/App.workflow-menu.test.jsx",
+        "web/src/QuickComment.test.jsx",
+        "web/src/components/AddonUpdate.test.jsx",
+        "web/src/components/CommentTypeSelector.test.jsx",
+        "web/src/components/HelpVideos.test.jsx",
+        "web/src/components/HtmlSelect.test.jsx",
+        "web/src/components/WorkflowParameters.test.jsx",
+        "web/src/lib/contentSelection.test.js",
+        "web/src/lib/markdownRenderer.test.js"
+      ]
+    }
+  ]
+}
