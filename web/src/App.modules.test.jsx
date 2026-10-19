@@ -127,3 +127,31 @@ it('malformed, false, and mismatched save receipts retain draft and never announ
   }
   await click(btn('保存'));expect(host.querySelector('[role=dialog]')).toBeNull();expect(section(3)).not.toBeNull();expect(host.querySelector('.status-message').textContent).toBe('模块设置已保存');
 });
+
+it('dismisses open module menus on outside click, Escape, or opening another menu, and guards IME Escape in module dialogs',async()=>{
+  const firstMenu=section(1).querySelector('.module-menu');
+  const secondMenu=section(2).querySelector('.module-menu');
+  await act(async()=>{firstMenu.open=true;firstMenu.dispatchEvent(new Event('toggle'));});
+  expect(firstMenu.open).toBe(true);
+  await act(async()=>{secondMenu.open=true;secondMenu.dispatchEvent(new Event('toggle'));});
+  expect(firstMenu.open).toBe(false);
+  expect(secondMenu.open).toBe(true);
+  secondMenu.querySelector('button').focus();
+  await act(async()=>secondMenu.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
+  expect(secondMenu.open).toBe(false);
+  expect(document.activeElement).toBe(secondMenu.querySelector('summary'));
+  await act(async()=>{firstMenu.open=true;firstMenu.dispatchEvent(new Event('toggle'));});
+  await act(async()=>document.body.dispatchEvent(new Event('pointerdown',{bubbles:true})));
+  expect(firstMenu.open).toBe(false);
+
+  await click(named('模块划分设置'));
+  const modal=host.querySelector('[role=dialog]');
+  expect(modal.querySelector('.dialog-actions .secondary')?.textContent).toBe('取消');
+  expect(modal.querySelector('.dialog-actions .primary')?.textContent).toBe('保存');
+  await act(async()=>modal.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',isComposing:true,bubbles:true})));
+  expect(host.querySelector('[role=dialog]')).not.toBeNull();
+  await act(async()=>modal.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',keyCode:229,bubbles:true})));
+  expect(host.querySelector('[role=dialog]')).not.toBeNull();
+  await act(async()=>modal.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  expect(host.querySelector('[role=dialog]')).toBeNull();
+});

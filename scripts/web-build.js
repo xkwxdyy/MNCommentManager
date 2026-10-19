@@ -36,6 +36,7 @@ function assertLegacyWebViewCompatibility(bundlePath) {
 
 function main() {
   const rootDir = path.join(__dirname, "..");
+  execFileSync(process.execPath, [path.join(rootDir, "scripts", "sync-comment-move-gesture.mjs"), "--check"], { cwd: rootDir, stdio: "inherit" });
   const viteConfigPath = path.join(rootDir, "web", "vite.release.config.js");
   const distDirPath = path.join(rootDir, "src", "web-dist");
   const distAssetsDirPath = path.join(distDirPath, "assets");

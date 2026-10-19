@@ -1,4 +1,5 @@
 import HtmlSelect from "./components/HtmlSelect";
+import HelpVideos from "./components/HelpVideos";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import useTwoFingerCommentSelection from "./lib/useTwoFingerCommentSelection";
@@ -870,7 +871,7 @@ function App() {
   const [search, setSearch] = useState("");
   const searchInputRef = useRef(null);
   const commentPaneRef = useRef(null);
-  const [status, setStatus] = useState("正在读取当前卡片...");
+  const [status, setStatus] = useState("正在读取当前卡片…");
   const [statusKey, setStatusKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [noteViewState, setNoteViewState] = useState({ phase: "loading", error: "" });
@@ -917,8 +918,8 @@ function App() {
   const currentNoteIdRef = useRef(snapshot.noteId);
   useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
   useEffect(() => {
-    if (dialog || openingOverlay || closingPanel) setSelectionActionsOpen(false);
-  }, [dialog, openingOverlay, closingPanel]);
+    if (dialog || moduleSettingsOpen || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) setSelectionActionsOpen(false);
+  }, [dialog, moduleSettingsOpen, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
   const closeSelectionActions = () => {
     setSelectionActionsOpen(false);
     document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
@@ -1115,12 +1116,18 @@ function App() {
       }
       return result;
     } catch (error) {
+      if (error?.code === "TARGET_CHANGED" && appMountedRef.current && currentNoteIdRef.current === payload?.noteId) {
+        try {
+          const refreshed = await MNBridge.send("refreshCurrentNote");
+          if (appMountedRef.current && currentNoteIdRef.current === payload.noteId) applySnapshot(refreshed, normalizeError(error));
+        } catch (_) {}
+      }
       if (refreshOnError && appMountedRef.current && currentNoteIdRef.current === expectedNoteId) {
         // Invalidate the old selection and receipt even if readback fails.
         const current = currentViewRef.current.snapshot;
         applySnapshot({
           ...current,
-          commentFold: { supported: false, revision: "", error: "批注状态尚未重新核实，请刷新卡片后重新选择" },
+          commentFold: { supported: false, revision: "", error: "评论折叠状态尚未重新核实，请刷新卡片后重新选择" },
           comments: current.comments.map((comment) => ({ ...comment, capabilities: { ...comment.capabilities, canSetCollapsed: false } })),
         }, normalizeError(error));
         try {
@@ -1979,6 +1986,7 @@ function App() {
   };
 
   const handleSelectionModeKeyDown = (event) => {
+    if (event.target.closest?.('.help-videos[open]')) return;
     if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing && twoFingerSelection.isActive()) {
       event.preventDefault();
       event.stopPropagation();
@@ -2310,6 +2318,7 @@ function App() {
       noteId: snapshot.noteId,
       selection: contentSelection,
     }, { message: "文本已复制", keepSelection: true });
+    if (selectionActionsOpen) closeSelectionActions();
   };
 
   const copySelectedImage = async () => {
@@ -2325,6 +2334,7 @@ function App() {
       noteId: snapshot.noteId,
       selection: contentSelection,
     }, { message: "图片已复制", keepSelection: true });
+    if (selectionActionsOpen) closeSelectionActions();
   };
 
   const moveActions = [
@@ -2526,6 +2536,7 @@ function App() {
             <Button className={rangePicking ? "active" : "secondary"} aria-pressed={rangePicking ? "true" : "false"} disabled={loading || (!excerptPresent && comments.length === 0)} onClick={startRangeSelection} title={rangePicking ? "退出范围选择（Esc）" : "选择连续范围"}>选范围</Button>
           </div>
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
+            <HelpVideos />
             {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
             <Button className="secondary" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel}>刷新</Button>
             <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</Button>
@@ -2979,7 +2990,7 @@ function App() {
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
           <Button id="selection-actions-toggle" className="selection-actions-toggle ghost" aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
           <SelectionActionsPanel open={selectionActionsOpen} onClose={closeSelectionActions}>
-          <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选批注</Button></section>
+          <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选评论</Button></section>
 
           {hasMoveActions ? (
             <section className="pane-section move-section">
@@ -3142,9 +3153,25 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   });
   const selectorError = selectorPositionError(selector.position);
   const actionTitle = (id) => (state.catalog || []).find((item) => item.id === id)?.title || id;
+  const selectorTypeLabels = {
+    text: "普通文本",
+    markdown: "Markdown",
+    html: "富文本（HTML）",
+    image: "图片 / 手写",
+    link: "纯卡片链接",
+  };
+  const excerptTypeLabels = {
+    none: "无",
+    text: "文本",
+    image: "图片",
+    audio: "音频",
+    video: "视频",
+  };
   const selectorTitle = (item) => {
     const selectedTypes = item?.selector?.types || [];
-    const typeLabel = selectedTypes.length ? selectedTypes.join("、") : "全部";
+    const typeLabel = selectedTypes.length
+      ? selectedTypes.map((type) => selectorTypeLabels[type] || type).join("、")
+      : "全部评论";
     const suffix = [
       item?.selector?.capabilities?.includes("canMergeText") ? "可合并" : "",
       item?.selector?.includeExcerpt === true ? "含摘录" : "",
@@ -3393,7 +3420,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         </header>
         {editorMessage ? <p className={`batch-editor-status ${editorMessageKind}`} role={editorMessageKind === "error" ? "alert" : "status"}>{editorMessage}</p> : null}
         <div className="batch-editor-grid">
-          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 摘录：{card.excerptType}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
+          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 摘录：{excerptTypeLabels[card.excerptType] || card.excerptType || "无"}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
           <section>
             <h3>选择器</h3>
             <CommentTypeSelector types={selectorTypes} disabled={busy} onChange={(types) => { setSelectorTypes(types); invalidateBatchPreview(); }} />
@@ -3668,7 +3695,7 @@ function ActionButtonSettingsDialog({
           />
           <span>
             <strong>单卡时显示浮动按钮</strong>
-            <small>管理与添加评论采用图标入口，单击和长按动作可以分别设置。</small>
+            <small>管理、添加评论与滑轨移动采用浮动入口；移动按钮仅在卡片至少有两条评论时显示。</small>
           </span>
         </label>
         <label className="dialog-check">
@@ -3711,7 +3738,7 @@ function ActionButtonSettingsDialog({
           />
           <span>
             <strong>移动摘录时显示转换提示</strong>
-            <small>默认开启。移动摘录前先确认转换；关闭后直接转换并移动，操作失败时仍会显示错误信息。</small>
+            <small>默认开启。移动原生摘录前弹窗提示将先转为非摘录版；关闭后直接转换并移动（失败时仍会提示）。</small>
           </span>
         </label>
         <div className="dialog-actions">
@@ -4372,7 +4399,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, initialTempla
         <details className="workflow-guide">
           <summary>设置与运行说明</summary>
           <p>工作流是保存好的评论处理动作；单个动作或多个连续动作都可以保存为工作流。</p>
-          <p>单选卡片时，长按卡片旁的“评”按钮；多选卡片时，点击“评论”按钮。</p>
+          <p>单选卡片时，长按卡片旁的浮动按钮（或按设置触发菜单）；多选卡片时，点击浮动“评论”按钮。</p>
           <p>入口未显示时，可以在评论管理器的设置中开启对应按钮。</p>
           <p>“直接显示”可以减少一次菜单操作；“放入工作流子菜单”可以缩短菜单。隐藏不会删除工作流。</p>
           <p>菜单位置需要点击“保存”才会生效；左侧的顺序调整会立即保存。选择“新建工作流”可以组合多个执行动作。</p>

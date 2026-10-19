@@ -1,0 +1,11 @@
+{
+  "version": "0.1.29",
+  "filename": "mn-comment-manager-v0.1.29.mnaddon",
+  "size": 683852,
+  "sha256": "e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+  "fileCount": 41,
+  "zipValid": true,
+  "packedJSsyntax": true,
+  "bundledFallbackVersion": "0.1.28",
+  "deviceAcceptance": "pending"
+}

@@ -168,6 +168,19 @@ button.ghost {
   box-shadow: none;
 }
 
+button.ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: transparent;
+  background: var(--bg-control);
+  box-shadow: none;
+  transform: none;
+}
+
+button.ghost:active:not(:disabled) {
+  background: var(--bg-control-strong);
+  transform: scale(0.98);
+}
+
 button.compact {
   min-height: 28px;
   padding: 5px 9px;
@@ -306,6 +319,18 @@ button.pressing {
   display: none;
 }
 
+.statusbar > [role="alert"] {
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
+.statusbar button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
 .statusbar .status-message {
   flex: 1 1 auto;
   min-width: 0;
@@ -423,7 +448,7 @@ button.pressing {
 }
 
 .left-pane::before {
-  content: "MN Comments";
+  content: "评论管理器";
   display: block;
   margin: 0 8px 24px;
   color: var(--text-primary);
@@ -972,6 +997,8 @@ button.pressing {
 }
 
 .comment-fold-button {
+  position: relative;
+  isolation: isolate;
   flex: 0 0 44px;
   width: 44px;
   height: 44px;
@@ -980,9 +1007,40 @@ button.pressing {
   border-color: transparent;
   color: var(--text-secondary);
   background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
-.comment-fold-button svg { width: 20px; height: 20px; }
+.comment-fold-button::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  z-index: -1;
+  border-radius: 6px;
+  background: transparent;
+  transition: background-color var(--transition), box-shadow var(--transition), transform var(--transition);
+  pointer-events: none;
+}
+
+.comment-fold-button:hover:not(:disabled),
+.comment-fold-button:active:not(:disabled) {
+  color: var(--text-primary);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.comment-fold-button:hover:not(:disabled)::before {
+  background: var(--bg-control-strong);
+}
+
+.comment-fold-button:active:not(:disabled)::before {
+  background: var(--bg-control-strong);
+  transform: scale(0.95);
+}
+
+.comment-fold-button svg { width: 20px; height: 20px; transition: transform var(--transition); }
 .comment-fold-button[aria-expanded="true"] svg { transform: rotate(90deg); }
 .comment-fold-status {
   margin-left: auto;
@@ -2585,6 +2643,7 @@ button.pressing {
   .comment-body {
     grid-column: 1 / -1;
     margin-left: 0;
+    padding-left: 0;
     padding-top: 0;
   }
 

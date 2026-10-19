@@ -1,6 +1,7 @@
 var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   const BUTTON_TAG = 9304102;
   const ADD_BUTTON_TAG = 9304103;
+  const MOVE_BUTTON_TAG = 9304104;
   const MNPINNER_FOLLOW_BUTTON_TAG = 9205101;
   const MNPINNER_EXTRA_BUTTON_TAG = 9205103;
   const MNLITERATURE_FOLLOW_BUTTON_TAG = 762041;
@@ -202,8 +203,17 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     return views.map((view) => rectFromView(view, hostView)).filter(Boolean);
   }
 
-  function resolveButtonFrame(addon, context) {
-    const preferred = resolvePreferredButtonFrame(addon, context);
+  function buttonGroup(context) {
+    const adding = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false;
+    // All serialized comments currently support canMove; counting needs no media snapshot.
+    const comments = context && context.note && context.note.comments;
+    const moving = Array.isArray(comments) && comments.length > 1;
+    const count = 1 + (adding ? 1 : 0) + (moving ? 1 : 0);
+    return { adding, moving, width: count * BUTTON_SIZE + (count - 1) * GROUP_GAP };
+  }
+
+  function resolveButtonFrame(addon, context, group) {
+    const preferred = resolvePreferredButtonFrame(addon, context, group);
     if (typeof __MN_ADDON_FLOATING_LAYOUT__ === "undefined") return preferred;
     if (!context || !context.anchorRect) return null;
     const host = getHostView(addon);
@@ -211,22 +221,22 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     try { if (host && typeof host.convertRectFromView === "function") anchor = host.convertRectFromView(anchor, addon.window); } catch (_) { return null; }
     const frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, {
       priority: 30,
-      preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: (__MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE), height: BUTTON_SIZE },
-      width: (__MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE), height: BUTTON_SIZE, ownViews: [addon.dynamicCommentButton, addon.dynamicAddCommentButton],
+      preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: group.width, height: BUTTON_SIZE },
+      width: group.width, height: BUTTON_SIZE, ownViews: [addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton],
       anchor, avoid: [anchor], previous: context._floatingGroupFrame
     });
     context._floatingGroupFrame = frame;
     return frame;
   }
 
-  function resolvePreferredButtonFrame(addon, context) {
+  function resolvePreferredButtonFrame(addon, context, group) {
     const hostView = getHostView(addon);
     const bounds = hostView && hostView.bounds;
     if (!bounds || !context || !context.anchorRect) return null;
     let anchor = context.anchorRect;
     try { if (typeof hostView.convertRectFromView === "function") anchor = hostView.convertRectFromView(anchor, addon.window); } catch (_) {}
     if (!anchor) return null;
-    const groupWidth = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false ? BUTTON_SIZE * 2 + GROUP_GAP : BUTTON_SIZE;
+    const groupWidth = group.width;
     if (Number(bounds.width || 0) < groupWidth || Number(bounds.height || 0) < BUTTON_SIZE) return null;
     const maxX = Math.max(0, Number(bounds.width || 0) - groupWidth);
     const maxY = Math.max(0, Number(bounds.height || 0) - BUTTON_SIZE);
@@ -261,8 +271,9 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   function ensureButton(addon, adding) {
     const hostView = getHostView(addon);
     if (!hostView) return null;
-    const property = adding ? "dynamicAddCommentButton" : "dynamicCommentButton";
-    const tag = adding ? ADD_BUTTON_TAG : BUTTON_TAG;
+    const moving = adding === "move";
+    const property = moving ? "dynamicMoveCommentButton" : adding ? "dynamicAddCommentButton" : "dynamicCommentButton";
+    const tag = moving ? MOVE_BUTTON_TAG : adding ? ADD_BUTTON_TAG : BUTTON_TAG;
     let button = addon[property];
     if (!button) {
       const staleButton = findSubviewByTag(hostView, tag);
@@ -280,18 +291,21 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       button.backgroundColor = MNUtil.hexColorAlpha("#ffffff", 0.96);
       button.layer.borderWidth = 1;
       button.layer.borderColor = MNUtil.hexColorAlpha("#d1d5db", 0.95);
-      try { button.setImageForState(MNUtil.getImage(`${addon.mainPath}/${adding ? "comment-add" : "comment-manage"}.png`, 3), 0); }
+      if (moving) button.setTitleForState("↕", 0);
+      else try { button.setImageForState(MNUtil.getImage(`${addon.mainPath}/${adding ? "comment-add" : "comment-manage"}.png`, 3), 0); }
       catch (_) { button.setTitleForState(adding ? "＋" : "☷", 0); }
       button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1), 0);
       button.titleLabel.font = UIFont.boldSystemFontOfSize(15);
-      button.accessibilityLabel = adding ? "添加评论" : "评论管理器";
+      button.accessibilityLabel = moving ? "移动评论" : adding ? "添加评论" : "评论管理器";
       button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchDown:", 1 << 0);
-      button.addTargetActionForControlEvents(addon, adding ? "dynamicAddCommentButtonTapped:" : "dynamicCommentButtonTapped:", 1 << 6);
-      try {
+      button.addTargetActionForControlEvents(addon, moving ? "dynamicMoveCommentButtonTapped:" : adding ? "dynamicAddCommentButtonTapped:" : "dynamicCommentButtonTapped:", 1 << 6);
+      if (!moving) try {
         MNButton.addLongPressGesture(button, addon, adding ? "dynamicAddCommentButtonLongPressed:" : "dynamicCommentButtonLongPressed:", 0.45);
       } catch (error) {
         console.log(`[MN Comment Manager] dynamic long-press binding failed: ${error && error.message ? error.message : error}`);
       }
+      hostView.addSubview(button);
+    } else if (button.superview !== hostView) {
       hostView.addSubview(button);
     }
     button.hidden = true;
@@ -301,11 +315,14 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function hideButton(addon, reason) {
     try {
-      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.dynamicCommentButton, addon.dynamicAddCommentButton]);
+      if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton]);
       const button = addon && (addon.dynamicCommentButton || findSubviewByTag(getHostView(addon), BUTTON_TAG));
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
       const addButton = addon && addon.dynamicAddCommentButton;
       if (addButton) { addButton.hidden = true; addButton.enabled = false; addButton.userInteractionEnabled = false; }
+      const moveButton = addon && addon.dynamicMoveCommentButton;
+      if (moveButton) { moveButton.hidden = true; moveButton.enabled = false; moveButton.userInteractionEnabled = false; }
       if (addon) {
         addon.dynamicCommentContext = null;
         addon.dynamicCommentMenuPopoverController = null;
@@ -323,6 +340,9 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       if (button && button.removeFromSuperview) button.removeFromSuperview();
       const addButton = addon && addon.dynamicAddCommentButton;
       if (addButton && addButton.removeFromSuperview) addButton.removeFromSuperview();
+      const moveButton = addon && addon.dynamicMoveCommentButton;
+      if (moveButton && moveButton.removeFromSuperview) moveButton.removeFromSuperview();
+      if (addon) addon.dynamicMoveCommentButton = null;
       if (addon) addon.dynamicAddCommentButton = null;
       if (addon) addon.dynamicCommentButton = null;
       return !!button;
@@ -334,14 +354,16 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
 
   function showForContext(addon, context) {
     if (!addon || addon.window !== MNUtil.currentWindow || !__MN_COMMENT_ACTION_SETTINGS__.getSettings().enableDynamicSingleCardButton) return false;
-    if (Number(addon && addon.dynamicCommentInteractionUntil || 0) > Date.now() || addon && addon.dynamicCommentMenuPopoverController) return false;
+    if (Number(addon && addon.dynamicCommentInteractionUntil || 0) > Date.now() || addon && (addon.dynamicCommentMenuPopoverController || addon.dynamicMoveRailView)) return false;
     if (!addon || !context || !addon.dynamicCommentContext || addon.dynamicCommentContext.token !== context.token) return false;
     refreshAnchorRect(context);
     const button = ensureButton(addon);
-    const frame = resolveButtonFrame(addon, context);
+    const group = buttonGroup(context);
+    const frame = resolveButtonFrame(addon, context, group);
     if (!button || !frame) {
       if (button) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; }
       if (addon.dynamicAddCommentButton) { addon.dynamicAddCommentButton.hidden = true; addon.dynamicAddCommentButton.enabled = false; addon.dynamicAddCommentButton.userInteractionEnabled = false; }
+      if (addon.dynamicMoveCommentButton) { addon.dynamicMoveCommentButton.hidden = true; addon.dynamicMoveCommentButton.enabled = false; addon.dynamicMoveCommentButton.userInteractionEnabled = false; }
       return false;
     }
     button.frame = { x: frame.x, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
@@ -349,7 +371,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     button.enabled = true;
     button.userInteractionEnabled = true;
     try { button.superview.bringSubviewToFront(button); } catch (_) {}
-    const adding = __MN_COMMENT_ACTION_SETTINGS__.getSettings().showQuickCommentButton !== false;
+    const adding = group.adding;
     const addButton = ensureButton(addon, true);
     if (addButton) {
       addButton.frame = { x: frame.x + BUTTON_SIZE + GROUP_GAP, y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
@@ -357,6 +379,14 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       addButton.enabled = adding;
       addButton.userInteractionEnabled = adding;
       try { if (adding) addButton.superview.bringSubviewToFront(addButton); } catch (_) {}
+    }
+    const moveButton = ensureButton(addon, "move");
+    if (moveButton) {
+      moveButton.frame = { x: frame.x + (adding ? 2 : 1) * (BUTTON_SIZE + GROUP_GAP), y: frame.y, width: BUTTON_SIZE, height: BUTTON_SIZE };
+      moveButton.hidden = !group.moving;
+      moveButton.enabled = group.moving;
+      moveButton.userInteractionEnabled = group.moving;
+      try { if (group.moving) moveButton.superview.bringSubviewToFront(moveButton); } catch (_) {}
     }
     return true;
   }
@@ -370,6 +400,8 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     }
     const context = resolveContext(addon, sender);
     if (!context) { hideButton(addon, "noSingleNote"); return false; }
+    if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
+    addon.dynamicCommentInteractionUntil = 0;
     addon.dynamicCommentContext = context;
     delay(INITIAL_SHOW_DELAY, () => showForContext(addon, context));
     // Other addons reveal their controls after the popup notification has finished.
@@ -385,13 +417,17 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     return true;
   }
 
-  function handlePopupMenuClosed(addon) {
+  function handlePopupMenuClosed(addon, sender) {
     if (!isCurrentWindow(addon)) return false;
     const context = addon && addon.dynamicCommentContext;
+    const info = sender && sender.userInfo || {};
+    const closingNoteId = extractNoteId(info.note || info.noteid || info.noteId);
+    if (closingNoteId && context && closingNoteId !== context.noteId) return false;
     const token = context && context.token;
     if (!token) return false;
     delay(POPUP_CLOSE_HIDE_DELAY, () => {
       if (!addon || !addon.dynamicCommentContext || addon.dynamicCommentContext.token !== token) return;
+      if (addon.dynamicMoveRailView) return;
       const remaining = Number(addon.dynamicCommentInteractionUntil || 0) - Date.now();
       if (remaining > 0) return;
       hideButton(addon, "popup.closed");
@@ -487,7 +523,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       return false;
     }
     const suffix = missing.length > 0 ? `：${missing.join("、")}` : (invalid.length > 0 ? `：${invalid.map((entry) => `第 ${(Number(entry.step) || 0) + 1} 个选择步骤${entry.message ? `（${entry.message}）` : ""}`).join("、")}` : "");
-    if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") MNUtil.showHUD(missing.length > 0 ? `工作流依赖的 Patch 动作不可用${suffix}` : `工作流选择器不可用${suffix}`);
+    if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") MNUtil.showHUD(missing.length > 0 ? `工作流依赖的扩展动作不可用${suffix}` : `工作流选择器不可用${suffix}`);
     return false;
   }
 
@@ -570,7 +606,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   function beginInteraction(addon) {
     try {
       if (!addon || !addon.dynamicCommentContext) return false;
-      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze([addon.dynamicCommentButton, addon.dynamicAddCommentButton], TOUCH_INTERACTION_HOLD_MS);
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze([addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton], TOUCH_INTERACTION_HOLD_MS);
       addon.dynamicCommentInteractionUntil = Date.now() + TOUCH_INTERACTION_HOLD_MS;
       return true;
     } catch (_) {
@@ -659,6 +695,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
   function dispatchAction(addon, adding, holding, sender) {
     if (!holding && consumeTapSuppression(addon)) return false;
     if (holding) suppressTapAfterLongPress(addon);
+    if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(addon);
     const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings();
     const key = `${adding ? "add" : "management"}${holding ? "Hold" : "Tap"}Action`;
     const action = settings[key] || (holding ? "menu" : adding ? "quickInput" : "manager");

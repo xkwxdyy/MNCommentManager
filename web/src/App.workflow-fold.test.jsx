@@ -8,7 +8,7 @@ import MNBridge from "./lib/mnBridge";
 vi.mock("./lib/mnBridge", () => ({ default: { send: vi.fn() } }));
 let root, host, saved;
 const catalog = ["foldSelectedComments", "unfoldSelectedComments"].map((id) => ({
-  id, title: id === "foldSelectedComments" ? "折叠选中的批注" : "展开选中的批注",
+  id, title: id === "foldSelectedComments" ? "折叠选中的评论" : "展开选中的评论",
   scope: "both", input: "selection", compatible: true, builtin: true, parameterSchema: [],
 }));
 const button = (text) => [...host.querySelectorAll(".workflow-manager button")].find((node) => node.textContent === text)
@@ -74,7 +74,7 @@ it("preserves the pending action and draft if the receipt replaces its action ID
     : send(command, payload));
   await click(button("保存"));
   expect(host.querySelector(".workflow-feedback.error").textContent).toContain("保存结果未确认");
-  expect(host.querySelector('[aria-label="添加工作流动作"]').textContent).toContain("折叠选中的批注");
+  expect(host.querySelector('[aria-label="添加工作流动作"]').textContent).toContain("折叠选中的评论");
 });
 
 it('does not allow saving a workflow that only filters comments', async () => {

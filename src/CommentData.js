@@ -508,7 +508,7 @@ var __MN_COMMENT_DATA__ = (function () {
     if (foldState.supported && foldState.comments.length !== comments.length) {
       foldState.supported = false;
       foldState.code = "COMMENT_CHANGED";
-      foldState.error = "批注显示列表已变化，请刷新后重试";
+      foldState.error = "评论列表已变化，请刷新后重试";
     }
     if (foldState.supported) {
       comments.forEach((comment, index) => {

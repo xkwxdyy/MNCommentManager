@@ -64,7 +64,7 @@ export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ c
           dangerouslySetInnerHTML={html}
         />
       ) : (
-        <p className="comment-fold-summary">{source || (comment.capabilities?.hasAudio ? "音频评论" : comment.drawingPreviewPending ? "手写内容正在转换" : comment.drawingPreviewError || (comment.capabilities?.hasImage ? "图片／手写评论" : "无文本内容"))}</p>
+        <p className="comment-fold-summary">{source || (comment.capabilities?.hasAudio ? "音频评论" : comment.drawingPreviewPending ? "手写内容正在转换" : comment.drawingPreviewError || (comment.capabilities?.hasImage ? "图片/手写评论" : "无文本内容"))}</p>
       )}
     </div>
   );
@@ -73,7 +73,7 @@ export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ c
 export function CommentFoldToolbar({ loading, canFold, capability, onSetCollapsed }) {
   if (!capability) return null;
   if (!capability.supported) {
-    const reason = capability.error || "当前宿主未提供批注折叠接口";
+    const reason = capability.error || "当前版本暂不支持折叠或展开评论";
     const message = capability.code ? `${reason}（${capability.code}）` : reason;
     return <p className="comment-fold-unavailable" role="status" title={message}>{message}</p>;
   }

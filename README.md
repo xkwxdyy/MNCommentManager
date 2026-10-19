@@ -2,6 +2,15 @@
 
 MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments on the current note card from a WebView panel.
 
+## Videos and getting started
+
+- [AI promo video (about 1 minute)](https://www.bilibili.com/video/BV1vHnE6YEhe/)
+- [MN Comment Manager getting started](https://www.bilibili.com/video/BV1rpEA6fEau/)
+
+Open the question-mark icon in the panel header to select a video. Videos open
+in MNBrowser when enabled, then fall back to MarginNote's research browser when
+a study set is available, or the system browser otherwise.
+
 ## Features
 
 - Append a native Text or Markdown comment from a lightweight floating input window.
@@ -9,6 +18,11 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
   saved in native preferences. Unsubmitted drafts remain in the current window
   session; uncertain saves retain the original submission for reconciliation.
 - Configure separate tap and long-press actions for the manage and add icons.
+- Reorder comments using a narrow control beside the card: select by content,
+  tap arrows to move one position, hold an arrow for continuous preview, or drag
+  the middle control across several positions. The preview shows the surrounding
+  comments; releasing commits once. Changed lists require a fresh selection.
+  The main panel retains its existing selection and movement behavior.
 
 - Load the focused card and list its comments with type, index, lifecycle stage, and link metadata.
 - Filter and search comments by text, image, link, HTML, audio, or other comment types.
@@ -35,7 +49,7 @@ MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments o
 ## Install
 
 Install and enable MN Utils first, then download or build
-`mn-comment-manager-v0.1.28.mnaddon` and install it in MarginNote 4.
+`mn-comment-manager-v0.1.29.mnaddon` and install it in MarginNote 4.
 
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
@@ -101,7 +115,7 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.28.mnaddon
+mn-comment-manager-v0.1.29.mnaddon
 ```
 
 Generate a stable update manifest after uploading the package into the 123pan

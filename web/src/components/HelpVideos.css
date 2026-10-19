@@ -1,0 +1,46 @@
+.help-videos > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+.help-videos > summary::-webkit-details-marker { display: none; }
+.help-videos > summary svg { width: 20px; height: 20px; }
+.help-videos > summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.help-videos-resources {
+  position: fixed;
+  z-index: 30;
+  top: 72px;
+  right: 12px;
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 84px);
+  overflow: auto;
+  padding: 16px;
+  box-sizing: border-box;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.help-videos-resources p { margin: 0; font-size: 12px; line-height: 1.6; }
+.help-videos:not([open]) > .help-videos-resources { display: none; }
+.comment-manager .topbar-utility-actions .help-videos-resources button {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  flex: none;
+  white-space: normal;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+}

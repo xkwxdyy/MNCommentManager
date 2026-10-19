@@ -98,7 +98,8 @@ function createIntegratedHarness(commands) {
 
   const webView = {
     evaluateJavaScript(script, callback) {
-      vm.runInContext(script, webContext, { filename: "native-bridge-response.js" });
+      const completion = vm.runInContext(script, webContext, { filename: "native-bridge-response.js" });
+      assert.strictEqual(completion, true, "native completion must receive a defined scalar after bridge delivery");
       if (typeof callback === "function") callback();
     },
   };

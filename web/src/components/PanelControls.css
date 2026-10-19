@@ -40,6 +40,22 @@
   transform: none;
 }
 
+.comment-manager .topbar-actions button:hover:not(:disabled),
+.comment-manager .topbar-actions button:active:not(:disabled),
+.comment-manager .topbar-actions button.active,
+.comment-manager .topbar-actions button.active:hover:not(:disabled),
+.comment-manager .quick-nav-item:hover:not(:disabled),
+.comment-manager .quick-nav-item:active:not(:disabled),
+.comment-manager .left-pane .segmented button:hover:not(:disabled),
+.comment-manager .left-pane .segmented button:active:not(:disabled),
+.comment-manager .left-pane .segmented button.active,
+.comment-manager .left-pane .segmented button.active:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
 .comment-manager .topbar-actions button::before,
 .comment-manager .quick-nav-item::before,
 .comment-manager .left-pane .segmented button::before {
@@ -53,6 +69,7 @@
   border-radius: 5px;
   background: var(--bg-control);
   transform: translateY(-50%);
+  transition: background-color var(--transition), box-shadow var(--transition), transform var(--transition);
   pointer-events: none;
 }
 
@@ -65,6 +82,19 @@
 .comment-manager .left-pane .segmented button:hover:not(:disabled)::before { background: var(--bg-control-strong); }
 .comment-manager .topbar-actions button.active:hover:not(:disabled)::before,
 .comment-manager .left-pane .segmented button.active:hover:not(:disabled)::before { background: var(--accent-blue-hover); }
+.comment-manager .topbar-actions button:active:not(:disabled)::before,
+.comment-manager .quick-nav-item:active:not(:disabled)::before,
+.comment-manager .left-pane .segmented button:active:not(:disabled)::before { transform: translateY(-50%) scale(0.97); }
+
+.comment-manager .left-pane .segmented { gap: 0; }
+@media (min-width: 981px) {
+  .comment-manager .left-pane .segmented button::before {
+    left: 0;
+    right: 0;
+    height: 32px;
+    border-radius: 7px;
+  }
+}
 
 .comment-manager .topbar-utility-actions svg { width: 18px; height: 18px; }
 .comment-manager .quick-nav { min-height: 44px; padding: 0 12px; gap: 6px; }
@@ -87,6 +117,15 @@
   box-shadow: none;
   transform: none;
 }
+.comment-manager .right-pane .comment-fold-toolbar button:hover:not(:disabled),
+.comment-manager .right-pane .comment-fold-toolbar button:active:not(:disabled),
+.comment-manager .right-pane .selection-actions-toggle:hover:not(:disabled),
+.comment-manager .right-pane .selection-actions-toggle:active:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
 .comment-manager .right-pane .comment-fold-toolbar button::before,
 .comment-manager .right-pane .selection-actions-toggle::before {
   content: "";
@@ -95,11 +134,14 @@
   inset: 7px;
   border-radius: 6px;
   background: var(--accent-blue-soft);
+  transition: background-color var(--transition), box-shadow var(--transition), transform var(--transition);
   pointer-events: none;
 }
 .comment-manager .right-pane .selection-actions-toggle::before { background: var(--bg-control); }
 .comment-manager .right-pane .comment-fold-toolbar button:hover:not(:disabled)::before,
 .comment-manager .right-pane .selection-actions-toggle:hover:not(:disabled)::before { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.comment-manager .right-pane .comment-fold-toolbar button:active:not(:disabled)::before,
+.comment-manager .right-pane .selection-actions-toggle:active:not(:disabled)::before { transform: scale(0.95); }
 .comment-manager .comment-fold-toolbar svg,
 .comment-manager .selection-actions-toggle svg { width: 18px; height: 18px; }
 .comment-manager .selection-actions-panel { bottom: 60px; max-height: min(480px, calc(100vh - 72px)); }

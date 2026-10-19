@@ -174,6 +174,7 @@ function assertSinglePending(harness) {
   }
   {
     const readTimeouts = {
+      openHelpVideo: 30000,
       ping: 30000,
       echo: 30000,
       getCurrentNoteComments: 30000,

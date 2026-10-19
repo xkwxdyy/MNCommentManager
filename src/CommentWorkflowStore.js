@@ -237,7 +237,7 @@ var __MN_COMMENT_WORKFLOW_STORE__ = (function () {
       if (start === null || end === null) return { selector: source, error: "评论范围的起点和终点必须是整数" };
       return { selector: Object.assign({}, source, { position: { mode: "range", start, end } }), error: "" };
     }
-    return { selector: source, error: "评论位置模式只能是 single 或 range" };
+    return { selector: source, error: "评论位置模式无效，请选择单个位置或位置范围" };
   }
 
   function normalizeWorkflow(raw) {

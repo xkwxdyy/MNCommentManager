@@ -61,7 +61,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       changedCount: result.changedCount,
       changed: result.changedCount > 0,
       snapshot: __MN_COMMENT_DATA__.getNoteSnapshot(note),
-      statusMessage: result.changedCount ? `已${collapsed ? "折叠" : "展开"} ${result.changedCount} 条批注` : "所选批注已处于目标状态",
+      statusMessage: result.changedCount ? `已${collapsed ? "折叠" : "展开"} ${result.changedCount} 条评论` : "所选评论已处于目标状态",
     };
   }
 
@@ -539,6 +539,9 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     }
     setNoteTitle(target, sourceTitle);
     syncPinnedNoteId(sourceNoteId, getNoteId(target));
+    if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") {
+      __MN_CARD_EDITOR_MNCommentManagerAddon.replaceTarget(sourceNoteId, getNoteId(target));
+    }
     refreshNote(target);
     appendMutationNote(affectedNotes, target);
     return { changed: true, reason: state.reason, note: target, sourceNoteId, affectedNotes };
@@ -1704,7 +1707,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
 
   function quickCommentDatabase() {
     const db = Database.sharedInstance();
-    if (!db || typeof db.savedb !== "function") throw new Error("当前宿主无法确认评论保存，请更新 MarginNote 后再试");
+    if (!db || typeof db.savedb !== "function") throw new Error("当前版本无法确认评论保存，请更新 MarginNote 后再试");
     return db;
   }
 
@@ -1732,7 +1735,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const note = getNoteOrThrow(noteId);
     const raw = note.note || note;
     const method = attempt.markdown === true ? "appendMarkdownComment" : "appendTextComment";
-    if (typeof raw[method] !== "function") throw new Error(attempt.markdown === true ? "当前宿主不支持新增 Markdown 评论" : "当前宿主不支持新增文本评论");
+    if (typeof raw[method] !== "function") throw new Error(attempt.markdown === true ? "当前版本不支持新增 Markdown 评论" : "当前版本不支持新增文本评论");
     attempt.index = (raw.comments || []).length;
     attempt.text = text;
     attempt.mutationStarted = false;

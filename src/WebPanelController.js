@@ -15,7 +15,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   const HANDWRITING_RETRY_LIMIT = 60;
 
   function evaluateScript(webView, script) {
-    webView.evaluateJavaScript(script, function () {});
+    // Keep the host completion result non-nil even when the web receiver returns undefined.
+    webView.evaluateJavaScript(script + "\n;true;", function () {});
   }
 
   function pushRequestedView(controller) {
@@ -746,7 +747,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
       const message = String(error && error.localizedDescription ? error.localizedDescription : error);
       const errHTML =
-        "<html><body style=\"margin:20px;font-family:-apple-system;color:#666;\"><h3>Load failed</h3><p>" +
+        "<html><body style=\"margin:20px;font-family:-apple-system;color:#666;\"><h3>页面加载失败</h3><p>" +
         message.replace(/</g, "&lt;") +
         "</p></body></html>";
       self.webView.loadHTMLStringBaseURL(errHTML, null);

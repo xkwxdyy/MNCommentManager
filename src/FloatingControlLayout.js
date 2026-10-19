@@ -1,20 +1,21 @@
 // Shared, independently bundled native geometry. Keep sibling copies byte-identical.
 var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
   const root = typeof globalThis !== "undefined" ? globalThis : Function("return this")();
-  if (root.__MN_ADDON_FLOATING_LAYOUT_V1__) return root.__MN_ADDON_FLOATING_LAYOUT_V1__;
+  const shared = root.__MN_ADDON_FLOATING_LAYOUT_V1__;
+  if (shared && shared.revision === 2) return shared;
   return root.__MN_ADDON_FLOATING_LAYOUT_V1__ = (function () {
-  const ranks = { 9205101: 10, 9205103: 10, 762041: 20, 9304102: 30, 9304103: 30, 9304101: 40 };
+  const ranks = { 9205101: 10, 9205103: 10, 762041: 20, 9304102: 30, 9304103: 30, 9304104: 30, 9304101: 40 };
   const holds = [];
   function same(a, b) {
     try { return a === b || !!(a && b && typeof a.isEqual === "function" && a.isEqual(b)); } catch (_) { return false; }
   }
   function array(raw) {
     try {
-      if (Array.isArray(raw)) return raw;
       const n = raw && (typeof raw.count === "function" ? Number(raw.count()) : Number(raw.length === undefined ? raw.count : raw.length));
       if (!Number.isInteger(n) || n < 0) return [];
       const out = [];
-      for (let i = 0; i < Math.min(n, 257); i++) out.push(typeof raw.objectAtIndex === "function" ? raw.objectAtIndex(i) : raw[i]);
+      for (let i = 0; i < Math.min(n, 1024); i++) out.push(typeof raw.objectAtIndex === "function" ? raw.objectAtIndex(i) : raw[i]);
+      out.truncated = n > out.length;
       return out;
     } catch (_) { return []; }
   }
@@ -99,17 +100,26 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
   function collect(host, options) {
     const opts = options || {}, out = [], own = opts.ownViews || [];
     let budget = 256;
+    function reserve(r) {
+      if (r && !out.some(old => old.x === r.x && old.y === r.y && old.width === r.width && old.height === r.height)) out.push(r);
+    }
     function walk(parent, depth) {
-      if (depth > 6) return;
       const children = array(parent.subviews);
+      // Unknown children may escape a non-clipping container; reserve the host then.
+      if (children.truncated) { out.incomplete = true; reserve(parent.clipsToBounds ? visibleRect(parent, host) : rect(host.bounds)); }
       for (let i = 0; i < children.length; i++) {
-        if (--budget < 0) { out.incomplete = true; return; }
         const view = children[i];
         if (!view || own.some(v => same(v, view))) continue;
         const rank = ranks[Number(view.tag)];
         if (rank === opts.priority || (rank > opts.priority && !held(view))) continue;
         const r = visibleRect(view, host);
         if (!r || content(view)) continue;
+        if (--budget < 0 || depth > 6) {
+          out.incomplete = true;
+          const nested = array(view.subviews);
+          reserve(view.clipsToBounds || !nested.length && !nested.truncated ? r : rect(host.bounds));
+          continue;
+        }
         const compact = r.width <= 480 && r.height <= 200 && r.width * r.height <= 70000;
         if (rank || view.mntoolbar === true || (compact && control(view))) { out.push(r); continue; }
         // A clear compact UIView may contain buttons, a label, and an icon.
@@ -119,7 +129,6 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
           return !(childRank >= opts.priority && !held(child)) && visibleRect(child, host) && control(child);
         })) { out.push(r); continue; }
         walk(view, depth + 1);
-        if (out.incomplete) return;
       }
     }
     if (host) walk(host, 0);
@@ -131,7 +140,6 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
     const width = Number(opts.width || preferred.width), height = Number(opts.height || preferred.height);
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || width > bounds.width || height > bounds.height) return null;
     const obstacles = collect(host, opts);
-    if (obstacles.incomplete) return null;
     (opts.avoid || []).forEach(r => { const clean = rect(r); if (clean) obstacles.push(clean); });
     const gap = 7, candidates = [];
     function candidate(x, y) {
@@ -148,10 +156,10 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
     candidate(preferred.x, preferred.y);
     if (candidates.length) return candidates[0];
     const anchor = rect(opts.anchor) || preferred;
-    const xs = [preferred.x, anchor.x - width - gap, anchor.x + anchor.width + gap, anchor.x + (anchor.width - width) / 2];
-    const ys = [preferred.y, anchor.y - height - gap, anchor.y + anchor.height + gap, anchor.y + (anchor.height - height) / 2];
+    const xs = [preferred.x, anchor.x - width - gap, anchor.x + anchor.width + gap, anchor.x + (anchor.width - width) / 2, bounds.x, bounds.x + bounds.width - width];
+    const ys = [preferred.y, anchor.y - height - gap, anchor.y + anchor.height + gap, anchor.y + (anchor.height - height) / 2, bounds.y, bounds.y + bounds.height - height];
     obstacles.forEach(r => { xs.push(r.x - width - gap, r.x + r.width + gap); ys.push(r.y - height - gap, r.y + r.height + gap); });
-    // The budget bounds both native reads and the candidate cross product.
+    // Keep candidate generation bounded even when overflow regions are reserved.
     xs.slice(0, 48).forEach(x => ys.slice(0, 48).forEach(y => candidate(x, y)));
     candidates.sort((a, b) => (Math.abs(a.x - preferred.x) + Math.abs(a.y - preferred.y)) - (Math.abs(b.x - preferred.x) + Math.abs(b.y - preferred.y)));
     return candidates[0] || null;
@@ -159,6 +167,7 @@ var __MN_ADDON_FLOATING_LAYOUT__ = (function () {
   function settle(schedule, active, refresh) {
     [0.04, 0.12, 0.3, 0.8, 1.6].forEach(seconds => schedule(seconds, function () { if (active()) refresh(); }));
   }
-  return { collect, place, visibleRect, freeze, release, settle };
+  // Upgrade the existing object so earlier-loaded addons also receive the fix.
+  return Object.assign(shared || {}, { revision: 2, collect, place, visibleRect, freeze, release, settle });
   })();
 })();

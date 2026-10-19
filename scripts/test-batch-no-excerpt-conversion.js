@@ -4,12 +4,13 @@ const path = require("path");
 const vm = require("vm");
 
 const rootDir = path.join(__dirname, "..");
-const commentDataSource = fs.readFileSync(path.join(rootDir, "src/CommentData.js"), "utf8");
-const mutationsSource = fs.readFileSync(path.join(rootDir, "src/CommentMutations.js"), "utf8");
+const sourceRoot = process.argv[2] || path.join(rootDir, "src");
+const commentDataSource = fs.readFileSync(path.join(sourceRoot, "CommentData.js"), "utf8");
+const mutationsSource = fs.readFileSync(path.join(sourceRoot, "CommentMutations.js"), "utf8");
 const batchActionsSource = fs.readFileSync(path.join(rootDir, "src/BatchCommentActions.js"), "utf8");
 const dynamicActionsSource = fs.readFileSync(path.join(rootDir, "src/DynamicCommentActions.js"), "utf8");
 const addonSource = fs.readFileSync(path.join(rootDir, "src/MNCommentManagerAddon.js"), "utf8");
-const bridgeSource = fs.readFileSync(path.join(rootDir, "src/WebBridgeCommands.js"), "utf8");
+const bridgeSource = fs.readFileSync(path.join(sourceRoot, "WebBridgeCommands.js"), "utf8");
 const webAppSource = fs.readFileSync(path.join(rootDir, "web/src/App.jsx"), "utf8");
 
 const ids = {
@@ -220,7 +221,7 @@ const context = {
 const addonWindow = { id: "addon-window" };
 
 vm.createContext(context);
-vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentFoldState.js"), "utf8"), context);
+vm.runInContext(fs.readFileSync(path.join(sourceRoot, "CommentFoldState.js"), "utf8"), context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
 vm.runInContext(mutationsSource, context, { filename: "CommentMutations.js" });
 
@@ -836,7 +837,7 @@ assert(batchActionsSource.includes('"runBatchConvertToNoExcerpt:"'));
 assert(addonSource.includes("runBatchConvertToNoExcerpt: async function"));
 assert(dynamicActionsSource.includes('__MN_COMMENT_WORKFLOW_MENU__.buildItems(addon, context, "single", "root")'));
 const workflowContext = vm.createContext({});
-vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentWorkflowStore.js"), "utf8"), workflowContext);
+vm.runInContext(fs.readFileSync(path.join(sourceRoot, "CommentWorkflowStore.js"), "utf8"), workflowContext);
 assert(workflowContext.__MN_COMMENT_WORKFLOW_STORE__.templates().some((workflow) =>
   ["single", "both"].includes(workflow.scope) && workflow.steps.some((step) => step.actionId === "convertNotesToNoExcerpt")),
 "single-card conversion must remain reachable through the editable default workflows");
@@ -857,3 +858,114 @@ assert(webAppSource.includes('markdownLocateRef.current({ url }, "mindmap")'));
 assert(webAppSource.includes('runCommand("updateLinkCommentFromClipboard"'));
 
 console.log("batch no-excerpt conversion tests passed");
+
+// Converting the edited card must update its pinned session before the next button request.
+vm.runInContext(fs.readFileSync(path.join(sourceRoot, 'ExternalCardEditor.js'), 'utf8'), context);
+vm.runInContext(bridgeSource, context);
+const editorApi = context.__MN_CARD_EDITOR_MNCommentManagerAddon;
+const commands = context.__MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands;
+const editor = {};
+const otherEditor = { externalCardEditorSession: { noteId: ids.linked } };
+const closedEditor = {};
+const editorAddon = { webController: editor };
+editorApi.register(editorAddon);
+editorApi.register({ webController: otherEditor });
+editorApi.register({ webController: closedEditor });
+for (const [index, command] of [
+  'moveContentSelection', 'deleteContentSelection', 'mergeContentSelection',
+  'mergeCommentsToExcerpt', 'extractContentSelectionToChildNote',
+].entries()) {
+  const source = createActionSource(100 + index, {
+    excerptType: command === 'mergeContentSelection' ? 'text' : 'image',
+    excerptText: 'original excerpt', excerptPic: command === 'mergeContentSelection' ? null : { paint: 'test-excerpt' },
+    comments: [{ type: 'TextNote', text: 'selected' }, { type: 'TextNote', text: 'keep' }],
+  });
+  editor.externalCardEditorSession = { noteId: source.noteId, requestId: 'conversion-' + index };
+  const payload = { noteId: source.noteId, selection: { excerptSelected: true, commentIndices: [0] }, targetIndex: 3, text: 'merged', title: 'Child', removeOriginal: true };
+  editorApi.validateCommand(editor, command, payload);
+  const result = commands[command]({ controller: editor }, payload);
+  assert.strictEqual(result.converted, true, command + ' must exercise a real card replacement');
+  assert.notStrictEqual(result.noteId, source.noteId);
+  assert.strictEqual(editor.externalCardEditorSession.noteId, result.noteId, command + ' must retain the replacement editing target');
+  assert.strictEqual(editor.externalCardEditorSession.requestId, 'conversion-' + index);
+  assert.strictEqual(commands.refreshCurrentNote({ controller: editor }).noteId, result.noteId);
+  assert.doesNotThrow(() => editorApi.validateCommand(editor, 'editCommentText', { noteId: result.noteId }));
+  assert.throws(() => editorApi.validateCommand(editor, 'editCommentText', { noteId: source.noteId }), error => error.code === 'TARGET_CHANGED');
+  const comment = result.snapshot.comments.find(item => item.capabilities.canCopyText && item.text);
+  assert(comment, command + ' must leave copyable content for the next request');
+  editorApi.validateCommand(editor, 'copyContentText', { noteId: result.noteId });
+  assert(commands.copyContentText({}, { noteId: result.noteId, selection: { commentIndices: [comment.index] } }).copiedCount > 0);
+  assert.strictEqual(otherEditor.externalCardEditorSession.noteId, ids.linked);
+  assert.strictEqual(closedEditor.externalCardEditorSession, undefined);
+}
+const partialSource = createActionSource(110, {
+  excerptText: 'partial', comments: [{ type: 'TextNote', text: 'first' }, { type: 'TextNote', text: 'second' }],
+});
+editor.externalCardEditorSession = { noteId: partialSource.noteId };
+targetMergeHook = target => { [target.comments[1], target.comments[2]] = [target.comments[2], target.comments[1]]; };
+const partial = commands.moveContentSelection({}, { noteId: partialSource.noteId, selection: { excerptSelected: true, commentIndices: [0] }, targetIndex: 3 });
+targetMergeHook = null;
+assert.strictEqual(partial.actionCompleted, false);
+assert.strictEqual(editorApi.getSnapshot(editor).noteId, partial.noteId, 'a completed conversion must be retained even if the subsequent action stops');
+const noOpSource = createActionSource(111, { excerptText: 'only excerpt' });
+editor.externalCardEditorSession = { noteId: noOpSource.noteId };
+assert.throws(() => commands.moveContentSelection({}, {
+  noteId: noOpSource.noteId, selection: { excerptSelected: true, commentIndices: [] }, targetIndex: 2,
+}), /当前位置相同/);
+assert.strictEqual(editorApi.getSnapshot(editor).noteId, noOpSource.noteId, 'preflight rejection must not switch the target');
+editorApi.unregister(editorAddon);
+assert.strictEqual(editor.externalCardEditorSession, null);
+console.log('pinned editor conversion, subsequent buttons, partial failure and unrelated sessions passed');
+
+// Model the Native database history, without rewinding the JavaScript editor session.
+function captureNativeState() {
+  return [...registry].map(([id, note]) => [id, note, {
+    noteTitle: note.noteTitle, title: note.title, excerptText: note.excerptText,
+    excerptTextMarkdown: note.excerptTextMarkdown, groupNoteId: note.groupNoteId,
+    parentNote: note.parentNote, childNotes: note.childNotes.slice(),
+    comments: JSON.parse(JSON.stringify(note.comments)),
+  }]);
+}
+function restoreNativeState(state) {
+  registry.clear();
+  state.forEach(([id, note, fields]) => {
+    Object.assign(note, fields, { childNotes: fields.childNotes.slice(), comments: JSON.parse(JSON.stringify(fields.comments)) });
+    registry.set(id, note);
+  });
+}
+editorApi.register(editorAddon);
+const historySource = createActionSource(120, {
+  excerptText: 'history excerpt', comments: [{ type: 'TextNote', text: 'editable' }, { type: 'TextNote', text: 'keep' }],
+});
+editor.externalCardEditorSession = { noteId: historySource.noteId, language: 'zh-CN' };
+const beforeConversion = captureNativeState();
+const historyConverted = commands.moveContentSelection({}, {
+  noteId: historySource.noteId, selection: { excerptSelected: true, commentIndices: [] }, targetIndex: 3,
+});
+const afterConversion = captureNativeState();
+restoreNativeState(beforeConversion); // Undo conversion, keeping the JS session on the replacement ID.
+assert.strictEqual(commands.refreshCurrentNote({ controller: editor }).noteId, historySource.noteId, 'undo must restore the original editing target');
+for (let cycle = 0; cycle < 3; cycle += 1) {
+  for (const [state, expectedId] of [[afterConversion, historyConverted.noteId], [beforeConversion, historySource.noteId]]) {
+    restoreNativeState(state);
+    const snapshot = commands.refreshCurrentNote({ controller: editor });
+    assert.strictEqual(snapshot.noteId, expectedId, 'undo/redo must follow Native merge ownership');
+    const index = snapshot.comments.find(item => item.capabilities.canEditText).index;
+    const payload = { noteId: expectedId, index, text: 'edited-' + cycle, markdown: true };
+    editorApi.validateCommand(editor, 'editCommentText', payload);
+    const edited = commands.editCommentText({}, payload);
+    assert.strictEqual(edited.noteId, expectedId);
+    const copyPayload = { noteId: expectedId, selection: { commentIndices: [index] } };
+    editorApi.validateCommand(editor, 'copyContentText', copyPayload);
+    commands.copyContentText({}, copyPayload);
+    assert.strictEqual(copiedTexts.at(-1), payload.text);
+    assert.strictEqual(commands.refreshCurrentNote({ controller: editor }).noteId, expectedId);
+  }
+}
+restoreNativeState(afterConversion);
+assert.throws(() => editorApi.validateCommand(editor, 'editCommentText', { noteId: historySource.noteId }), error => error.code === 'TARGET_CHANGED', 'an old selection must request refresh instead of reporting an expired editor');
+assert.throws(() => editorApi.validateCommand(editor, 'editCommentText', { noteId: ids.linked }), error => error.code === 'STALE_REQUEST', 'unrelated card writes remain blocked');
+restoreNativeState(beforeConversion);
+editorApi.clear(editor);
+assert.strictEqual(editor.externalCardEditorSession, null);
+console.log('pinned editor Native history simulation, repeated undo/redo, edit, copy and refresh passed');

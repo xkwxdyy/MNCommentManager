@@ -6,6 +6,7 @@ const COMMAND_TIMEOUTS = Object.freeze({
   presentQuickComment: 1500,
   setQuickCommentExit: 1500,
   ping: 30000,
+  openHelpVideo: 30000,
   getQuickCommentState: 30000,
   echo: 30000,
   getCurrentNoteComments: 30000,

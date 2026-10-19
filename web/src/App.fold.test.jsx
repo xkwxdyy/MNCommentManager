@@ -156,7 +156,7 @@ it("uses the shared scroll pane for the top navigation action", async () => {
 it("folds hidden selected comments too and preserves the excerpt selection", async () => {
   await click(host.querySelector("#native-excerpt input"));
   await click(host.querySelector("#selection-actions-toggle"));
-  await click(button("全选批注"));
+  await click(button("全选评论"));
   const input = host.querySelector("#comment-search");
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "完整正文");
@@ -280,6 +280,6 @@ it("hides disclosure controls and reports unsupported hosts without enabling loc
   await act(async () => window.__MNCommentManagerNativeSync({ snapshot: { ...snapshot, commentFold: { supported: false }, comments: snapshot.comments.map(({ collapsed, ...comment }) => ({ ...comment, capabilities: {} })) } }));
   expect(host.querySelector(".comment-fold-button")).toBeNull();
   expect(host.querySelector(".comment-fold-toolbar")).toBeNull();
-  expect(host.querySelector(".comment-fold-unavailable").textContent).toContain("未提供批注折叠接口");
+  expect(host.querySelector(".comment-fold-unavailable").textContent).toContain("暂不支持折叠或展开评论");
   expect(MNBridge.send).not.toHaveBeenCalled();
 });

@@ -26,7 +26,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
       if (start === null || end === null) return { invalid: true, error: "评论范围的起点和终点必须是整数" };
       return { mode: "range", start, end };
     }
-    return { invalid: true, error: "评论位置模式只能是 single 或 range" };
+    return { invalid: true, error: "评论位置模式无效，请选择单个位置或位置范围" };
   }
 
   function normalizeSelector(selector) {
@@ -259,7 +259,7 @@ var __MN_COMMENT_BATCH_EDITOR__ = (function () {
   function setSelectedCollapsed(notes, selector, collapsed) {
     return runForNotes(notes, selector, (note, snapshot, indices) => {
       if (!snapshot.commentFold || !snapshot.commentFold.supported) {
-        const error = new Error(snapshot.commentFold && snapshot.commentFold.error || "当前宿主未提供批注折叠接口");
+        const error = new Error(snapshot.commentFold && snapshot.commentFold.error || "当前版本暂不支持折叠或展开评论");
         error.code = snapshot.commentFold && snapshot.commentFold.code || "COMMENT_STATE_UNSUPPORTED";
         error.details = snapshot.commentFold && snapshot.commentFold.details;
         throw error;

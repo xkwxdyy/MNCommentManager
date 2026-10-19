@@ -215,7 +215,7 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
         ? `：${missing.join("、")}`
         : (invalid.length > 0 ? `：${invalid.map((item) => `第 ${(Number(item.step) || 0) + 1} 个选择步骤${item.message ? `（${item.message}）` : ""}`).join("、")}` : "");
       if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
-        MNUtil.showHUD(missing.length > 0 ? `工作流依赖的 Patch 动作不可用${suffix}` : `工作流选择器不可用${suffix}`);
+        MNUtil.showHUD(missing.length > 0 ? `工作流依赖的扩展动作不可用${suffix}` : `工作流选择器不可用${suffix}`);
       }
       return false;
     },

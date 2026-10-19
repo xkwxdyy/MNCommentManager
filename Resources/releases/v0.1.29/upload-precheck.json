@@ -1,0 +1,11 @@
+{
+  "package": "/private/tmp/mncommentmanager-release-v0.1.29-20261019/Resources/releases/v0.1.29/artifact/mn-comment-manager-v0.1.29.mnaddon",
+  "plugin": "mncommentmanager",
+  "channel": "stable",
+  "builtOn": "2026-10-19",
+  "version": "0.1.29",
+  "filename": "mn-comment-manager-v0.1.29.mnaddon",
+  "bytes": 683852,
+  "sha256": "e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+  "zipIntegrity": true
+}

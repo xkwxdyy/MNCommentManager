@@ -1,0 +1,270 @@
+[
+  {
+    "file": "scripts/test-action-button-settings-dialog.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-comment-selection-lifecycle.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-no-excerpt-conversion.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-operation-lifecycle.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-recording-close-guard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-recording-save.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-batch-workflow-partial-result.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-bridge-error-correlation.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-bridge-request-lifecycle.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-action-settings.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-batch-editor.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-edit-refresh.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-fold.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-move-integration.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-move-refresh.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-move-views.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-move.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-quick-action-touch-target.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-quick-actions-keyboard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-workflow-menu.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-workflow-preview.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-workflow-registry.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-workflow-runner.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-comment-workflow-store.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-dynamic-comment-actions.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-edit-dialog-focus.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-edit-dialog-recovery.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-external-card-editor-navigation.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-external-card-editor.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-external-card-history-cache.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-extra-narrow-action-order.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-handwriting-preview.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-html-conversion-fidelity.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-html-conversion-integrity.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-inline-merge-dialog-recovery.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-invalid-link-cleanup-dialog.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-invalid-link-cleanup.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-link-quick-actions-keyboard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-main-command-lifecycle.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-main-delete-button-keyboard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-main-shell-dark-narrow-layout.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-main-workspace-extra-narrow-layout.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-markdown-link-edit-dialog-focus.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-markdown-link-edit-dialog-recovery.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-markdown-link-quick-actions-keyboard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-merged-markdown.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-panel-top-chrome.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment-keyboard-safety.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment-keyboard.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment-top-chrome.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment-transitions.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment-window-placement.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-quick-comment.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-responsive-action-order.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-runtime-dependency-isolation.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-selection-main-state.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-single-workflow-menu.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-text-dialog-confirmation-focus.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-undo-helper.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-update-manifest.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-web-entry-release-hygiene.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-manager-delete-ui.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-manager-focus.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-manager-native-entry.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-manager-unsaved-draft.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-mutation-lifecycle.js",
+    "exit": 0
+  },
+  {
+    "file": "scripts/test-workflow-parameters.js",
+    "exit": 0
+  }
+]

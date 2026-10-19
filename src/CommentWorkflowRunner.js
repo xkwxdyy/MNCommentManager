@@ -140,11 +140,11 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
     [true, false].forEach((collapsed) => {
       __MN_COMMENT_WORKFLOW_REGISTRY__.registerBuiltinAction({
         id: collapsed ? "foldSelectedComments" : "unfoldSelectedComments",
-        title: collapsed ? "折叠选中的批注" : "展开选中的批注",
+        title: collapsed ? "折叠选中的评论" : "展开选中的评论",
         scope: "both",
         input: "selection",
         managesUndo: true,
-        description: "仅处理批注；每张卡片最多 200 条，由宿主独立保存并管理撤销。",
+        description: "仅处理评论（每张卡片最多 200 条），由 MarginNote 独立保存并管理撤销。",
         run(context) {
           return __MN_COMMENT_BATCH_EDITOR__.setSelectedCollapsed(context.notes, context.selector || {}, collapsed);
         },

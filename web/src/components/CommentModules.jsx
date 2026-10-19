@@ -19,6 +19,7 @@ function Modal({ title, busy, onClose, children }) {
     return () => { if (previous?.isConnected) previous.focus(); };
   }, []);
   return <div className="dialog-backdrop" onClick={() => !busy && onClose()}><section className="dialog module-dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onClick={e => e.stopPropagation()} onKeyDown={e => {
+    if (e.isComposing || e.nativeEvent?.isComposing || e.keyCode === 229 || e.nativeEvent?.keyCode === 229) return;
     e.stopPropagation();
     if (e.key === 'Escape' && !busy) { e.preventDefault(); onClose(); }
     if (e.key === 'Tab') {
@@ -57,7 +58,7 @@ export function ModuleSettingsDialog({ settings, noteId, readError, onSave, onCl
   };
   return <Modal title="模块划分" busy={busy} onClose={onClose}>
     <p>单卡片设置优先于全局默认。修改方案规则会影响采用该方案的其他卡片。</p>
-    {readError ? <p role="alert">{readError}</p> : null}
+    {readError ? <p className="dialog-error" role="alert">{readError}</p> : null}
     <label>设置范围<HtmlSelect value={scope} disabled={busy} onChange={e => changeScope(e.target.value)}><option value="global">全局默认</option><option value="card">当前卡片</option></HtmlSelect></label>
     <label>划分方案<HtmlSelect value={profileId} disabled={busy} onChange={e => setProfileId(e.target.value)}>{draft.profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</HtmlSelect></label>
     <fieldset disabled={busy}><legend>方案规则</legend>
@@ -67,14 +68,39 @@ export function ModuleSettingsDialog({ settings, noteId, readError, onSave, onCl
     </fieldset>
     <label className="module-inline-label"><input type="checkbox" checked={includeTitle} disabled={busy} onChange={e => setIncludeTitle(e.target.checked)} />整组选择包含结构标题</label>
     {scope === 'global' && draft.cardOverrides[noteId] ? <p>当前卡片已有覆盖设置，全局默认更改不会替换该覆盖。</p> : null}
-    {error ? <p role="alert">{error}</p> : null}
-    <div className="dialog-actions"><button disabled={busy} onClick={onClose}>取消</button>{draft.cardOverrides[noteId] ? <button disabled={busy || !!readError} onClick={() => save(true)}>恢复全局默认</button> : null}<button disabled={busy || !!readError} onClick={() => save(false)}>{busy ? '保存中…' : '保存'}</button></div>
+    {error ? <p className="dialog-error" role="alert">{error}</p> : null}
+    <div className="dialog-actions"><button type="button" className="secondary" disabled={busy} onClick={onClose}>取消</button>{draft.cardOverrides[noteId] ? <button type="button" className="secondary" disabled={busy || !!readError} onClick={() => save(true)}>恢复全局默认</button> : null}<button type="button" className="primary" disabled={busy || !!readError} onClick={() => save(false)}>{busy ? '保存中…' : '保存'}</button></div>
   </Modal>;
 }
 
 export function ModuleCommentList({ tree, comments, visibleComments, matchingComments, selected, includeTitle, hidden, onHide, onSelect, loading, foldSupported, onFold, onAction, onModalOpen, children }) {
   const rows = new Map(visibleComments.map((c,i) => [c.index, children[i]]));
   const matching = useMemo(() => new Set(matchingComments.map(c => c.index)), [matchingComments]);
+  useEffect(() => {
+    const closeMenusOutside = event => {
+      document.querySelectorAll('.module-menu[open]').forEach(menu => {
+        if (!menu.contains(event.target)) menu.open = false;
+      });
+    };
+    const closeMenusOnEscape = event => {
+      if (event.isComposing || event.keyCode === 229 || event.key !== 'Escape') return;
+      const openMenus = [...document.querySelectorAll('.module-menu[open]')];
+      if (!openMenus.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const activeMenu = openMenus.find(menu => menu.contains(document.activeElement)) || openMenus[0];
+      openMenus.forEach(menu => { menu.open = false; });
+      activeMenu?.querySelector('summary')?.focus();
+    };
+    document.addEventListener('pointerdown', closeMenusOutside);
+    document.addEventListener('click', closeMenusOutside);
+    document.addEventListener('keydown', closeMenusOnEscape, true);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenusOutside);
+      document.removeEventListener('click', closeMenusOutside);
+      document.removeEventListener('keydown', closeMenusOnEscape, true);
+    };
+  }, []);
   // Selection changes only affect checkboxes. Structural move/fold plans and
   // comment lookups are reused until the comments or module layout changes.
   const plans = useMemo(() => {
@@ -119,7 +145,11 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
         {hiddenCount ? <span className="module-hidden-count" title="整组选择包含筛选隐藏成员">隐藏 {hiddenCount}</span> : null}
         <IconButton label={`上移模块：${node.title}`} disabled={loading || !canMoveUp} onClick={() => onAction('reorder',{moduleId:node.id,direction:'up'}).catch(() => {})}><path d="m7 14 5-5 5 5" /></IconButton>
         <IconButton label={`下移模块：${node.title}`} disabled={loading || !canMoveDown} onClick={() => onAction('reorder',{moduleId:node.id,direction:'down'}).catch(() => {})}><path d="m7 10 5 5 5-5" /></IconButton>
-        <details className="module-menu"><summary aria-label={`模块操作：${node.title}`} title="模块操作">⋯</summary><div><button disabled={loading || !hasBody} onClick={e => { e.currentTarget.closest('details').open=false; open('body',node); }}>移动正文</button><button disabled={loading || !ids.length} onClick={e => { e.currentTarget.closest('details').open=false; open('extract',node); }}>提取为子卡片</button></div></details>
+        <details className="module-menu" onToggle={e => {
+          if (e.currentTarget.open) {
+            document.querySelectorAll('.module-menu[open]').forEach(menu => { if (menu !== e.currentTarget) menu.open = false; });
+          }
+        }}><summary aria-label={`模块操作：${node.title}`} title="模块操作">⋯</summary><div><button type="button" disabled={loading || !hasBody} onClick={e => { e.currentTarget.closest('details').open=false; open('body',node); }}>移动正文</button><button type="button" disabled={loading || !ids.length} onClick={e => { e.currentTarget.closest('details').open=false; open('extract',node); }}>提取为子卡片</button></div></details>
       </header>
       <div id={`${node.id}-content`} hidden={closed}>
         {closed ? null : contents.map((item,i) => item.child ? renderNode(item.child) : <div key={`row-${i}`}>{rows.get(item.index)}</div>)}
@@ -131,6 +161,6 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
   if (!tree) return <>{children}</>;
   return <>{tree.roots.map(renderNode)}{action ? <Modal title={action.kind === 'body' ? '移动模块正文' : '提取模块为子卡片'} busy={busy} onClose={() => setAction(null)}>
     {action.kind === 'body' ? <><p>移动完整正文到目标模块末尾；当前模块与子模块的结构标题保留。</p><label>目标模块<HtmlSelect value={target || targets[0]?.id || ''} disabled={busy} onChange={e => setTarget(e.target.value)}>{targets.map(n => <option key={n.id} value={n.id}>{`${'　'.repeat(n.depth)}${n.title}（#${n.start}）`}</option>)}</HtmlSelect></label>{!targets.length ? <p>没有可接收正文的其他模块。</p> : null}</> : <><label>子卡片标题<input value={title} disabled={busy} onChange={e => setTitle(e.target.value)} /></label><label className="module-inline-label"><input type="checkbox" checked={remove} disabled={busy} onChange={e => setRemove(e.target.checked)} />提取后删除原内容</label><p>提取范围遵循当前标题选择设置，包含筛选隐藏成员。</p></>}
-    {error ? <p role="alert">{error}</p> : null}<div className="dialog-actions"><button disabled={busy} onClick={() => setAction(null)}>取消</button><button disabled={busy || loading || (action.kind==='body' && !targets.length)} onClick={submit}>{busy ? '处理中…' : '确认'}</button></div>
+    {error ? <p className="dialog-error" role="alert">{error}</p> : null}<div className="dialog-actions"><button type="button" className="secondary" disabled={busy} onClick={() => setAction(null)}>取消</button><button type="button" className="primary" disabled={busy || loading || (action.kind==='body' && !targets.length)} onClick={submit}>{busy ? '处理中…' : '确认'}</button></div>
   </Modal> : null}</>;
 }

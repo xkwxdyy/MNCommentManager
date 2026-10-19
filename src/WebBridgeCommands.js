@@ -18,6 +18,29 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     };
   }
 
+  function openHelpVideo(context, payload) {
+    const videos = {
+      promo: "https://www.bilibili.com/video/BV1vHnE6YEhe/",
+      gettingStarted: "https://www.bilibili.com/video/BV1rpEA6fEau/",
+    };
+    if (!payload || typeof payload.id !== "string" || !Object.prototype.hasOwnProperty.call(videos, payload.id)) throw new Error("视频入口无效");
+    const url = videos[payload.id];
+    // A disabled addon may leave its runtime global behind. Unknown host state must use the fallback.
+    const disabledAddons = typeof NSUserDefaults !== "undefined"
+      ? NSUserDefaults.standardUserDefaults().objectForKey("mindbooks_disabled_extensions") : null;
+    const browserDisabled = !disabledAddons || (typeof disabledAddons.containsObject === "function"
+      ? disabledAddons.containsObject("marginnote.extension.mnbrowser")
+      : !Array.isArray(disabledAddons) || disabledAddons.includes("marginnote.extension.mnbrowser"));
+    if (!browserDisabled && typeof MNUtil.isAddonRunning === "function" && MNUtil.isAddonRunning("BROWSER") && typeof MNUtil.postNotification === "function") {
+      MNUtil.postNotification("openInBrowser", { url, desktop: true });
+    } else if (MNUtil.currentNotebookId && typeof MNUtil.openURLInResearch === "function") {
+      MNUtil.openURLInResearch(url);
+    } else {
+      MNUtil.openURL(url);
+    }
+    return { opened: true };
+  }
+
   function closePanel(context, payload) {
     context.closePanel(context.controller);
     return {
@@ -346,6 +369,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     ping,
     echo,
     closePanel,
+    openHelpVideo,
     getCurrentNoteComments,
     refreshCurrentNote,
     setCommentsCollapsed,

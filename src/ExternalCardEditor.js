@@ -6,6 +6,7 @@ var __MN_CARD_EDITOR_MNCommentManagerAddon = (function () {
     EDITOR_BUSY: ["编辑器存在未完成的操作，请完成后重试", "Finish the current editor operation before switching cards."],
     TARGET_UNAVAILABLE: ["目标卡片已失效，请重新打开编辑器", "The target card is unavailable. Reopen the editor."],
     STALE_REQUEST: ["编辑请求已过期，请重新打开编辑器", "The edit request has expired. Reopen the editor."],
+    TARGET_CHANGED: ["卡片转换状态已变化，请重新选择内容；未保存的编辑仍保留", "The card conversion state changed. Reselect the content; unsaved edits are preserved."],
   };
   function fail(code, language) {
     const labels = failures[code] || failures.EDITOR_UNAVAILABLE;
@@ -27,18 +28,63 @@ var __MN_CARD_EDITOR_MNCommentManagerAddon = (function () {
     const index = clients.indexOf(addon);
     if (index >= 0) clients.splice(index, 1);
   }
+  function replaceTarget(sourceNoteId, targetNoteId) {
+    if (!sourceNoteId || !targetNoteId || sourceNoteId === targetNoteId) return;
+    clients.forEach(addon => {
+      const controller = addon.webController;
+      const session = controller && controller.externalCardEditorSession;
+      if (session && session.noteId === sourceNoteId) {
+        const conversionNoteIds = Array.from(new Set((session.conversionNoteIds || []).concat(sourceNoteId, targetNoteId)));
+        controller.externalCardEditorSession = Object.assign({}, session, {
+          noteId: targetNoteId, conversionRootNoteId: session.conversionRootNoteId || sourceNoteId, conversionNoteIds,
+        });
+      }
+    });
+  }
+  function resolveTarget(controller) {
+    const session = controller.externalCardEditorSession;
+    let noteId = session.conversionRootNoteId || session.noteId;
+    let raw = null;
+    if (session.conversionRootNoteId) {
+      const visited = [];
+      while (true) {
+        if (visited.indexOf(noteId) >= 0) throw fail("TARGET_UNAVAILABLE", session.language);
+        visited.push(noteId);
+        // MNNote caches wrappers; undo may remove or restore their Native backing objects.
+        raw = typeof Database !== "undefined" ? Database.sharedInstance().getNoteById(noteId)
+          : __MN_COMMENT_DATA__.getWrappedNoteById(noteId);
+        if (!raw || String(raw.noteId) !== noteId) throw fail("TARGET_UNAVAILABLE", session.language);
+        const groupId = String(raw.groupNoteId || "");
+        if (!groupId || groupId === noteId) break;
+        if (session.conversionNoteIds.indexOf(groupId) < 0) throw fail("TARGET_UNAVAILABLE", session.language);
+        noteId = groupId;
+      }
+    }
+    const note = __MN_COMMENT_DATA__.getWrappedNoteById(noteId);
+    if (!note || String(note.noteId) !== noteId) throw fail("TARGET_UNAVAILABLE", session.language);
+    if (raw && note.note) note.note = raw;
+    if (session.noteId !== noteId) controller.externalCardEditorSession = Object.assign({}, session, { noteId });
+    return note;
+  }
   function getSnapshot(controller) {
     const session = controller && controller.externalCardEditorSession;
     if (!session) return __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
-    const note = __MN_COMMENT_DATA__.getWrappedNoteById(session.noteId);
-    if (!note || String(note.noteId) !== session.noteId) throw fail("TARGET_UNAVAILABLE", session.language);
+    const note = resolveTarget(controller);
     return __MN_COMMENT_DATA__.getNoteSnapshot(note);
   }
   function validateCommand(controller, command, payload) {
-    const session = controller && controller.externalCardEditorSession;
+    let session = controller && controller.externalCardEditorSession;
     if (!session) return;
+    // Navigation targets the linked card without changing the pinned editing target.
+    if (command === "focusLinkedNote") return;
+    if (payload && (payload.noteId !== undefined || Array.isArray(payload.noteIds))) {
+      resolveTarget(controller);
+      session = controller.externalCardEditorSession;
+    }
     // A stale WebView response must never redirect a mutation to another card.
-    if (payload && payload.noteId !== undefined && String(payload.noteId) !== session.noteId) throw fail("STALE_REQUEST", session.language);
+    if (payload && payload.noteId !== undefined && String(payload.noteId) !== session.noteId) {
+      throw fail((session.conversionNoteIds || []).indexOf(String(payload.noteId)) >= 0 ? "TARGET_CHANGED" : "STALE_REQUEST", session.language);
+    }
     if (payload && Array.isArray(payload.noteIds) && payload.noteIds.some(id => String(id) !== session.noteId)) throw fail("STALE_REQUEST", session.language);
     if (/Batch/.test(command)) throw fail("EDITOR_BUSY", session.language);
   }
@@ -110,5 +156,5 @@ var __MN_CARD_EDITOR_MNCommentManagerAddon = (function () {
       if (controller._externalCardOpenRequest === request) controller._externalCardOpenRequest = null;
     }
   }
-  return { protocolVersion: 1, register, unregister, clear, getSnapshot, validateCommand, cancel, open };
+  return { protocolVersion: 1, register, unregister, clear, replaceTarget, getSnapshot, validateCommand, cancel, open };
 })();

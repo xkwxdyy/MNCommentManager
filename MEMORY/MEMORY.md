@@ -1,22 +1,36 @@
 # 项目记忆索引
 
-- 构建与网盘后处理（2026-10-13）：项目固定 pnpm 10.34.7，修复 Corepack 0.34 与 pnpm 12 入口不兼容；真实 stable 分支构建通过。MN Comment Manager 已沿用 MNPinner 的文件名长链接规则，用户已上传的 v0.1.26 包摘要核验通过；正式及旧版清单和日志已同步至 0.1.26。原包与标签保持，构建修复与相关记录纳入本次提交，跟踪 [Issue #70](https://github.com/xkwxdyy/MNCommentManager/issues/70)。见 [验证记录](../Resources/build-corepack/fix.md)。
+- 2026-10-19｜v0.1.29 已在隔离发布目录完成生产构建、67 个 Node.js 脚本、281 项前端和 63 项模型测试；GitHub、网盘和更新源发布进行中，设备验收仍待完成，见[发布记录](../Resources/releases/v0.1.29.md)。
 
-- 发版（2026-10-13）：[v0.1.26](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.26) 已发布，包含轻量输入、Markdown 类型与偏好、提交去重和连续动画处理。发布提交及标签为 `6a2dde2`；本轮完整回归、最终包内检查、远端附件摘要核验通过，正式包已备份安装并正常重启 MarginNote。完整设备验收保持开放；123 网盘包与更新源已在后续构建修复阶段完成核验和同步。见 [发布验证](../Resources/releases/v0.1.26.md)。
+- 2026-10-19｜未启用 MNBrowser 的首轮 Mac 内置浏览器链接与宣传播放通过，但重复验证出现宿主 WebKit 空回调异常；评论管理器已补明确回执返回值并重新安装，文献入门复测仍发生退出。当前 MNBrowser 仍停用，恢复坐标操作受接口错误阻塞；整体仅部分通过，[#682](https://github.com/xkwxdyy/MN-Addons/issues/682)开放，见[回退验收记录](../../docs/help-videos-2026-10-19.md)。
 
-- 连续转场审查（2026-10-13）：用户确认入场改善；进一步修正旧窗口复用与焦点回调、关闭回执丢失、早提交透明度重置及旧恢复定时器问题。完整前端 214 项、专项与 48 轮隔离连续操作通过；正文、草稿、类型与提交次数一致。修正版已备份安装并正常重启，实机持续快速操作待验收，见 [审查记录](../Resources/quick-input/transition-review.md)。
-- 平缓入场（2026-10-12）：用户确认退场明显改善，并要求解决打开时白底突然出现。覆盖层加入视图前保持透明，页面恢复完成后与输入框同步淡入约 300 毫秒，重复与迟到请求有保护。原生模拟、前端、生产逐帧和保存回归通过，测试包已安装并正常重启，入场随后已获用户反馈确认。见 [入场验证记录](../Resources/quick-input/smooth-opening.md)。
-- 录屏反馈与原生渐隐（2026-10-12）：用户录屏确认网页遮罩淡出后仍残留整窗白底，直到关闭才显示脑图；此前浏览器检查不足以证明宿主修复。已接入保存确认后的原生 UIView 覆盖层渐隐与关闭失败恢复，回归检查通过，测试包已安装并正常启动。退场改善随后已获用户反馈确认，原始证据与边界见 [视频验证记录](../Resources/quick-input/native-canvas-fade.md)。
-- 快速输入回执与提前淡出（2026-10-12）：会话和提交记录改为保留在 JavaScript 闭包，避免原生动态对象边界改变布尔表示。背景在退场过程的 78% 时完成淡出，生产逐帧及失败重试检查通过，最终测试包已安装并正常重启。未提交草稿继续保留，新输入不读取已有评论；实际宿主动画仍待验收。证据见 [验证记录](../Resources/quick-input/early-backdrop-and-receipt.md)。
-- 测试版自动安装流程（2026-10-12）：用户授权本项目每次更新并验证测试包后直接安装并正常重启 MarginNote；稳定规则已加入 AGENTS.md。最新 Markdown 记忆测试包已完成本机安装、文件核对和重启，备份与部署报告见 `Resources/quick-input/remember-markdown-review/local-install-report.json`。
+- 2026-10-19｜帮助视频已打包安装至本机，版本 `0.1.25`；问号、宣传与教程入口实际通过，宣传视频观察到播放画面。包体、备份及设备边界见[跨插件验收记录](../../docs/help-videos-2026-10-19.md)。
 
-- Markdown 偏好记忆（2026-10-12）：用户要求沿用最近选择，已通过原生配置保存并接入新输入会话，替代固定恢复为 Text 的规则。测试包和本轮验证见 [记忆验证记录](../Resources/quick-input/remember-markdown.md)，真实宿主重启恢复待验收。
+- 2026-10-19｜视频反馈后的跟随按钮加固已完成源码与本地包检查：共同布局改为保守占位，修复评论按钮重新挂载、旧卡片关闭及共享旧对象升级。14 个相关脚本与压缩包联合模拟通过，评论测试包已备份安装并重启；暂停插件设置保留，Mac/iPad 显示和触摸待验收。文献固定 1.5 秒隐藏另已移除，本地包未安装。见[验证记录](../Resources/follow-button-hardening/validation.md)，关联 #67、MN-Addons #673 与 #681。
 
-- 快速输入 Markdown 与背景淡出（2026-10-12）：用户明确扩展评论类型范围；已加入 Markdown 图标开关，背景与面板同步退场，取消成功浮层提示。测试包、211 项前端测试及生产页面检查见 [验证记录](../Resources/quick-input/markdown-and-backdrop.md)。[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68)、[Issue #69](https://github.com/xkwxdyy/MNCommentManager/issues/69) 保持开放，实际宿主待验收。
+- 2026-10-19｜灰色压缩摘要已按授权接入原生侧栏，保留可读相邻内容和自动滚动；5000 条评论采用固定数量视图及可见图片加载。20 项模型、39 个集成及 19 个视图场景和压缩包检查通过。测试包 `7be8b804…` 已生成，现有安装已备份；应用访问因自动审批容量不足未执行，尚未安装，见[接入记录](../Resources/comment-move-integration/compressed-overview/validation.md)。
 
-- 快速输入界面调整（2026-10-12）：设置标签、浮动按钮避让、连续退场动画和关闭失败提示已更新；当前测试包及验证见 [交互调整记录](../Resources/quick-input/interaction-adjustments.md)。[Issue #67](https://github.com/xkwxdyy/MNCommentManager/issues/67)、[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68) 保持开放，真实宿主待验收。
+- 2026-10-19｜灰色压缩摘要的独立原型已生成并通过模拟交互检查；原型阶段的浏览器预览受自动审批容量故障阻塞。后续接入已获授权并完成，状态以上述接入记录为准，原型保留在[原型记录](../Resources/comment-move-prototype/compressed-overview/validation.md)。
 
-- 轻量评论输入（2026-10-12）：双图标入口与纯文本输入已接入；数据处理审查已修复初始化关闭覆盖、乱序草稿、历史提交重放及迟到回执问题。前端 189 项、Node 54 个脚本、包内联合模拟与隔离构建通过；跟踪 [Issue #65](https://github.com/xkwxdyy/MNCommentManager/issues/65)、[Issue #66](https://github.com/xkwxdyy/MNCommentManager/issues/66)。真实 MarginNote 保存、键盘与撤销仍待验收；最新记录见 `Resources/quick-input/review-and-validation.md`；相关源码已包含在 v0.1.26 发布中。
+- 2026-10-19｜快速移动已修正为整段等距映射，手柄按轨道内指针坐标更新，预览原位复用并优先预留可读侧栏；摘要取消八字截断，使用较大字号并标注上下文。手势模型 20 项、集成模拟 39 个场景、视图模拟 14 个场景及包内验证通过，最终包 `fb63aa078…` 已安装并重启。本轮实际输入受工具 `noWindowsAvailable` 阻塞，既有 14 条评论未变；[Issue #83](https://github.com/xkwxdyy/MNCommentManager/issues/83) 保持开放，见[最新验证](../Resources/comment-move-integration/uniform-drag/validation.md)。
+
+- 2026-10-18｜侧栏反馈修复包已完成 Mac 原生点按、长按、拖动、撤回及连续撤回操作。窗口缩放后坐标点击恢复，松手后的卡片正文可见，没有结果浮窗；最终评论内容和顺序与初始回读一致。手势中间帧及 iOS 仍待验收，[Issue #82](https://github.com/xkwxdyy/MNCommentManager/issues/82) 保持开放，见[最新验证](../Resources/comment-move-integration/sidebar-feedback/validation.md)。
+
+- 2026-10-18｜侧边快速移动已接入并安装，主面板原有逻辑保留。卡片定位改为优先使用实际选中视图，侧栏及展开轨道自动避障；Mac 实际点按、拖动、长按跨条、取消、旧列表拦截和反馈撤回已通过数据库回读，测试评论已恢复。67 个 Node.js 脚本、275 项前端、18 项手势模型、30 个原生集成模拟和 8 个视图场景通过；iPhone、iPad 待验收。定位缺陷由 [Issue #81](https://github.com/xkwxdyy/MNCommentManager/issues/81) 跟踪，#78、#79、#80 已更新。见[集成验证](../Resources/comment-move-integration/validation.md)。
+
+- 2026-10-18｜实际 WebView 按钮已补验通过：宿主工具栏实际撤销、重做转换后，网页编辑、保存、复制与刷新均正常，没有过期误报。旧选区触发 TARGET_CHANGED 后自动刷新，重新选择后复制成功。移到内建显示器后恢复页面绘制与坐标操作；不将该现象作为全部白屏的根因。临时入口已移除，验收前普通包已逐字节恢复并正常重启，测试卡片保留。[Issue #77](https://github.com/xkwxdyy/MNCommentManager/issues/77)因其他设备边界保持开放，见 [实际按钮验收](../Resources/link-navigation/web-click-validation.md)。
+
+- 2026-10-18｜用户提供的 0.1.28 comment-picker 定制包已完成分析：新增单条评论选择器与滑轨排序，正式基准包摘要已核对。包内模拟复现旧索引移动错误评论、关闭与切卡状态残留、窄窗口越界，分别跟踪 [#78](https://github.com/xkwxdyy/MNCommentManager/issues/78)、[#79](https://github.com/xkwxdyy/MNCommentManager/issues/79)、[#80](https://github.com/xkwxdyy/MNCommentManager/issues/80)。仅分析，未修改插件源码或安装；iPad 按钮不显示仍缺设备日志。见 [审查记录](../Resources/comment-picker-review/review.md)。
+
+- 2026-10-18｜[Issue #67 调查](https://github.com/xkwxdyy/MNCommentManager/issues/67#issuecomment-6249192321)：下载目录中已找到三按钮候选包，其扫描超过 256 项后整组隐藏的路径已通过包内生产脚本模拟复现；实际 iPad 测试包身份与设备根因尚未确认。仅增加日志的诊断包已验证，未安装、未实施推测性修复；调查评论经明确授权发布。见 [调查记录](../Resources/ipad-dynamic-buttons/investigation.md)。
+
+- 2026-10-18｜转换后的撤销重做目标恢复已修复：刷新与命令校验从原生数据库识别原卡片或替代卡片，旧选区触发刷新并保留草稿。前端 274 项及本机真实原生转换、撤销重做、编辑、复制与刷新验收通过；独立测试学习集按授权保留。网页按钮完整操作与移动设备仍待验收，[Issue #77](https://github.com/xkwxdyy/MNCommentManager/issues/77)保持开放，见 [验证记录](../Resources/link-navigation/undo-redo-validation.md)。
+
+- 2026-10-18｜按钮目标校验检查完成：链接定位误拒绝与摘录转换后会话未更新均已局部修复。源码、包内及实际安装脚本模拟通过，已备份安装并正常重启；真实定位、转换后连续操作与撤销重做待验收。[Issue #76](https://github.com/xkwxdyy/MNCommentManager/issues/76)及 [Issue #77](https://github.com/xkwxdyy/MNCommentManager/issues/77)保持开放，见 [按钮检查记录](../Resources/link-navigation/button-validation-review.md)。
+
+- 2026-10-18｜摘录移动已按最新要求调整为转换前确认，替代“完成后告知”；保留“不再提示”及设置恢复。前端 255 项、相关原生及焦点检查、最终包生产脚本模拟通过。已备份安装并正常重启；真实摘录待验收。证据见 [修复验证](../Resources/excerpt-move/confirmation-validation.md)及[待办.md](待办.md)。
+
+- 2026-10-14｜坚果云冲突按内容完成整合：快速输入、按钮配置、键盘与中文组词保护、工作流管理和顶部避让已在原工作目录共同保留，回归及本地构建通过。原冲突文件可恢复归档，版本仍为 0.1.25，设备待验收；详情见[合并记录](../Resources/nutstore-content-merge/2026-10-14.md)。
 
 - 发版与设备反馈（2026-10-12）：用户确认双指多选实际体验明显改善；[v0.1.25](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.25) 已完成稳定版发布，发布提交与标签为 `f29e80a`。回归、隔离构建、最终包内网页检查及远端附件摘要核验通过。量化设备指标和其他宿主操作仍待验收，123 网盘及真实下载清单仍待手动更新；说明见 `Resources/releases/v0.1.25.md`。
 
@@ -40,18 +54,6 @@
 - 实现与本次验证结果见 [事实.md](事实.md)；MarginNote 真机验收见 [待办.md](待办.md)。
 
 - 提交/发版 Skill（2026-10-01）：Claude 项目技能已适配到 `.agents/skills/git-commit-changelog/` 与 `.agents/skills/mn-release/`；迁移及复验见 [事实.md](事实.md)，完整 0.1.23 发版已完成，待真机验收与 123 网盘手动上传见 [待办.md](待办.md)。
-
-- 2026-10-13｜v0.1.27已完成发布：隔离工作区整合可编辑默认工作流、键盘收起与草稿安全、MN5顶部胶囊避让；前端247项、Node脚本63个、最终包原生与网页交互通过。MN5显示有用户初步确认，完整设备验收保留。见 Resources/releases/v0.1.27.md。
-
-- 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已发布；提交和标签为c2731ca，附件SHA-256与本地一致。发布使用隔离工作区，原目录和下载清单保留。123网盘上传及清单更新已完成，完整设备验收继续待办，见 Resources/releases/v0.1.27.md。
-
-- 2026-10-13｜v0.1.27已通过Arc网页上传到MNCommentManager目录28467434；现有助手完整下载、ZIP及SHA-256一致性核验通过。主站和旧版兼容站的更新清单及双语日志均已部署并逐字节核验，真实下载清单已更新；GitHub标签和附件保持原样，本机插件未替换。服务器旧文件备份保留，设备验收继续待完成。报告见 Resources/releases/v0.1.27/cloud-publication-report.json。
-
-- 2026-10-13｜mn-release已按用户要求纳入Arc上传、完整下载校验及主站和兼容站清单与日志部署。完整发版默认连续完成该流程；真实下载清单在包体核验后更新且继续不提交。旧同名入口读取统一流程，失败时保留已完成发布并只继续缺失步骤；技能维护不触发发布。
-
-- 2026-10-18｜摘录移动已按最新要求调整为转换前确认，替代“完成后告知”；保留“不再提示”及设置恢复。前端 255 项、相关原生及焦点检查、最终包生产脚本模拟通过。已备份安装并正常重启；真实摘录待验收。证据见 [修复验证](../Resources/excerpt-move/confirmation-validation.md)及[待办.md](待办.md)。
-
-- 2026-10-14｜坚果云冲突按内容完成整合：快速输入、按钮配置、键盘与中文组词保护、工作流管理和顶部避让已在原工作目录共同保留，回归及本地构建通过。原冲突文件可恢复归档，版本仍为 0.1.25，设备待验收；详情见[合并记录](../Resources/nutstore-content-merge/2026-10-14.md)。
 
 - 快速输入层级与键盘收起（2026-10-13）：在独立 v0.1.26 工作目录完成相对内容视图插入、键盘通知联动、同步下移渐隐和草稿保护；完整前端、原生与包内模拟通过，测试包已备份安装并正常重启。MN5 透明及 iPad、iPhone 动画仍待验收，跟踪 #71、#72。原工作目录的业务源码和同步冲突保留，详见 Resources/quick-input/keyboard-dismissal/validation.md。
 
@@ -79,6 +81,30 @@
 - 2026-10-13｜[v0.1.27](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.27)已完成GitHub稳定版发布。发布提交和标签为c2731ca，前端247项、Node脚本63个、包内原生与网页交互通过，附件下载SHA-256一致。当前原目录仍保留v0.1.25基础和全部既有改动；完整整合源码位于本聊天附着的release-v0-1-27工作区，已推送main。真实下载清单已随网盘发布更新，本机安装未替换，设备验收待办保留，见 Resources/releases/v0.1.27.md。
 
 - 2026-10-13｜用户授权通过网页自动上传v0.1.27并完成清单发布，替代先前手动上传边界。Chrome网盘入口重定向至登录页面；页面扩展框架导致cdp_extension_access_denied，读取和截图失败，恢复请求超时，发布会话已停止。上传尚未发生，公开清单仍为v0.1.26；v0.1.27清单草稿保留实际历史，未部署。待登录页面恢复后继续自动发布，授权持续有效。报告见 Resources/releases/v0.1.27/pan123-upload-attempt.json。
+
+- 2026-10-13｜v0.1.27已通过Arc网页上传到MNCommentManager目录28467434；现有助手完整下载、ZIP及SHA-256一致性核验通过。主站和旧版兼容站的更新清单及双语日志均已部署并逐字节核验，真实下载清单已更新；GitHub标签和附件保持原样，本机插件未替换。服务器旧文件备份保留，设备验收继续待完成。报告见 Resources/releases/v0.1.27/cloud-publication-report.json。
+
+- 2026-10-13｜mn-release已按用户要求纳入Arc上传、完整下载校验及主站和兼容站清单与日志部署。完整发版默认连续完成该流程；真实下载清单在包体核验后更新且继续不提交。旧同名入口读取统一流程，失败时保留已完成发布并只继续缺失步骤；技能维护不触发发布。
+
+## 冲突副本中的历史记录补充
+
+- 构建与网盘后处理（2026-10-13）：项目固定 pnpm 10.34.7，修复 Corepack 0.34 与 pnpm 12 入口不兼容；真实 stable 分支构建通过。MN Comment Manager 已沿用 MNPinner 的文件名长链接规则，用户已上传的 v0.1.26 包摘要核验通过；正式及旧版清单和日志已同步至 0.1.26。原包与标签保持，构建修复与相关记录纳入本次提交，跟踪 [Issue #70](https://github.com/xkwxdyy/MNCommentManager/issues/70)。见 [验证记录](../Resources/build-corepack/fix.md)。
+
+- 发版（2026-10-13）：[v0.1.26](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.26) 已发布，包含轻量输入、Markdown 类型与偏好、提交去重和连续动画处理。发布提交及标签为 `6a2dde2`；本轮完整回归、最终包内检查、远端附件摘要核验通过，正式包已备份安装并正常重启 MarginNote。完整设备验收保持开放；123 网盘包与更新源已在后续构建修复阶段完成核验和同步。见 [发布验证](../Resources/releases/v0.1.26.md)。
+
+- 连续转场审查（2026-10-13）：用户确认入场改善；进一步修正旧窗口复用与焦点回调、关闭回执丢失、早提交透明度重置及旧恢复定时器问题。完整前端 214 项、专项与 48 轮隔离连续操作通过；正文、草稿、类型与提交次数一致。修正版已备份安装并正常重启，实机持续快速操作待验收，见 [审查记录](../Resources/quick-input/transition-review.md)。
+- 平缓入场（2026-10-12）：用户确认退场明显改善，并要求解决打开时白底突然出现。覆盖层加入视图前保持透明，页面恢复完成后与输入框同步淡入约 300 毫秒，重复与迟到请求有保护。原生模拟、前端、生产逐帧和保存回归通过，测试包已安装并正常重启，入场随后已获用户反馈确认。见 [入场验证记录](../Resources/quick-input/smooth-opening.md)。
+- 录屏反馈与原生渐隐（2026-10-12）：用户录屏确认网页遮罩淡出后仍残留整窗白底，直到关闭才显示脑图；此前浏览器检查不足以证明宿主修复。已接入保存确认后的原生 UIView 覆盖层渐隐与关闭失败恢复，回归检查通过，测试包已安装并正常启动。退场改善随后已获用户反馈确认，原始证据与边界见 [视频验证记录](../Resources/quick-input/native-canvas-fade.md)。
+- 快速输入回执与提前淡出（2026-10-12）：会话和提交记录改为保留在 JavaScript 闭包，避免原生动态对象边界改变布尔表示。背景在退场过程的 78% 时完成淡出，生产逐帧及失败重试检查通过，最终测试包已安装并正常重启。未提交草稿继续保留，新输入不读取已有评论；实际宿主动画仍待验收。证据见 [验证记录](../Resources/quick-input/early-backdrop-and-receipt.md)。
+- 测试版自动安装流程（2026-10-12）：用户授权本项目每次更新并验证测试包后直接安装并正常重启 MarginNote；稳定规则已加入 AGENTS.md。最新 Markdown 记忆测试包已完成本机安装、文件核对和重启，备份与部署报告见 `Resources/quick-input/remember-markdown-review/local-install-report.json`。
+
+- Markdown 偏好记忆（2026-10-12）：用户要求沿用最近选择，已通过原生配置保存并接入新输入会话，替代固定恢复为 Text 的规则。测试包和本轮验证见 [记忆验证记录](../Resources/quick-input/remember-markdown.md)，真实宿主重启恢复待验收。
+
+- 快速输入 Markdown 与背景淡出（2026-10-12）：用户明确扩展评论类型范围；已加入 Markdown 图标开关，背景与面板同步退场，取消成功浮层提示。测试包、211 项前端测试及生产页面检查见 [验证记录](../Resources/quick-input/markdown-and-backdrop.md)。[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68)、[Issue #69](https://github.com/xkwxdyy/MNCommentManager/issues/69) 保持开放，实际宿主待验收。
+
+- 快速输入界面调整（2026-10-12）：设置标签、浮动按钮避让、连续退场动画和关闭失败提示已更新；当前测试包及验证见 [交互调整记录](../Resources/quick-input/interaction-adjustments.md)。[Issue #67](https://github.com/xkwxdyy/MNCommentManager/issues/67)、[Issue #68](https://github.com/xkwxdyy/MNCommentManager/issues/68) 保持开放，真实宿主待验收。
+
+- 轻量评论输入（2026-10-12）：双图标入口与纯文本输入已接入；数据处理审查已修复初始化关闭覆盖、乱序草稿、历史提交重放及迟到回执问题。前端 189 项、Node 54 个脚本、包内联合模拟与隔离构建通过；跟踪 [Issue #65](https://github.com/xkwxdyy/MNCommentManager/issues/65)、[Issue #66](https://github.com/xkwxdyy/MNCommentManager/issues/66)。真实 MarginNote 保存、键盘与撤销仍待验收；最新记录见 `Resources/quick-input/review-and-validation.md`；相关源码已包含在 v0.1.26 发布中。
 
 - 2026-10-17｜已按确认方案接入 Pinner 卡片编辑协议，支持明确卡片 ID、独立目标会话、切换预检、取消与迟到响应隔离；相关 Native、前端和网页构建通过，未打包或安装。详见[实施记录](../../mnpinner/docs/reviews/2026-10-17-card-pin-editor-implementation.md)与[事实](事实.md)。
 
