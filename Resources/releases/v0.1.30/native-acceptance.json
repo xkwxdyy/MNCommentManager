@@ -1,0 +1,12 @@
+{
+  "currentInstalledVersion": "0.1.29",
+  "detectedVersion": "0.1.30",
+  "manualCheckPassed": true,
+  "installActionEnabled": true,
+  "releaseNotesLoaded": true,
+  "releaseNotesVisible": true,
+  "installedDuringRelease": false,
+  "restartedDuringRelease": false,
+  "originalPauseStatePreserved": true,
+  "sceneRestoredToLibrary": true
+}

@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+      "sha256": "3db7bae0e8b46a4cdd7c6c34b9ce4a56773742de5f4937d2d72b73222cc88523",
+      "bytes": 7495,
+      "candidateBytesMatch": true,
+      "version": "0.1.30"
+    },
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "sha256": "aa865b20d4181cddf8c1b3825feac189d7e9f5c54e327a8f41b205ef224593af",
+      "bytes": 46430,
+      "candidateBytesMatch": true,
+      "version": "0.1.30"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+      "sha256": "3db7bae0e8b46a4cdd7c6c34b9ce4a56773742de5f4937d2d72b73222cc88523",
+      "bytes": 7495,
+      "candidateBytesMatch": true,
+      "version": "0.1.30"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "sha256": "aa865b20d4181cddf8c1b3825feac189d7e9f5c54e327a8f41b205ef224593af",
+      "bytes": 46430,
+      "candidateBytesMatch": true,
+      "version": "0.1.30"
+    }
+  ],
+  "referencedPackage": {
+    "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+    "bytes": 697372,
+    "sha256": "bd43f08283a2eb6da980442d11edbd93a7e6f768c8fafd0f82082ac22626256b"
+  }
+}

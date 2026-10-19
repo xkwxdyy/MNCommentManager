@@ -1,0 +1,58 @@
+[
+  {
+    "currentVersion": "0.1.29",
+    "legacyFallback": false,
+    "latestVersion": "0.1.30",
+    "updateAvailable": true,
+    "source": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "downloadUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792412442168",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412442245"
+    ]
+  },
+  {
+    "currentVersion": "0.1.29",
+    "legacyFallback": true,
+    "latestVersion": "0.1.30",
+    "updateAvailable": true,
+    "source": "https://xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "downloadUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792412442422",
+      "https://xkwxdyy.cn/update/mncommentmanager.json?t=1792412442422",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412442556",
+      "https://xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412442556"
+    ]
+  },
+  {
+    "currentVersion": "0.1.30",
+    "legacyFallback": false,
+    "latestVersion": "0.1.30",
+    "updateAvailable": false,
+    "source": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "downloadUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792412442668",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412442744"
+    ]
+  },
+  {
+    "currentVersion": "0.1.30",
+    "legacyFallback": true,
+    "latestVersion": "0.1.30",
+    "updateAvailable": false,
+    "source": "https://xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "downloadUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792412442960",
+      "https://xkwxdyy.cn/update/mncommentmanager.json?t=1792412442960",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412443042",
+      "https://xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792412443042"
+    ]
+  }
+]

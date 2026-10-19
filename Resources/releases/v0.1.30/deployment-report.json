@@ -1,0 +1,41 @@
+{
+  "version": "0.1.30",
+  "status": "deployed",
+  "backupDir": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.30-20261019-201948",
+  "backups": [
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.30-20261019-201948/0-mncommentmanager_changelog.json",
+      "sha256": "f87f9f670435edd64f563386e2f00e992151d3709f75176c86952149ad93c53f"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager_changelog.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.30-20261019-201948/1-mncommentmanager_changelog.json",
+      "sha256": "f87f9f670435edd64f563386e2f00e992151d3709f75176c86952149ad93c53f"
+    },
+    {
+      "path": "/var/www/mnpinner-update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.30-20261019-201948/2-mncommentmanager.json",
+      "sha256": "3f554f60b2f9a919e2afbb13a7ab84b4f7ba4e16395e6b90161a80422ff0242c"
+    },
+    {
+      "path": "/var/www/html/update/mncommentmanager.json",
+      "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.30-20261019-201948/3-mncommentmanager.json",
+      "sha256": "3f554f60b2f9a919e2afbb13a7ab84b4f7ba4e16395e6b90161a80422ff0242c"
+    }
+  ],
+  "deployed": {
+    "/var/www/mnpinner-update/mncommentmanager_changelog.json": "aa865b20d4181cddf8c1b3825feac189d7e9f5c54e327a8f41b205ef224593af",
+    "/var/www/html/update/mncommentmanager_changelog.json": "aa865b20d4181cddf8c1b3825feac189d7e9f5c54e327a8f41b205ef224593af",
+    "/var/www/mnpinner-update/mncommentmanager.json": "3db7bae0e8b46a4cdd7c6c34b9ce4a56773742de5f4937d2d72b73222cc88523",
+    "/var/www/html/update/mncommentmanager.json": "3db7bae0e8b46a4cdd7c6c34b9ce4a56773742de5f4937d2d72b73222cc88523"
+  },
+  "remoteStaging": "/tmp/mncm-v0.1.30-publish-qimi0uq8",
+  "remoteStagingCleaned": true,
+  "order": [
+    "/var/www/mnpinner-update/mncommentmanager_changelog.json",
+    "/var/www/html/update/mncommentmanager_changelog.json",
+    "/var/www/mnpinner-update/mncommentmanager.json",
+    "/var/www/html/update/mncommentmanager.json"
+  ]
+}

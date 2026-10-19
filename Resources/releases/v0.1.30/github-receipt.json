@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/xkwxdyy/MNCommentManager/releases/assets/656184448",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-10-19T12:15:53Z",
+      "digest": "sha256:bd43f08283a2eb6da980442d11edbd93a7e6f768c8fafd0f82082ac22626256b",
+      "downloadCount": 0,
+      "id": "RA_kwDOSulTm84nHJSA",
+      "label": "",
+      "name": "mn-comment-manager-v0.1.30.mnaddon",
+      "size": 697372,
+      "state": "uploaded",
+      "updatedAt": "2026-10-19T12:15:54Z",
+      "url": "https://github.com/xkwxdyy/MNCommentManager/releases/download/v0.1.30/mn-comment-manager-v0.1.30.mnaddon"
+    }
+  ],
+  "body": "### 新增\n\n- **插件内更新**：设置中新增正式版更新区域，支持启动检查、手动检查、版本说明和手动下载安装；安装前校验插件标识、版本和必要资源，备份旧目录并在替换失败时恢复，安装成功后提示重启。\n- **浮动按钮组合与排序**：管理、添加评论、移动评论支持独立开关、任意组合及全部关闭；箭头和 Alt＋方向键调整显示顺序，总开关保留各项选择，设置通过原生存储保存。\n- **设置与帮助交互**：设置页增加按钮预览、显示顺位和保存反馈；帮助视频支持方向键切换焦点及打开状态提示，面板与窄窗口布局同步调整。\n\n### 修复\n\n- **设置焦点恢复**：关闭设置后立即重新打开时，旧关闭回调不再将焦点移至新窗口外。\n- **大卡片与连续点选**：优先采用当前卡片通知的矩形，允许大卡片边缘显示按钮，避免递归扫描卡片正文阻塞首次显示；忽略过期关闭通知，面板刷新延后执行。\n- **跨插件布局**：共享布局 revision 3 保留扫描超限时的局部可用位置，并继续避让已识别菜单和控件；字符串与嵌套原生矩形均可解析。\n- **设置即时生效**：关闭按钮后清理菜单、移动预览和迟到操作；隐藏按钮不占位置，仅保留添加按钮时处理菜单仍可正常定位。\n\n源码、包内回归和 Mac 更新检查、说明显示已验证；真实跨版本升级、iPad、iPhone、实际高频输入逐帧连续性及显示耗时仍待验收。帮助视频重复打开导致宿主退出的问题由 MN-Addons #682 继续跟踪。\n",
+  "isDraft": false,
+  "isPrerelease": false,
+  "tagName": "v0.1.30",
+  "targetCommitish": "main",
+  "url": "https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.30",
+  "releaseCommit": "fdc603cec882013fee2de2c1979729de412ba0be",
+  "downloadVerified": true,
+  "downloadSHA256": "bd43f08283a2eb6da980442d11edbd93a7e6f768c8fafd0f82082ac22626256b",
+  "downloadBytes": 697372,
+  "remoteRefs": [
+    "fdc603cec882013fee2de2c1979729de412ba0be\trefs/heads/main",
+    "fdc603cec882013fee2de2c1979729de412ba0be\trefs/tags/v0.1.30"
+  ]
+}
