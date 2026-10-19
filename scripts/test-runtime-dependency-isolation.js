@@ -222,6 +222,7 @@ function loadAddon({
     "CommentWorkflowRunner",
     "CommentWorkflowMenu",
     "CommentActionSettings",
+    "AddonUpdater",
     "FloatingControlLayout",
     "BatchCommentActions",
     "CommentMoveGesture",

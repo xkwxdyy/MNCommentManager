@@ -1,6 +1,8 @@
 # 项目记忆索引
 
 - 2026-10-19｜按各插件技能完成本地源码提交、Arc 同名覆盖及完整下载摘要核验，主备用清单与双语日志部署后 16 项公开文件一致，Pinner/Literature 生产更新模块 8 项真实 HTTP 主备用检查通过。本地备用元数据已同步，包体未重写，Git 未推送；默认覆盖授权已记入工作区规则。实际更新界面受窗口坐标操作错误阻塞，设备验收边界保留，见[发布记录](../Resources/dynamic-button-publication/submission.md)。
+- 2026-10-19｜插件内更新功能已按确认方案实现，正式版启动与手动检查、说明显示及带备份恢复的安装已接入。68 个 Node.js 脚本、295 项前端和最终包专项通过；测试包已备份安装并正常重启，实际检查与说明显示通过，暂停插件状态保留。真实高版本升级和移动设备待验收，焦点竞争由 [Issue #85](https://github.com/xkwxdyy/MNCommentManager/issues/85) 跟踪，见 [验证记录](../Resources/internal-updater/validation.md)。
+
 
 - 2026-10-19｜已按确认修复评论、文献、Pinner 的稳定显示并完成备份测试安装和正常重启，848 个文件一致。源码与包内回放通过，Mac 大小卡片及连续点选结束后显示已观察；密集投递、设备耗时及 iPad 仍待验收，文献开关恢复原关闭状态。此前“修复草案待确认”已由本次实施替代，详见[验证记录](../Resources/dynamic-button-stability/validation.md)。
 

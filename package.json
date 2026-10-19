@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "private": true,
   "packageManager": "pnpm@10.34.7",
   "scripts": {
@@ -8,6 +8,7 @@
     "dev": "node scripts/dev-web.js",
     "manifest": "node scripts/update-manifest.js",
     "test:manifest": "node scripts/test-update-manifest.js",
+    "test:updater": "node --test scripts/test-addon-updater.js && vitest run web/src/components/AddonUpdate.test.jsx",
     "test:batch-selection-lifecycle": "node scripts/test-batch-comment-selection-lifecycle.js",
     "test:comment-edit-refresh": "node scripts/test-comment-edit-refresh.js",
     "test:comment-move-refresh": "node scripts/test-comment-move-refresh.js",

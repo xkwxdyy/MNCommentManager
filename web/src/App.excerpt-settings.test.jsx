@@ -13,6 +13,20 @@ const excerptBody = () => host.querySelector("#native-excerpt .excerpt-body");
 const textCheckbox = () => [...host.querySelectorAll(".action-button-settings label")]
   .find((node) => node.textContent.includes("显示图片摘录文本"))?.querySelector("input");
 
+it("does not restore old dialog focus over newly opened settings", async () => {
+  const frames = [];
+  const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frames.push(callback); return frames.length; });
+  try {
+    await click(button('设置'));
+    await click(button('完成'));
+    await click(button('设置'));
+    const target = host.querySelector('.dynamic-button-setting[data-button-id="move"] input');
+    target.focus();
+    await act(async () => { frames.splice(0).forEach(callback => callback()); });
+    expect(document.activeElement).toBe(target);
+  } finally { frameSpy.mockRestore(); }
+});
+
 async function mount() {
   root = createRoot(host);
   await act(async () => root.render(<App />));

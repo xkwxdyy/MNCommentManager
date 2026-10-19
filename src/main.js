@@ -13,6 +13,7 @@ JSB.require("CommentBatchEditor");
 JSB.require("CommentWorkflowRunner");
 JSB.require("CommentWorkflowMenu");
 JSB.require("CommentActionSettings");
+JSB.require("AddonUpdater");
 JSB.require("FloatingControlLayout");
 JSB.require("BatchCommentActions");
 JSB.require("CommentMoveGesture");

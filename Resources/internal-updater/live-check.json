@@ -1,0 +1,28 @@
+[
+  {
+    "legacyFallback": false,
+    "currentVersion": "0.1.29",
+    "latestVersion": "0.1.29",
+    "updateAvailable": false,
+    "source": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792411186981",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792411187070"
+    ]
+  },
+  {
+    "legacyFallback": true,
+    "currentVersion": "0.1.29",
+    "latestVersion": "0.1.29",
+    "updateAvailable": false,
+    "source": "https://xkwxdyy.cn/update/mncommentmanager.json",
+    "changelogSource": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+    "requestedUrls": [
+      "https://api.xkwxdyy.cn/update/mncommentmanager.json?t=1792411187168",
+      "https://xkwxdyy.cn/update/mncommentmanager.json?t=1792411187169",
+      "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792411187333",
+      "https://xkwxdyy.cn/update/mncommentmanager_changelog.json?t=1792411187333"
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 import HtmlSelect from "./components/HtmlSelect";
 import HelpVideos from "./components/HelpVideos";
+import AddonUpdate from "./components/AddonUpdate";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import useTwoFingerCommentSelection from "./lib/useTwoFingerCommentSelection";
@@ -610,6 +611,10 @@ function restoreFocusAfterDialogClose(target, fallbackTarget = null) {
       ? target
       : fallback;
     if (!focusTarget || focusTarget.isConnected === false || typeof focusTarget.focus !== "function") return;
+    // A delayed close receipt must not take focus from a newly opened dialog.
+    const dialogs = focusTarget.ownerDocument?.querySelectorAll?.('[role="dialog"][aria-modal="true"]') || [];
+    const activeDialog = dialogs[dialogs.length - 1];
+    if (activeDialog && !activeDialog.contains(focusTarget)) return;
     focusTarget.focus();
   };
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(restore);
@@ -4039,6 +4044,7 @@ function ActionButtonSettingsDialog({
               </span>
             </label>
           </div>
+          <AddonUpdate />
         </div>
 
         <div className="dialog-actions action-button-settings-footer">

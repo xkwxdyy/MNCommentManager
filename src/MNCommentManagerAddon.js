@@ -84,6 +84,10 @@ function createMNCommentManagerAddon(mainPath) {
     MNUtil.addObserver(addon, "onPopupMenuOnNote:", "PopupMenuOnNote");
     MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnNote");
     addon.mnCommentManagerInitialized = true;
+    if (typeof __MN_UPDATER_MNCommentManagerAddon !== "undefined") {
+      try { __MN_UPDATER_MNCommentManagerAddon.start(addon); }
+      catch (error) { console.log("[MN Comment Manager] updater initialization failed: " + error); }
+    }
     if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.register(addon);
     console.log("[MN Comment Manager] initialized with MN Utils runtime");
     return true;

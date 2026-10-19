@@ -3587,3 +3587,14 @@ button.pressing {
     min-height: 34px;
   }
 }
+.addon-update { min-width: 0; padding: 16px; }
+.addon-update-versions { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0; }
+.addon-update-versions div { min-width: 100px; }
+.addon-update-versions dt { font-size: 12px; opacity: .7; }
+.addon-update-versions dd { margin: 4px 0 0; font-size: 14px; }
+.addon-update-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.addon-update-actions svg { width: 20px; height: 20px; display: block; }
+.addon-update p, .addon-update li { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.addon-update [role="alert"] { color: #c7463d; }
+.addon-update-restart { font-weight: 600; }
+.addon-update-notes ul { padding-left: 20px; }

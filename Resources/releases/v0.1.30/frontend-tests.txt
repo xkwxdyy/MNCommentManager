@@ -1,0 +1,8 @@
+
+ RUN  v4.1.5 /Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager
+
+
+ Test Files  21 passed (21)
+      Tests  295 passed (295)
+   Start at  20:13:00
+   Duration  27.25s (transform 4.43s, setup 0ms, import 13.21s, tests 90.67s, environment 48.07s)

@@ -358,6 +358,11 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   function extractCommentModule(context, payload) { return __MN_COMMENT_MODULE_OPERATIONS__.extract(payload); }
 
   const commands = {
+    getAddonUpdateState: () => __MN_UPDATER_MNCommentManagerAddon.getState(),
+    setAddonUpdateAutoCheck: (context, payload) => __MN_UPDATER_MNCommentManagerAddon.setAutoCheck(payload),
+    checkAddonUpdate: () => __MN_UPDATER_MNCommentManagerAddon.check(),
+    getAddonChangelog: () => __MN_UPDATER_MNCommentManagerAddon.changelog(),
+    installAddonUpdate: (context, payload) => __MN_UPDATER_MNCommentManagerAddon.install(payload),
     getQuickCommentState: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.getState(context.controller, payload),
     presentQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.present(context.controller, payload),
     appendQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.append(context.controller, payload),

@@ -1,8 +1,47 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-19T11:29:06+00:00",
+  "updatedAt": "2026-10-19T12:12:58.227206+00:00",
   "entries": [
+    {
+      "version": "0.1.30",
+      "channel": "stable",
+      "date": "2026-10-19",
+      "items": [
+        {
+          "zh": "设置中新增正式版更新区域，支持启动检查、手动检查、版本说明和手动下载安装；启动检查可关闭，安装始终由手动操作触发。",
+          "en": "Add a stable-release update section in settings with startup and manual checks, release notes, and manual download and installation. Startup checks can be disabled; installation always requires an explicit action."
+        },
+        {
+          "zh": "安装前校验插件标识、目标版本和必要资源，旧插件目录保存到文稿目录中的备份位置；替换失败时恢复旧版，安装成功后提示重启。",
+          "en": "Validate addon identity, target version, and required resources before installation. Back up the previous addon outside the extension directory, restore it if replacement fails, and prompt for a restart after success."
+        },
+        {
+          "zh": "更新检测使用主、备用公开清单，网络不可用时明确显示包内离线资料并禁止安装；重复检查与安装请求合并处理。",
+          "en": "Check primary and fallback public manifests. Label bundled information as offline and disable installation when online checks fail; coalesce repeated check and install requests."
+        },
+        {
+          "zh": "管理、添加评论、移动评论支持独立开关、任意组合和全部关闭；支持箭头及 Alt＋方向键排序，总开关保留各项选择。",
+          "en": "Independently toggle management, add-comment, and move-comment buttons in any combination, including none. Reorder with arrows or Alt plus arrow keys; the master switch preserves individual choices."
+        },
+        {
+          "zh": "设置页补充按钮预览、显示顺位和保存反馈；帮助视频支持方向键切换焦点及打开状态提示，改善窄窗口布局。",
+          "en": "Show button previews, visible ranks, and save feedback in settings. Add keyboard navigation and opening states to help videos, and improve narrow-window layouts."
+        },
+        {
+          "zh": "优先采用当前卡片通知矩形，避免大卡片正文扫描和面板刷新阻塞按钮首次显示；忽略过期关闭与迟到操作，保留可用布局位置。",
+          "en": "Prioritize current card notification geometry and keep large-card content scans and panel refreshes out of the first reveal. Ignore stale closes and delayed actions while retaining usable layout positions."
+        },
+        {
+          "zh": "设置窗口关闭后立即重开时，旧关闭回调不再将焦点移至新窗口外；版本说明加载后自动定位到正文。",
+          "en": "Prevent delayed close callbacks from moving focus outside newly reopened settings, and scroll to release notes after loading."
+        },
+        {
+          "zh": "Mac 更新检查与说明显示已验证；真实跨版本升级、移动设备和高频点选的完整稳定性仍待验收，帮助视频重复打开导致宿主退出的问题继续跟踪。",
+          "en": "Mac update checks and release-note display have been verified. Real version upgrades, mobile devices, and full stability under rapid selection still require acceptance. Repeated help-video opening can still terminate the host and remains tracked."
+        }
+      ]
+    },
     {
       "version": "0.1.29",
       "channel": "stable",
