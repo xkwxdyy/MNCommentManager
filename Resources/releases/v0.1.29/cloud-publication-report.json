@@ -1,0 +1,75 @@
+{
+  "version": "0.1.29",
+  "method": "Arc native accessibility and macOS file chooser via cua_repl",
+  "folder": "MNCommentManager",
+  "folderId": 28467434,
+  "filename": "mn-comment-manager-v0.1.29.mnaddon",
+  "size": 683852,
+  "sha256": "e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+  "downloadURL": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.29.mnaddon",
+  "verificationExitCode": 0,
+  "zipAndHashParity": true,
+  "overwroteCloudFile": false,
+  "installedPluginUnchanged": true,
+  "deviceAcceptance": "pending",
+  "recordedAt": "2026-10-19T07:53:08.675478+00:00",
+  "deployment": {
+    "version": "0.1.29",
+    "backupDir": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.29-20261019-155344",
+    "backups": [
+      {
+        "path": "/var/www/mnpinner-update/mncommentmanager_changelog.json",
+        "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.29-20261019-155344/0-mncommentmanager_changelog.json",
+        "sha256": "2614b5c579aa01c37772a1c0d2d4107c1d262d07e385d4033033de8fec7510bb"
+      },
+      {
+        "path": "/var/www/mnpinner-update/mncommentmanager.json",
+        "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.29-20261019-155344/0-mncommentmanager.json",
+        "sha256": "26dc027c3554446dc2b2df44c660b587350dfebb2f95f5fceecf80c00b0e9328"
+      },
+      {
+        "path": "/var/www/html/update/mncommentmanager_changelog.json",
+        "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.29-20261019-155344/1-mncommentmanager_changelog.json",
+        "sha256": "2614b5c579aa01c37772a1c0d2d4107c1d262d07e385d4033033de8fec7510bb"
+      },
+      {
+        "path": "/var/www/html/update/mncommentmanager.json",
+        "backup": "/var/www/mnpinner-update/backups/mncommentmanager-before-v0.1.29-20261019-155344/1-mncommentmanager.json",
+        "sha256": "26dc027c3554446dc2b2df44c660b587350dfebb2f95f5fceecf80c00b0e9328"
+      }
+    ],
+    "deployed": {
+      "mncommentmanager_changelog.json": "33304d7907278a65adb75a5a3ed3fe43c2c6f3f1a03889ff8670071f5afc81ea",
+      "mncommentmanager.json": "207f223a7d69977d6f70ffd698c58648ade9b175057f6f5230b2f92244234565"
+    },
+    "remoteStaging": "/tmp/mncm-v0.1.29-publish-86abkxrw",
+    "remoteStagingCleaned": true
+  },
+  "serverUpdateSources": [
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "207f223a7d69977d6f70ffd698c58648ade9b175057f6f5230b2f92244234565"
+    },
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "33304d7907278a65adb75a5a3ed3fe43c2c6f3f1a03889ff8670071f5afc81ea"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "207f223a7d69977d6f70ffd698c58648ade9b175057f6f5230b2f92244234565"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "33304d7907278a65adb75a5a3ed3fe43c2c6f3f1a03889ff8670071f5afc81ea"
+    }
+  ],
+  "complete": true
+}

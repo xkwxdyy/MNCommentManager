@@ -1,0 +1,34 @@
+{
+  "version": "0.1.29",
+  "serverUpdateSources": [
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "207f223a7d69977d6f70ffd698c58648ade9b175057f6f5230b2f92244234565"
+    },
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "33304d7907278a65adb75a5a3ed3fe43c2c6f3f1a03889ff8670071f5afc81ea"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "207f223a7d69977d6f70ffd698c58648ade9b175057f6f5230b2f92244234565"
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "version": "0.1.29",
+      "bytesMatchLocal": true,
+      "sha256": "33304d7907278a65adb75a5a3ed3fe43c2c6f3f1a03889ff8670071f5afc81ea"
+    }
+  ],
+  "manifestPackageSHA256": "e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+  "manifestPackageZIPValid": true,
+  "gitRemote": "f60cf21a2ff647d58bd2631ee82637937c65b246\trefs/heads/main\nf60cf21a2ff647d58bd2631ee82637937c65b246\trefs/tags/v0.1.29",
+  "installedPluginCheck": "pending: no running Bridge verified",
+  "deviceAcceptance": "pending"
+}

@@ -1,0 +1,26 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/xkwxdyy/MNCommentManager/releases/assets/655602460",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-10-19T07:50:21Z",
+      "digest": "sha256:e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+      "downloadCount": 0,
+      "id": "RA_kwDOSulTm84nE7Mc",
+      "label": "",
+      "name": "mn-comment-manager-v0.1.29.mnaddon",
+      "size": 683852,
+      "state": "uploaded",
+      "updatedAt": "2026-10-19T07:50:22Z",
+      "url": "https://github.com/xkwxdyy/MNCommentManager/releases/download/v0.1.29/mn-comment-manager-v0.1.29.mnaddon"
+    }
+  ],
+  "body": "## 0.1.29（2026-10-19）\n\n### 新增\n\n- **卡片侧边快速移动**：浮动入口支持按内容选择评论、点按调整、长按连续预览及等距拖动，松手后提交；侧栏显示相邻评论、图片缩略图和灰色摘要，长列表按可见范围加载，评论变化后要求重新选择。\n- **帮助视频入口**：面板新增帮助图标，可打开宣传视频和入门讲解；MNBrowser 停用或状态未知时回退至内置研究浏览器，缺少可用学习集时使用系统浏览器。\n\n### 修复\n\n- **转换后的编辑目标**：卡片转换、撤销和重做后重新核实原生卡片，恢复编辑目标；旧选区失效时刷新内容并保留未保存草稿，链接定位继续使用链接目标。\n- **跟随按钮显示**：复杂视图扫描超过预算时采用保守占位，恢复脱离宿主的评论按钮；忽略其他卡片的迟到关闭通知，并原地升级共享布局对象。\n- **网页回执**：主面板桥接回执返回明确标量结果，避免完成回调接收 `undefined`。\n\n帮助视频重复打开时仍出现宿主退出，MN-Addons #682 保持开放。Mac、iPad 和 iPhone 的按钮显示、触摸及完整稳定性仍待验收；历史验证与本次提交检查分别记录。\n",
+  "publishedAt": "2026-10-19T07:50:23Z",
+  "tagName": "v0.1.29",
+  "targetCommitish": "main",
+  "url": "https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.29",
+  "downloadSHA256": "e911c4e1c71f0d0cf8c91a8ffca6af9a393fcfb345732ec0d756bb5c309a4c2c",
+  "downloadSize": 683852,
+  "commit": "f60cf21a2ff647d58bd2631ee82637937c65b246"
+}
