@@ -1,0 +1,69 @@
+{
+  "recordedOn": "2026-10-19",
+  "sourceCommits": {
+    "mncommentmanager": "02b78d4724bf4e557acd7bd1f78c083b97f0d1c2",
+    "mnpinner": "b6ff1a140219631091da2ea5f27a206860d70224",
+    "mnliterature": "c789546c657416c0966a1595c1d4abb4d88ded89"
+  },
+  "gitPush": false,
+  "method": "Logged-in Arc webpage and native macOS file chooser",
+  "standingOverwriteAuthorization": "User explicitly instructed on 2026-10-19: 以后默认都允许覆盖，之后不要再问了",
+  "overwroteSameName": true,
+  "packages": [
+    {
+      "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/Resources/dynamic-button-publication/packages/mnpinner_v5_10_alpha1019.mnaddon",
+      "plugin": "mnpinner",
+      "channel": "beta",
+      "builtOn": "2026-10-19",
+      "version": "5.10.alpha1019",
+      "filename": "mnpinner_v5_10_alpha1019.mnaddon",
+      "bytes": 6973777,
+      "sha256": "221fb323b7f0e7a08f2696867cccf9f8eb82cca44ef6ce9c5144198f009ea6a9",
+      "zipIntegrity": true
+    },
+    {
+      "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/Resources/dynamic-button-publication/packages/mnliterature_v3_1_alpha1019.mnaddon",
+      "plugin": "mnliterature",
+      "channel": "beta",
+      "builtOn": "2026-10-19",
+      "version": "3.1.alpha1019",
+      "filename": "mnliterature_v3_1_alpha1019.mnaddon",
+      "bytes": 6666765,
+      "sha256": "1c08dcf0608c37b46e91b73d3421941d8102531e8e4ae66bb93dee6b6a28c281",
+      "zipIntegrity": true
+    },
+    {
+      "package": "/Users/xiakangwei/Nutstore/Github/repository/07-marginnote-and-knowledge/MN-Addon/MNAddon-develop/mncommentmanager/Resources/dynamic-button-publication/packages/mn-comment-manager-v0.1.29.mnaddon",
+      "plugin": "mncommentmanager",
+      "channel": "stable",
+      "builtOn": "2026-10-19",
+      "version": "0.1.29",
+      "filename": "mn-comment-manager-v0.1.29.mnaddon",
+      "bytes": 690797,
+      "sha256": "0e34b5a76c49c4206589505aabe0e45b6720aae12fc14c2515bf264a46743d40",
+      "zipIntegrity": true
+    }
+  ],
+  "fullDownloads": {
+    "mnpinner": {
+      "exitCode": 0,
+      "log": "pinner-download-verified.txt"
+    },
+    "mnliterature": {
+      "exitCode": 0,
+      "log": "literature-download-verified.txt"
+    },
+    "mncommentmanager": {
+      "exitCode": 0,
+      "log": "comments-download-verified.txt"
+    }
+  },
+  "serverBackup": "/var/backups/mnaddon-updates/floating-stability-20261019T113012Z",
+  "metadataChangedFiles": 12,
+  "publicByteChecks": 16,
+  "productionUpdaterChecks": 8,
+  "installedUI": "Not completed: native menus readable, coordinate actions repeatedly returned noWindowsAvailable; no addon configuration changed",
+  "packageSnapshotsUnchanged": true,
+  "installedOrRestarted": false,
+  "githubReleaseAssetsChanged": false
+}

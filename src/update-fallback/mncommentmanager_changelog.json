@@ -1,7 +1,7 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-19T16:00:00+08:00",
+  "updatedAt": "2026-10-19T11:29:06+00:00",
   "entries": [
     {
       "version": "0.1.29",
@@ -35,6 +35,18 @@
         {
           "zh": "帮助视频重复打开仍可能导致宿主退出，MN-Addons #682 保持开放；各设备按钮、触摸及完整稳定性仍待验收。",
           "en": "Repeated help-video opening may still terminate the host; MN-Addons #682 remains open. Buttons, touch interactions, and full stability still require device acceptance."
+        },
+        {
+          "zh": "管理、添加评论、移动评论支持独立开关、任意组合和全部关闭，支持箭头及 Alt＋方向键排序，总开关保留各项选择。",
+          "en": "Independently toggle management, add-comment and move-comment buttons in any combination, including none. Reorder with arrows or Alt plus arrow keys; the master switch preserves individual choices."
+        },
+        {
+          "zh": "修复大卡片和连续点选时浮动按钮不出现的问题，优先采用当前通知矩形，并避免卡片正文扫描及面板刷新阻塞首次显示；旧关闭和迟到操作不会干扰新目标。",
+          "en": "Fix missing floating buttons on large cards and consecutive selections by prioritizing current notification geometry and keeping content scans and panel refreshes out of the first reveal. Ignore stale closes and delayed actions for old targets."
+        },
+        {
+          "zh": "设置页补充按钮预览、显示顺位与保存反馈，帮助视频支持方向键切换焦点及打开状态提示，改善窄窗口布局。",
+          "en": "Add button previews, visible ranks and save feedback to settings, keyboard focus navigation and opening states to help videos, and improve narrow-window layouts."
         }
       ]
     },
