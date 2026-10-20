@@ -99,9 +99,15 @@ function setup(options = {}) {
     __MN_COMMENT_ACTION_SETTINGS__: { getSettings: () => settings },
     __MN_COMMENT_DATA__: {
       getWrappedNoteById: id => notes[id],
-      getNoteSnapshot(note) { return { noteId: note.noteId, commentFold: options.foldRevision ? { revision: String(note.foldRevision) } : undefined, comments: note.comments.map((comment, index) => ({ ...comment, index, originalType: comment.type, type: 'textComment', capabilities: { canMove: true } })) }; },
+      getNoteSnapshot(note) { return { noteId: note.noteId, commentFold: options.foldRevision ? { supported: !!options.foldable, revision: String(note.foldRevision) } : undefined, comments: note.comments.map((comment, index) => ({ ...comment, index, originalType: comment.type, type: 'textComment', capabilities: { canMove: true } })) }; },
     },
     __MN_UNDO_GROUPING_MNCommentManagerAddon: { run(name, _options, block) { undoGroups.push(name); return block(); } },
+    __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon: { setCollapsed(note, indices, collapsed, revision) {
+      assert.equal(String(note.foldRevision), revision);
+      for (const index of indices) note.comments[index].collapsed = collapsed;
+      note.foldRevision++;
+      return { persisted: true, changedCount: indices.length };
+    } },
   };
   if (options.runLoopUnavailable) delete context.NSRunLoop;
   vm.createContext(context);
@@ -139,7 +145,8 @@ function setup(options = {}) {
   function tap(direction = 1) { return release(press(direction)); }
   function drag(targetIndex, phase = 3, horizontalCancel = false) {
     const current = state(), knob = current.views.knob;
-    const start = { x: current.geometry.rail.x + 22, y: current.geometry.rail.y + 66 };
+    const start = current.geometry.inline ? { x: current.geometry.trackTop + current.sourceIndex * 32, y: current.geometry.rail.y + 22 }
+      : { x: current.geometry.rail.x + 22, y: current.geometry.rail.y + 66 };
     let point = { ...start };
     const gesture = { state: 1, view: knob, locationInView: () => point, translationInView: () => ({ x: point.x - start.x, y: point.y - start.y }) };
     tracking = true;
@@ -147,7 +154,8 @@ function setup(options = {}) {
     addon.dynamicMoveRailPanned(gesture);
     const layout = state().geometry;
     const y = layout.trackTop + targetIndex / (current.comments.length - 1) * (layout.trackBottom - layout.trackTop);
-    point = { x: horizontalCancel ? layout.rail.x + 600 : layout.rail.x + 22, y };
+    point = layout.inline ? { x: y, y: horizontalCancel ? layout.rail.y + 600 : layout.rail.y + 22 }
+      : { x: horizontalCancel ? layout.rail.x + 600 : layout.rail.x + 22, y };
     gesture.state = 2; addon.dynamicMoveRailPanned(gesture);
     if (phase !== 2) { gesture.state = phase; addon.dynamicMoveRailPanned(gesture); tracking = false; }
     return gesture;
@@ -802,6 +810,73 @@ test('switching cards dismisses the previous action menu before revealing the ne
   assert.equal(s.addon.dynamicCommentButton.hidden, false);
   s.actions.handleMenuDismissed(s.addon, previous); s.advance(400);
   assert.equal(s.addon.dynamicCommentContext.noteId, 'two', 'a late delegate cannot clear the new card');
+});
+
+test('short lists open a compact inline rail and the content picker works before selection', () => {
+  const s = setup({ count: 3 }); s.open(); const state = s.state();
+  assert.equal(state.geometry.inline, true);
+  assert.equal(state.views.rail.frame.height, 44);
+  assert.equal(state.views.rail.frame.width, 228);
+  assert.equal(state.views.picker, null);
+  s.addon.backMoveCommentMenu(state.views.list); assert.ok(state.views.picker);
+  assert.equal(state.views.rail.frame.height, 44, 'the expanded summary must not cover the picker header or search');
+  assert.equal(state.views.rail.hidden, true, 'the rail must not cover picker rows when height is constrained');
+  s.choose(1); assert.equal(state.views.picker, null);
+  assert.equal(state.views.rail.hidden, false);
+  assert.match(state.views.inlineText.text, /B/);
+  assert.equal(intersects(state.views.rail.frame, state.geometry.card), false);
+  s.addon.backMoveCommentMenu(state.views.list); assert.equal(state.views.rail.frame.height, 44);
+  s.addon.backMoveCommentMenu(state.views.pickerClose); assert.equal(state.views.rail.frame.height, 140);
+  assert.equal(state.views.rail.hidden, false);
+});
+
+test('inline moves preserve exact order and undo for every short-list source and target', () => {
+  for (let count = 2; count <= 6; count++) for (let from = 0; from < count; from++) for (let to = 0; to < count; to++) {
+    const s = setup({ count }); s.choose(from);
+    assert.equal(s.state().geometry.inline, true);
+    const original = s.order(), expected = original.slice(); expected.splice(to, 0, expected.splice(from, 1)[0]);
+    s.drag(to); assert.deepEqual(s.order(), expected);
+    assert.equal(s.nativeMoves.length, from === to ? 0 : 1);
+    if (from !== to) { s.addon.undoQuickCommentMove(s.state().views.undo); assert.deepEqual(s.order(), original); }
+  }
+});
+
+test('inline dragging reuses markers, shows actual neighbors, and cancels without writes', () => {
+  for (const phase of [4, 5, 3]) {
+    const s = setup({ count: 3 }); s.choose(0);
+    const dots = s.state().views.dots.slice(), markers = dots.map(dot => dot.marker);
+    const gesture = s.drag(2, 2, phase === 3);
+    assert.equal(s.nativeMoves.length, 0);
+    assert.match(s.state().views.inlineText.text, /上方：C\n下方：评论末尾/);
+    assert.deepEqual(s.state().views.dots, dots);
+    assert.deepEqual(s.state().views.dots.map(dot => dot.marker), markers);
+    gesture.state = phase; s.addon.dynamicMoveRailPanned(gesture);
+    assert.deepEqual(s.order(), ['A', 'B', 'C']);
+  }
+});
+
+test('inline stale reorder is rejected and count changes rebuild the rail safely', () => {
+  const s = setup({ count: 3 }); s.choose(0);
+  const gesture = s.drag(2, 2);
+  [s.notes.one.comments[0], s.notes.one.comments[1]] = [s.notes.one.comments[1], s.notes.one.comments[0]];
+  gesture.state = 3; s.addon.dynamicMoveRailPanned(gesture);
+  assert.equal(s.nativeMoves.length, 0); assert.ok(s.state().views.picker);
+  s.choose(0);
+  s.notes.one.comments.push({ text: 'D', type: 'TextNote' });
+  assert.throws(() => s.controller.select(s.addon, { panelToken: s.state().panelToken, index: 0 }), /评论列表已变化/);
+  assert.equal(s.state().views.dots.length, 4);
+});
+
+test('inline fold uses the current revision and refreshes markers without moving comments', () => {
+  const s = setup({ count: 3, foldRevision: true, foldable: true }); s.choose(1);
+  const marker = s.state().views.dots[1].marker;
+  s.addon.toggleMoveCommentFold(s.state().views.fold);
+  assert.equal(s.notes.one.comments[1].collapsed, true);
+  assert.equal(s.state().views.dots[1].marker, marker);
+  assert.equal(marker.layer.borderWidth, 2);
+  s.addon.toggleMoveCommentFold(s.state().views.fold);
+  assert.equal(s.notes.one.comments[1].collapsed, false);
+  assert.deepEqual(s.order(), ['A', 'B', 'C']);
 });
 
 if (failures.length) throw new AggregateError(failures.map(failure => failure.error), failures.length + ' of ' + cases + ' quick-move integration cases failed');

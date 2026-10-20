@@ -1,8 +1,39 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-19T12:12:58.227206+00:00",
+  "updatedAt": "2026-10-20T05:42:52.442202+00:00",
   "entries": [
+    {
+      "version": "0.1.31",
+      "channel": "stable",
+      "date": "2026-10-20",
+      "items": [
+        {
+          "zh": "包含 2 至 6 条评论的卡片优先显示自适应横向短栏，圆点保持固定间距；空间不足或评论较多时继续使用原有侧栏。",
+          "en": "Cards with 2 to 6 comments use a compact horizontal move bar with fixed spacing when room is available. Larger lists and constrained layouts retain the existing sidebar."
+        },
+        {
+          "zh": "空心圆显示评论折叠状态，选中后可以直接折叠或展开；保留内容摘要、搜索选择、撤回、顺序校验和移动结果回读。",
+          "en": "Hollow markers show collapsed comments, with a direct fold or expand action after selection. Keep content previews, search, undo, order validation, and post-move verification."
+        },
+        {
+          "zh": "横向拖动显示目标位置前后的评论，上下移开可取消；轨道与圆点在拖动期间复用，减少视图重建。",
+          "en": "Horizontal dragging previews the comments around the destination and can be cancelled by moving vertically away. Reuse the track and markers throughout the drag."
+        },
+        {
+          "zh": "打开内容选择列表时隐藏短栏，选择评论或关闭列表后恢复，避免遮挡列表标题、搜索框和评论行。",
+          "en": "Hide the compact bar while the content picker is open, then restore it after selection or dismissal so it cannot cover the header, search field, or comment rows."
+        },
+        {
+          "zh": "评论数量变化后重新校验布局并重建对应控件，过期目标会被拒绝。",
+          "en": "Revalidate layout and rebuild controls after the comment count changes, rejecting stale targets."
+        },
+        {
+          "zh": "开发测试包已完成 Mac 实际操作及数据库回读；iPad、iPhone、软键盘、系统中断和多窗口仍待验收。",
+          "en": "The development package passed actual Mac interactions and native data verification. iPad, iPhone, software keyboards, system interruptions, and multiple windows still require acceptance."
+        }
+      ]
+    },
     {
       "version": "0.1.30",
       "channel": "stable",

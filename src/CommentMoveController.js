@@ -65,6 +65,16 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     const own = (state.views ? [state.views.rail, state.views.preview, state.views.picker] : [])
       .concat([addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton]).filter(Boolean);
     let right;
+    if (state.comments.length <= 6) {
+      const width = state.comments.length * 32 + 132;
+      const area = __MN_ADDON_FLOATING_LAYOUT__.place(state.host, {
+        priority: 30, width, height: 140, anchor: card, avoid: [card], ownViews: own,
+        preferred: { x: clampX(card.x + card.width / 2 - width / 2, width), y: card.y + card.height + 8, width, height: 140 },
+      });
+      if (area) return { inline: true, rail: { x: area.x, y: area.y, width, height: 44 }, expanded: area,
+        picker: { x: clampX(area.x, Math.min(320, bounds.width - 8)), y: clampY(area.y + 48, Math.min(430, bounds.height - 8)), width: Math.min(320, bounds.width - 8), height: Math.min(430, bounds.height - 8) },
+        card, bounds, trackTop: area.x + 16, trackBottom: area.x + 16 + (state.comments.length - 1) * 32, cancelHint: "上下移开可取消" };
+    }
     function placeRail(height, width) {
       const area = __MN_ADDON_FLOATING_LAYOUT__.place(state.host, {
         priority: 30, width, height, anchor: card, avoid: [card], ownViews: own,
@@ -154,6 +164,8 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
       adopt(state, current, -1);
       state.history = [];
       views.hidePicker(state);
+      layout(addon);
+      if (!active(addon, state)) throw new Error("评论列表已变化，请重新打开移动菜单");
       views.render(state);
       views.showPicker(addon, state);
       const error = new Error("评论列表已变化，已刷新列表，请重新选择"); error.code = "COMMENT_CHANGED"; throw error;
@@ -164,6 +176,8 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     state.signature = current.signature;
     state.order = current.order;
     state.comments = current.snapshot.comments;
+    state.commentFold = current.snapshot.commentFold;
+    state.notice = "";
     state.sourceIndex = state.targetIndex = source;
     state.panelToken = Date.now() + "_" + Math.random().toString(36).slice(2);
   }
@@ -235,7 +249,7 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
       if (popover && typeof popover.dismissPopoverAnimated === "function") popover.dismissPopoverAnimated(false);
       [addon.dynamicCommentButton, addon.dynamicAddCommentButton, addon.dynamicMoveCommentButton].filter(Boolean).forEach(view => { view.hidden = true; });
       addon.dynamicCommentInteractionUntil = 0;
-      views.showPicker(addon, state);
+      if (!state.geometry.inline) views.showPicker(addon, state);
       poll(addon, state);
     } catch (error) { remove(addon); throw error; }
     return true;
@@ -255,7 +269,8 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     const { state } = checked(addon, sender, true);
     if (state.sourceIndex < 0 || state.views.picker) return false;
     state.controller.begin({ kind, direction, pointerId: kind, sourceId: String(state.sourceIndex), comments: state.comments,
-      startIndex: state.sourceIndex, x: point.x, y: point.y, top: state.geometry.trackTop, bottom: state.geometry.trackBottom });
+      startIndex: state.sourceIndex, x: state.geometry.inline ? point.y : point.x, y: state.geometry.inline ? point.x : point.y,
+      top: state.geometry.trackTop, bottom: state.geometry.trackBottom });
     state.gestureKind = kind;
     return true;
   }
@@ -289,7 +304,7 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
       const delta = sender.translationInView(state.host);
       if (!begin(addon, state.views.knob, "drag", { x: point.x - delta.x, y: point.y - delta.y })) return false;
     }
-    state.controller.update({ pointerId: "drag", x: point.x, y: point.y });
+    state.controller.update({ pointerId: "drag", x: state.geometry.inline ? point.y : point.x, y: state.geometry.inline ? point.x : point.y });
     if (sender.state === 3) { state.controller.end({ pointerId: "drag" }); state.gestureKind = null; }
     return true;
   }
@@ -301,7 +316,7 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
   }
   function back(addon, sender) {
     const { state } = checked(addon, sender, true);
-    if (same(sender, state.views.knob) && !state.sourceTapAllowed) return false;
+    if (!state.geometry.inline && same(sender, state.views.knob) && !state.sourceTapAllowed) return false;
     state.sourceTapAllowed = false;
     state.controller.cancel();
     if (state.views.picker) views.hidePicker(state); else views.showPicker(addon, state);
@@ -318,6 +333,18 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     state.sourceIndex = last.to;
     return performMove(addon, state, last.from, true);
   }
+  function toggleFold(addon, sender) {
+    const { state, current } = checked(addon, sender, true);
+    const index = state.sourceIndex, comment = state.comments[index];
+    if (!comment || !state.commentFold || !state.commentFold.supported) return false;
+    state.controller.cancel();
+    const result = __MN_COMMENT_MUTATIONS__.setCommentsCollapsed(state.noteId, [index], !comment.collapsed, current.snapshot.commentFold.revision);
+    const after = read(addon, state);
+    state.history = [];
+    adopt(state, after, index);
+    views.render(state);
+    return result;
+  }
   function dismiss(addon, sender) { const { state } = checked(addon, sender, false); views.clearPreview(state); }
   function layout(addon) {
     const state = stateFor(addon);
@@ -330,10 +357,17 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     const query = state.views.search && state.views.search.text || "", picking = !!state.views.picker;
     views.hidePicker(state);
     views.clearPreview(state);
+    const recreate = !!next.inline !== !!state.geometry.inline || next.inline && state.views.dots.length !== state.comments.length;
+    if (recreate) views.dispose(state);
     state.geometry = next;
+    if (recreate) {
+      views.create(addon, state);
+      state.views.rail.tag = 9304105;
+      addon.dynamicMoveRailView = state.views.rail;
+    }
     state.views.rail.frame = next.rail;
     views.render(state);
     if (picking) { views.showPicker(addon, state); state.views.search.text = query; views.filterPicker(state, query); }
   }
-  return { open, select, close, remove, back, layout, gesture, stepBegan, stepEnded, stepCancelled, sourceTouchDown, filter, undo, dismiss, stateFor };
+  return { open, select, close, remove, back, layout, gesture, stepBegan, stepEnded, stepCancelled, sourceTouchDown, filter, undo, toggleFold, dismiss, stateFor };
 })();
