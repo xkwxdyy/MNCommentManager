@@ -15,11 +15,11 @@ importers:
         specifier: 0.17.0
         version: 0.17.0
       marked:
-        specifier: 5.1.2
-        version: 5.1.2
+        specifier: 18.1.1
+        version: 18.1.1
       marked-katex-extension:
         specifier: 5.1.10
-        version: 5.1.10(katex@0.17.0)(marked@5.1.2)
+        version: 5.1.10(katex@0.17.0)(marked@18.1.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^6.0.1
@@ -525,9 +525,9 @@ packages:
       katex: '>=0.16 <0.18'
       marked: '>=4 <19'
 
-  marked@5.1.2:
-    resolution: {integrity: sha512-ahRPGXJpjMjwSOlBoTMZAK7ATXkli5qCPxZ21TG44rx1KEo44bii4ekgTDQPNRQ4Kh7JMb9Ub1PVk1NxRSsorg==}
-    engines: {node: '>= 16'}
+  marked@18.1.1:
+    resolution: {integrity: sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==}
+    engines: {node: '>= 20'}
     hasBin: true
 
   mdn-data@2.27.1:
@@ -1210,12 +1210,12 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  marked-katex-extension@5.1.10(katex@0.17.0)(marked@5.1.2):
+  marked-katex-extension@5.1.10(katex@0.17.0)(marked@18.1.1):
     dependencies:
       katex: 0.17.0
-      marked: 5.1.2
+      marked: 18.1.1
 
-  marked@5.1.2: {}
+  marked@18.1.1: {}
 
   mdn-data@2.27.1: {}
 
