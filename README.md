@@ -49,7 +49,7 @@ a study set is available, or the system browser otherwise.
 ## Install
 
 Install and enable MN Utils first, then download or build
-`mn-comment-manager-v0.1.30.mnaddon` and install it in MarginNote 4.
+`mn-comment-manager-v0.1.31.mnaddon` and install it in MarginNote 4.
 
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
@@ -115,7 +115,7 @@ pnpm build
 The release build generates WebView assets and packages the addon as:
 
 ```text
-mn-comment-manager-v0.1.30.mnaddon
+mn-comment-manager-v0.1.31.mnaddon
 ```
 
 Generate a stable update manifest after uploading the package into the 123pan

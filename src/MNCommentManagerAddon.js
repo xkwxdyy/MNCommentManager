@@ -530,6 +530,7 @@ function createMNCommentManagerAddon(mainPath) {
     dynamicMoveStepEnded: function (sender) { return runMovePanelAction(self, "stepEnded", sender); },
     dynamicMoveStepCancelled: function (sender) { return runMovePanelAction(self, "stepCancelled", sender); },
     dynamicMoveSourceTouchDown: function (sender) { return runMovePanelAction(self, "sourceTouchDown", sender); },
+    toggleMoveCommentFold: function (sender) { return runMovePanelAction(self, "toggleFold", sender); },
     filterMoveCommentPicker: function (sender) { return runMovePanelAction(self, "filter", sender); },
     undoQuickCommentMove: function (sender) { return runMovePanelAction(self, "undo", sender); },
     dismissQuickCommentMoveFeedback: function (sender) { return runMovePanelAction(self, "dismiss", sender); },

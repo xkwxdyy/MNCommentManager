@@ -97,7 +97,81 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     return view;
   }
   function detach(view) { if (view) view.removeFromSuperview(); }
+  function createInline(addon, state) {
+    const rail = surface(state.geometry.rail), count = state.comments.length;
+    const views = { rail, images: Object.create(null), pickerRows: [], preview: null, picker: null, dots: [] };
+    state.views = views;
+    rail.clipsToBounds = true;
+    const line = new UIView({ x: 16, y: 21, width: (count - 1) * 32, height: 2 });
+    line.backgroundColor = color("#bfdbfe"); line.userInteractionEnabled = false; rail.addSubview(line);
+    for (let index = 0; index < count; index++) {
+      const dot = button(addon, { x: index * 32, y: 0, width: 32, height: 44 }, "", "", "openMoveCommentActions:", input(state, { index }));
+      const marker = new UIView({ x: 11, y: 17, width: 10, height: 10 });
+      marker.userInteractionEnabled = false; marker.layer.cornerRadius = 5;
+      dot.addSubview(marker); dot.marker = marker;
+      const pan = new UIPanGestureRecognizer(addon, "dynamicMoveRailPanned:");
+      pan.cancelsTouchesInView = true; dot.addGestureRecognizer(pan);
+      rail.addSubview(dot); views.dots.push(dot);
+    }
+    views.list = button(addon, { x: count * 32, y: 0, width: 44, height: 44 }, "≡", "按内容选择评论", "backMoveCommentMenu:", input(state));
+    views.undo = button(addon, { x: count * 32 + 44, y: 0, width: 44, height: 44 }, "↶", "撤回评论移动", "undoQuickCommentMove:", input(state));
+    views.close = button(addon, { x: count * 32 + 88, y: 0, width: 44, height: 44 }, "×", "关闭评论移动控件", "closeMoveCommentRail:", input(state));
+    views.status = label({ x: 10, y: 44, width: rail.frame.width - 62, height: 20 }, "", 11, MUTED);
+    views.inlineText = label({ x: 48, y: 68, width: rail.frame.width - 60, height: 62 }, "", 13, INK);
+    views.inlineText.numberOfLines = 3;
+    views.fold = button(addon, { x: rail.frame.width - 44, y: 44, width: 44, height: 32 }, "", "", "toggleMoveCommentFold:", input(state));
+    views.inlineThumb = new UIView({ x: 8, y: 78, width: 32, height: 32 });
+    views.inlineThumb.userInteractionEnabled = false;
+    [views.list, views.undo, views.close, views.status, views.inlineThumb, views.inlineText, views.fold].forEach(view => rail.addSubview(view));
+    state.host.addSubview(rail);
+    renderInline(state);
+    return views;
+  }
+  function renderInline(state, frame) {
+    const views = state.views, comment = state.comments[state.sourceIndex];
+    const expanded = !!comment && !views.picker;
+    views.rail.frame = expanded ? state.geometry.expanded : state.geometry.rail;
+    views.rail.hidden = !!views.picker;
+    views.dots.forEach(function (dot, index) {
+      const selected = index === state.sourceIndex, item = state.comments[index];
+      dot.param = input(state, { index });
+      dot.enabled = !!item && (!item.capabilities || item.capabilities.canMove !== false);
+      dot.accessibilityLabel = "第 " + (index + 1) + " 条：" + summary(item) + (item && item.collapsed ? "，已折叠" : "");
+      dot.accessibilityValue = selected ? "已选中，左右拖动排序" : "轻点选择";
+      dot.marker.frame = { x: selected ? 9 : 11, y: selected ? 15 : 17, width: selected ? 14 : 10, height: selected ? 14 : 10 };
+      dot.marker.layer.cornerRadius = selected ? 7 : 5;
+      dot.marker.backgroundColor = color(item && item.collapsed ? "#ffffff" : selected ? BLUE : "#94a3b8");
+      dot.marker.layer.borderWidth = item && item.collapsed ? 2 : 0;
+      dot.marker.layer.borderColor = color(selected ? BLUE : "#94a3b8");
+    });
+    views.knob = views.dots[state.sourceIndex] || views.list;
+    [views.list, views.undo, views.close, views.fold].forEach(view => { view.param = input(state); });
+    views.undo.enabled = !!state.history.length; views.undo.alpha = views.undo.enabled ? 1 : 0.3;
+    [views.status, views.inlineText, views.inlineThumb].forEach(view => { view.hidden = !expanded; });
+    views.fold.hidden = !expanded || !state.commentFold || !state.commentFold.supported || !!frame;
+    views.fold.setTitleForState(comment && comment.collapsed ? "▸" : "▾", 0);
+    views.fold.accessibilityLabel = comment && comment.collapsed ? "展开当前评论" : "折叠当前评论";
+    if (expanded) {
+      if (views.inlineThumbIndex !== state.sourceIndex || views.inlineThumbComment !== comment) {
+        detach(views.sourceThumb);
+        views.sourceThumb = thumbnail(state, views.inlineThumb, { x: 0, y: 0, width: 32, height: 32 }, comment);
+        views.inlineThumbIndex = state.sourceIndex; views.inlineThumbComment = comment;
+      }
+      views.status.text = state.notice || "第 " + (state.sourceIndex + 1) + " 条，共 " + state.comments.length + " 条";
+      views.inlineText.text = summary(comment);
+    }
+    if (frame) {
+      const remaining = state.comments.filter((_, index) => index !== state.sourceIndex);
+      views.status.text = frame.cancelled ? "松手取消移动" : "移到第 " + (frame.targetIndex + 1) + " 条";
+      views.inlineText.text = "上方：" + (summary(remaining[frame.targetIndex - 1]) || "评论开头") + "\n下方：" + (summary(remaining[frame.targetIndex]) || "评论末尾");
+      const marker = views.dots[state.sourceIndex].marker;
+      marker.frame = { x: Math.max(16, Math.min(16 + (state.comments.length - 1) * 32, frame.thumbY - state.geometry.rail.x)) - state.sourceIndex * 32 - 7, y: 15, width: 14, height: 14 };
+      views.rail.bringSubviewToFront(views.dots[state.sourceIndex]);
+    }
+    if (views.picker) { views.search.param = input(state); views.pickerClose.param = input(state); }
+  }
   function create(addon, state) {
+    if (state.geometry.inline) return createInline(addon, state);
     const rail = surface(state.geometry.rail);
     rail.clipsToBounds = true;
     const views = { rail, images: Object.create(null), pickerRows: [], preview: null, picker: null };
@@ -127,6 +201,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
   function render(state) {
     const views = state.views;
     if (!views) return;
+    if (state.geometry.inline) return renderInline(state);
     const comment = state.comments[state.sourceIndex];
     views.up.param = input(state, { direction: -1 });
     views.down.param = input(state, { direction: 1 });
@@ -167,6 +242,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
   function clearPreview(state) {
     if (!state || !state.views) return;
     const views = state.views;
+    if (state.geometry.inline) { renderInline(state); return; }
     detach(views.preview);
     views.preview = null;
     views.overview = null;
@@ -265,6 +341,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
   function preview(state, frame) {
     const views = state.views;
     if (!views) return;
+    if (state.geometry.inline) return renderInline(state, frame);
     const dragging = frame.kind === "drag";
     const column = dragging ? state.geometry.expanded : state.geometry.rail;
     const sidebar = (dragging ? state.geometry.sidebar : state.geometry.holdSidebar) || column;
@@ -341,6 +418,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     detach(views.picker);
     views.picker = views.search = views.scroll = views.pickerClose = null;
     views.pickerRows = [];
+    if (state.geometry.inline) renderInline(state);
   }
   function showPicker(addon, state) {
     const views = state.views;
@@ -367,6 +445,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     views.scroll.clipsToBounds = true;
     panel.addSubview(views.scroll);
     filterPicker(state, "");
+    if (state.geometry.inline) renderInline(state);
     state.host.addSubview(panel);
     state.host.bringSubviewToFront(views.rail);
   }
