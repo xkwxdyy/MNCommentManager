@@ -745,17 +745,27 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     });
   }
 
-  function removeClonedChildren(note) {
-    try {
-      const childNotes = note && Array.isArray(note.childNotes) ? note.childNotes : [];
-      for (let i = childNotes.length - 1; i >= 0; i--) {
-        if (childNotes[i] && typeof childNotes[i].removeFromParent === "function") {
-          childNotes[i].removeFromParent();
-        }
+  function removeClonedChildren(note, sourceNote) {
+    if (!note.childNotes || !note.childNotes.length) return;
+    const collect = root => {
+      const ids = new Set(), pending = [root];
+      while (pending.length) {
+        const item = pending.pop(), id = getNoteId(item);
+        if (!id) throw new Error("副本子卡片缺少稳定标识，已停止提取");
+        if (ids.has(id)) continue;
+        ids.add(id);
+        (item.childNotes || []).forEach(child => pending.push(child));
       }
-    } catch (error) {
-      // Keeping cloned child notes is less harmful than failing the extraction.
+      return ids;
+    };
+    const originalIds = collect(sourceNote), clonedIds = collect(note);
+    if ([...clonedIds].some(id => originalIds.has(id))) {
+      throw new Error("副本与源子卡片共用标识，已停止提取");
     }
+    if (typeof note.deleteDescendants !== "function") throw new Error("当前版本无法清理副本子卡片，已停止提取");
+    // Detaching descendants promotes them to top-level cards; remove only the verified clones.
+    note.deleteDescendants();
+    if (note.childNotes && note.childNotes.length) throw new Error("副本子卡片清理未完成，已停止提取");
   }
 
   function cloneNoteOrThrow(note) {
@@ -905,17 +915,61 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     throw new Error("当前版本无法挂载子卡片，请更新 MarginNote 后再试");
   }
 
+  function getExtractionFingerprint(comment) {
+    return JSON.stringify([
+      getCommentFingerprint(comment), comment.htmlText || "", comment.imageBase64 || "",
+      comment.drawingHash || "", comment.drawingPreviewDataURI || "",
+    ]);
+  }
+
   function cloneSelectionToChild(sourceNote, selection, childTitle) {
     const sourceSnapshot = __MN_COMMENT_DATA__.getNoteSnapshot(sourceNote);
     const normalizedSelection = normalizeContentSelection(selection, sourceSnapshot.comments.length);
     const clone = cloneNoteOrThrow(sourceNote);
+    if (!getNoteId(clone) || getNoteId(clone) === getNoteId(sourceNote)) {
+      throw new Error("未创建独立副本，源内容保持原样");
+    }
+    let child = clone;
+    const expected = normalizedSelection.commentIndices.map(index => getExtractionFingerprint(sourceSnapshot.comments[index]));
+    const verify = target => {
+      const actual = getSerializedComments(target).map(getExtractionFingerprint);
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("子卡片评论未通过内容核对，源评论未删除");
+    };
     try {
       setNoteTitle(clone, childTitle);
-      removeClonedChildren(clone);
+      removeClonedChildren(clone, sourceNote);
+      if (clone.childNotes && clone.childNotes.length) throw new Error("副本仍包含未选择的子卡片，源评论未删除");
       removeCommentsByIndices(clone, getInverseCommentIndices(clone, normalizedSelection.commentIndices));
-      attachClonedChildOrThrow(sourceNote, clone);
-      return clone;
+      verify(clone);
+      if (!normalizedSelection.excerptSelected && noteHasExcerpt(clone)) {
+        child = createBlankChildNoteOrThrow(sourceNote, childTitle, sourceNote.colorIndex, sourceNote);
+        if (getNoteId(child) === getNoteId(sourceNote) || getNoteId(child) === getNoteId(clone)) {
+          child = clone;
+          throw new Error("未创建独立空白子卡片，源评论未删除");
+        }
+        if (noteHasExcerpt(child) || getCommentCount(child) || child.childNotes && child.childNotes.length) {
+          throw new Error("新子卡片并非空白卡片，源评论未删除");
+        }
+        const copied = __MN_COMMENT_DATA__.getNoteSnapshot(clone);
+        const rawChild = getRawNote(child), rawClone = getRawNote(clone);
+        if (typeof child.merge === "function") child.merge(clone);
+        else if (rawChild && typeof rawChild.merge === "function") rawChild.merge(rawClone);
+        else throw new Error("当前版本无法保留完整评论内容，源评论未删除");
+        validateConvertedCommentMapping(copied, child, getNoteId(clone), { excerptSelected: false, commentIndices: [] });
+        // Keep the host's merged record, as in excerpt conversion; only detach its visible card.
+        if (clone.parentNote && !detachMergedSourceFromParent(clone, child, clone.parentNote)) throw new Error("无法收起中间副本，源评论未删除");
+        removeCommentsByIndices(child, [0]);
+        if (noteHasExcerpt(child)) throw new Error("子卡片仍有未选择的主摘录，源评论未删除");
+        verify(child);
+      }
+      if (getNoteId(child.parentNote) !== getNoteId(sourceNote)) attachClonedChildOrThrow(sourceNote, child);
+      if (getNoteId(child.parentNote) !== getNoteId(sourceNote)) throw new Error("子卡片挂载未通过核对，源评论未删除");
+      if (JSON.stringify(getSerializedComments(sourceNote).map(getExtractionFingerprint)) !== JSON.stringify(sourceSnapshot.comments.map(getExtractionFingerprint))) {
+        throw new Error("源评论已变化，已停止提取");
+      }
+      return child;
     } catch (error) {
+      if (child !== clone && getNoteId(child) !== getNoteId(sourceNote)) removeDetachedNote(child);
       removeDetachedNote(clone);
       throw error;
     }
@@ -1883,6 +1937,9 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       child = cloneSelectionToChild(sourceNote, normalizedSelection, childTitle);
       refreshNote(child);
       if (removeOriginal === true) {
+        if (JSON.stringify(getSerializedComments(sourceNote).map(getExtractionFingerprint)) !== JSON.stringify(sourceSnapshot.comments.map(getExtractionFingerprint))) {
+          throw new Error("源评论已变化，已停止删除；请检查已创建的子卡片");
+        }
         if (normalizedSelection.excerptSelected) {
           const conversion = convertNoteToNoExcerpt(sourceNote, { allowTextExcerpt: true });
           if (!conversion.changed || !conversion.note) {
@@ -1904,6 +1961,10 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           }
         } else {
           removeCommentIndices(sourceNote, normalizedSelection.commentIndices);
+          const expected = sourceSnapshot.comments.filter((_, index) => !normalizedSelection.commentIndices.includes(index)).map(getExtractionFingerprint);
+          if (JSON.stringify(getSerializedComments(sourceNote).map(getExtractionFingerprint)) !== JSON.stringify(expected)) {
+            throw new Error("子卡片已建立，源评论删除未通过核对，请检查卡片或撤销");
+          }
         }
       }
       refreshNote(finalSourceNote);

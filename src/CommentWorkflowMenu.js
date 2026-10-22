@@ -21,7 +21,9 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
   }
 
   function present(addon, button, items, width, position) {
-    const popover = MNUtil.getPopoverAndPresent(button || addon.batchCommentButton, items, width || 280, position || 0);
+    const popover = typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined'
+      ? __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.present(addon, button || addon.batchCommentButton, items, width || 300, position || 0, { title: '所选卡片操作', subtitle: '已选择 ' + (addon.batchCommentContext && addon.batchCommentContext.notes || []).length + ' 张卡片 · 分别处理' })
+      : MNUtil.getPopoverAndPresent(button || addon.batchCommentButton, items, width || 280, position || 0);
     if (!popover) return null;
     try { popover.delegate = addon; } catch (error) {}
     addon.batchCommentMenuPopoverController = popover;
@@ -138,6 +140,7 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
     if (!addon) return false;
     addon.mnCommentWorkflowMenuStack = [];
     const items = buildRootItems(addon, context);
+    if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') items.splice(1, 0, item(addon, '打开多卡评论编辑器', 'openBatchCommentEditor:', { token: context.token }));
     const popover = present(addon, button, items, 280, 0);
     if (!popover) return false;
     addon.batchCommentMenuPopoverController = popover;
@@ -195,8 +198,35 @@ var __MN_COMMENT_WORKFLOW_MENU__ = (function () {
 
   function openWorkflowManager(addon) {
     if (!addon || !addon.webController) throw new Error("评论管理器尚未初始化");
-    __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController, { requestedView: "workflow" });
-    if (typeof addon.layoutViewController === "function") addon.layoutViewController();
+    const popovers = [addon.dynamicCommentMenuPopoverController, addon.batchCommentMenuPopoverController, addon.mncmActionPopover]
+      .filter((popover, index, list) => popover && list.indexOf(popover) === index);
+    // This is a menu-to-panel handoff, not a cancelled card selection. Detach
+    // dismissal delegates and references before UIKit can report the close.
+    addon.dynamicCommentMenuPopoverController = null;
+    addon.batchCommentMenuPopoverController = null;
+    addon.mncmActionPopover = null;
+    addon.dynamicCommentMenuAnchor = null;
+    addon.dynamicCommentMenuStack = [];
+    addon.dynamicCommentMenuItems = [];
+    addon.dynamicCommentMenuTransitioning = false;
+    addon.mnCommentWorkflowMenuStack = [];
+    addon.mnCommentWorkflowMenuCurrentItems = [];
+    popovers.forEach((popover) => {
+      popover.delegate = null;
+      if (typeof popover.dismissPopoverAnimated === "function") popover.dismissPopoverAnimated(false);
+    });
+    addon.mncmWorkflowPanelOwnsEntries = true;
+    addon.mncmWorkflowManagerModalOpen = true;
+    if (typeof __MN_DYNAMIC_COMMENT_ACTIONS__ !== "undefined") __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(addon, "workflow.open", { preserveContext: true });
+    if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== "undefined") __MN_BATCH_COMMENT_ACTIONS__.hideButton(addon, "workflow.open", { preserveContext: true });
+    try {
+      __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController, { requestedView: "workflow" });
+      if (typeof addon.layoutViewController === "function") addon.layoutViewController();
+    } catch (error) {
+      addon.mncmWorkflowPanelOwnsEntries = false;
+      addon.mncmWorkflowManagerModalOpen = false;
+      throw error;
+    }
     return true;
   }
 

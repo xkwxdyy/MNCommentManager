@@ -32,7 +32,7 @@ export default function QuickComment() {
   const exitVisual = useRef(false), loadGeneration = useRef(0);
   const presentationRequested = useRef(false);
   const textValue = useRef(''), draftRevision = useRef(0), deliveryGeneration = useRef(0);
-  const cursor = useRef(null), allowLineBreak = useRef(false);
+  const cursor = useRef(null), allowLineBreak = useRef(false), compositionReturn = useRef(false);
   const waitTimer = useRef(null), animationTimer = useRef(null), pendingCompositionClose = useRef(null);
   const focus = () => input.current?.focus({ preventScroll: true });
 
@@ -48,6 +48,7 @@ export default function QuickComment() {
       if (!alive.current || closing.current || generation !== loadGeneration.current || confirmed.current) return;
       if (!result?.sessionId || !result.noteId) throw new Error('未读取到目标卡片');
       current.current = result;
+      locked.current = false;
       textValue.current = result.draft || ''; draftRevision.current = result.draftRevision || 0;
       markdownValue.current = result.markdown === true; setMarkdown(markdownValue.current);
       setReady(true); setError(''); setState(result); setText(textValue.current); setPhase('editing');
@@ -123,6 +124,7 @@ export default function QuickComment() {
     const beforeInput = event => {
       if (!['insertLineBreak', 'insertParagraph'].includes(event.inputType)) return;
       if (event.isComposing || composing.current) return;
+      if (compositionReturn.current) { compositionReturn.current = false; event.preventDefault(); return; }
       if (allowLineBreak.current) { allowLineBreak.current = false; return; }
       event.preventDefault(); submit();
     };
@@ -144,7 +146,7 @@ export default function QuickComment() {
           element.blur();
         });
       } catch (err) {
-        if (alive.current) { change(input.current?.value ?? textValue.current); composing.current = false; setError(messageOf(err)); }
+        if (alive.current) { change(input.current?.value ?? textValue.current); setError(messageOf(err)); }
         return;
       } finally { pendingCompositionClose.current = null; }
       if (alive.current && !confirmed.current) closeLatest.current(false, cause);
@@ -264,20 +266,25 @@ export default function QuickComment() {
     textValue.current = value; draftRevision.current += 1;
     markdownValue.current = mode; setMarkdown(mode);
     setText(value);
-    if (current.current) MNBridge.send('updateQuickCommentDraft', { sessionId: current.current.sessionId, text: value, markdown: mode, draftRevision: draftRevision.current }).catch(err => {
-      if (alive.current && !closing.current && !confirmed.current) setError(`草稿保留失败：${messageOf(err)}`);
-    });
+    if (current.current) {
+      const sessionId = current.current.sessionId, revision = draftRevision.current;
+      MNBridge.send('updateQuickCommentDraft', { sessionId, text: value, markdown: mode, draftRevision: revision }).catch(err => {
+        if (alive.current && !closing.current && !confirmed.current && current.current?.sessionId === sessionId && draftRevision.current === revision) setError(`草稿保留失败：${messageOf(err)}`);
+      });
+    }
   }
   function newline() {
     const element = input.current;
-    if (!element || locked.current) return;
+    if (!element || locked.current || composing.current || closing.current || pendingCompositionClose.current) return;
     const start = element.selectionStart, end = element.selectionEnd;
     cursor.current = start + 1;
     change(`${text.slice(0, start)}\n${text.slice(end)}`);
   }
   function keyDown(event) {
     allowLineBreak.current = event.key === 'Enter' && event.shiftKey;
-    if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
+    const ime = composing.current || event.nativeEvent.isComposing || event.keyCode === 229;
+    compositionReturn.current = event.key === 'Enter' && ime;
+    if (ime) return;
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }
   }
   const busy = phase === 'saving' || phase === 'saved' || phase === 'closing';
@@ -305,6 +312,7 @@ export default function QuickComment() {
           onFocus={() => { keyboardFocusMoved.current = false; }}
           onBlur={event => { if (event.relatedTarget) keyboardFocusMoved.current = true; }}
           onChange={event => change(event.target.value)} onKeyDown={keyDown}
+          onKeyUp={() => { compositionReturn.current = false; }}
           onCompositionStart={() => { composing.current = true; }} onCompositionEnd={event => {
             composing.current = false;
             // Composition can finish before the final input event reaches React.
@@ -318,7 +326,7 @@ export default function QuickComment() {
           }} />
         {error && <div className="quick-error" role="alert">{error}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</div>}
         <footer><span className="quick-hint">回车提交<span> · Shift＋回车换行</span></span><div className="quick-actions">
-          <button className="quick-icon quick-markdown" role="switch" aria-label="Markdown 评论" aria-checked={markdown} title={markdown ? 'Markdown 已开启：保存为 Markdown 评论' : 'Markdown 已关闭：保存为原生 Text 评论'} disabled={!state || locked.current}
+          <button className="quick-icon quick-markdown" role="switch" aria-label="Markdown 评论" aria-checked={markdown} title={markdown ? 'Markdown 已开启：保存为 Markdown 评论' : 'Markdown 已关闭：保存为普通文本评论'} disabled={!state || locked.current}
             onClick={() => {
               if (composing.current) return;
               change(textValue.current, !markdownValue.current);

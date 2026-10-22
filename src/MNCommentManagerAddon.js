@@ -247,37 +247,59 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   function runMovePanelAction(addon, action, sender, tapping) {
-    try {
-      return __MN_COMMENT_MOVE_MNCommentManagerAddon[action](addon, sender, tapping);
-    } catch (error) {
-      if (error.code !== "COMMENT_CHANGED" && error.code !== "MOVE_PANEL_STALE") __MN_COMMENT_MOVE_MNCommentManagerAddon.close(addon);
-      MNUtil.showHUD(error && error.message || "评论移动失败");
+    function failed(error) {
+      if (!["COMMENT_CHANGED", "MOVE_PANEL_STALE", "MOVE_PANEL_BUSY"].includes(error.code)) __MN_COMMENT_MOVE_MNCommentManagerAddon.close(addon);
+      MNUtil.showHUD(error && error.message || "评论操作失败");
       console.log(`[MN Comment Manager] comment move ${action} failed: ${error && error.message || error}`);
       return false;
     }
+    try {
+      const result = __MN_COMMENT_MOVE_MNCommentManagerAddon[action](addon, sender, tapping);
+      return result && typeof result.then === "function" ? result.catch(failed) : result;
+    } catch (error) { return failed(error); }
   }
 
   return JSB.defineClass("MNCommentManagerAddon : JSExtension <UIPopoverControllerDelegate>", {
     sceneWillConnect: async function () {
+      self.mnCommentManagerSceneActive = true;
       await initializeAddonWhenReady(self, false);
     },
 
     addonWillDisconnect: function () {
+      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
       __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
       __MN_BATCH_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
     },
 
     notebookWillClose: function () {
+      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
       __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "notebook.close");
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== 'undefined') __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "notebook.close");
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);
     },
 
     sceneWillResignActive: function () {
+      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
+      self.mnCommentManagerSceneActive = false;
       if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined" && __MN_COMMENT_MOVE_MNCommentManagerAddon.stateFor(self)) __MN_COMMENT_MOVE_MNCommentManagerAddon.close(self);
+      __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "scene.inactive");
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== "undefined") __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "scene.inactive", { preserveContext: true });
+    },
+
+    sceneDidBecomeActive: function () {
+      self.mnCommentManagerSceneActive = true;
+      if (!self.mnCommentManagerInitialized || !hasMNUtilsRuntime()) return;
+      __MN_BATCH_COMMENT_ACTIONS__.refreshForActivation(self);
+      if (self.webController && self.webController.panelMode === "batch" && self.webController.view && self.webController.view.window) {
+        __MN_WEB_API_MNCommentManagerAddon.syncBatch(self.webController, "scene-active-selection");
+      } else {
+        __MN_BATCH_COMMENT_ACTIONS__.relayout(self);
+      }
     },
 
     sceneDidDisconnect: function () {
+      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
       const runtimeAvailable = hasMNUtilsRuntime();
       if (self.mnCommentManagerInitialized && runtimeAvailable) {
@@ -300,6 +322,7 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     notebookWillOpen: async function () {
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== 'undefined') __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "notebook.open");
       if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(self);
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);
       if (!(await initializeAddonWhenReady(self, true))) return;
@@ -321,9 +344,26 @@ function createMNCommentManagerAddon(mainPath) {
       if (!self.mnCommentManagerInitialized) return;
       if (controller === Application.sharedInstance().studyController(self.window)) {
         self.layoutViewController();
+        __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.refresh(self);
+        __MN_DYNAMIC_COMMENT_ACTIONS__.relayout(self);
+        if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== "undefined" && typeof __MN_BATCH_COMMENT_ACTIONS__.relayout === "function") __MN_BATCH_COMMENT_ACTIONS__.relayout(self);
         if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.layout(self);
         if (self.quickCommentController) __MN_QUICK_COMMENT_MNCommentManagerAddon.layout(self.quickCommentController);
       }
+    },
+
+    queryCardCommandsForNote: function (noteid) {
+      return __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.query(noteid);
+    },
+    runCardCommandForNote: function (commandID, noteid) {
+      if (!initializeAddon(self)) { showMNUtilsDependencyStatus(self); return false; }
+      return __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.run(self, commandID, noteid);
+    },
+    mncmNativeCardMenuGesture: function (gesture) {
+      return __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.pressed(self, gesture);
+    },
+    mncmNativeCardMenuAction: function (sender) {
+      return __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.fromMenu(self, sender);
     },
 
     queryAddonCommandStatus: function () {
@@ -357,7 +397,7 @@ function createMNCommentManagerAddon(mainPath) {
       }
 
       if (self.webController.view && self.webController.view.window) {
-        __MN_WEB_API_MNCommentManagerAddon.hidePanel(self.webController);
+        __MN_WEB_API_MNCommentManagerAddon.requestHidePanel(self.webController);
       } else {
         __MN_WEB_API_MNCommentManagerAddon.showPanel(self.webController);
         self.layoutViewController();
@@ -371,8 +411,10 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     onPopupMenuOnNote: function (sender) {
-      if (self.window !== MNUtil.currentWindow) return;
+      if (self.mnCommentManagerSceneActive === false || self.window !== MNUtil.currentWindow) return;
+      if (self.mncmWorkflowManagerModalOpen === true) return;
       if (isPopupMenuExtendNote(sender)) return;
+      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.opened(self, sender);
       __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "singleNote");
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.handlePopupMenuOnNote(self, sender);
@@ -383,13 +425,14 @@ function createMNCommentManagerAddon(mainPath) {
       const generation = Number(addon.mnCommentManagerPopupSyncGeneration || 0) + 1;
       addon.mnCommentManagerPopupSyncGeneration = generation;
       NSTimer.scheduledTimerWithTimeInterval(0.04, false, function () {
-        if (addon.window !== MNUtil.currentWindow || addon.mnCommentManagerPopupSyncGeneration !== generation) return;
+        if (addon.mnCommentManagerSceneActive === false || addon.window !== MNUtil.currentWindow || addon.mnCommentManagerPopupSyncGeneration !== generation) return;
         try { syncVisiblePanel(addon, "popup-menu-note"); }
         catch (error) { console.log(`[MN Comment Manager] popup panel sync failed: ${error && error.message ? error.message : error}`); }
       });
     },
 
     onClosePopupMenuOnNote: function (sender) {
+      if (self.window === MNUtil.currentWindow) __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.closed(self, sender);
       if (self.window !== MNUtil.currentWindow) return;
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.handlePopupMenuClosed(self, sender);
@@ -399,6 +442,9 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     onMindmapViewOnMultipleSelection: function (sender) {
+      if (self.window === MNUtil.currentWindow) __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
+      if (self.mnCommentManagerSceneActive === false || self.window !== MNUtil.currentWindow) return;
+      if (self.mncmWorkflowManagerModalOpen === true) return;
       if (self.webController && self.webController.externalCardEditorSession) return;
       try {
         __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "multipleSelection");
@@ -422,36 +468,29 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
-    batchCommentButtonTouchDown: function () {
-      __MN_BATCH_COMMENT_ACTIONS__.beginInteraction(self);
+    batchCommentButtonTouchDown: function (sender) {
+      __MN_BATCH_COMMENT_ACTIONS__.beginInteraction(self, sender);
+    },
+
+    batchCommentButtonTouchEnded: function (sender) {
+      return __MN_BATCH_COMMENT_ACTIONS__.endInteraction(self, sender);
     },
 
     batchCommentButtonTapped: function (button) {
-      if (self._batchCommentLongPressFired) {
-        self._batchCommentLongPressFired = false;
-        return;
-      }
       try {
         __MN_BATCH_COMMENT_ACTIONS__.openMenu(self, button);
       } catch (error) {
         MNUtil.showHUD(`打开批处理菜单失败：${error && error.message ? error.message : error}`);
         console.log(`[MN Comment Manager] open batch menu failed: ${error && error.message ? error.message : error}`);
-      }
+      } finally { __MN_BATCH_COMMENT_ACTIONS__.endInteraction(self, button); }
     },
 
     batchCommentButtonLongPressed: function (gesture) {
-      if (!gesture || gesture.state !== 1) return;
-      self._batchCommentLongPressFired = true;
+      if (!gesture) return;
+      if ([3, 4, 5].includes(Number(gesture.state))) return __MN_BATCH_COMMENT_ACTIONS__.endLongPress(self, gesture.view, gesture.state);
+      if (Number(gesture.state) !== 1 || !__MN_BATCH_COMMENT_ACTIONS__.beginLongPress(self, gesture.view)) return;
       try {
-        const context = self.batchCommentContext;
-        if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
-          throw new Error("未读取到多选卡片");
-        }
-        if (!self.webController) throw new Error("评论管理器尚未初始化");
-        __MN_WEB_API_MNCommentManagerAddon.showPanel(self.webController, { mode: "batch" });
-        self.layoutViewController();
-        __MN_WEB_API_MNCommentManagerAddon.syncBatch(self.webController, "batch-long-press");
-        __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "batch-editor-open", { preserveContext: true });
+        return __MN_BATCH_COMMENT_ACTIONS__.openEditor(self, gesture.view);
       } catch (error) {
         const message = error && error.message ? error.message : String(error);
         MNUtil.showHUD(`打开多卡评论编辑器失败：${message}`);
@@ -510,42 +549,78 @@ function createMNCommentManagerAddon(mainPath) {
       }
     },
 
-    dynamicCommentButtonTouchDown: function () {
-      __MN_DYNAMIC_COMMENT_ACTIONS__.beginInteraction(self);
+    openCommentManagerFromMenu: function (sender) { return runSingleMenuAction(self, sender, 'openManagerFromMenu', '打开评论管理器失败'); },
+    openSingleQuickInputFromMenu: function (sender) { return runSingleMenuAction(self, sender, 'openInputFromMenu', '添加评论失败'); },
+    dynamicCommentMenuButtonTapped: function (sender) {
+      try {
+        if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isButtonEnabled('management')) return false;
+        if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isCurrentTouch(self, sender)) return false;
+        return __MN_DYNAMIC_COMMENT_ACTIONS__.openMenu(self, sender);
+      }
+      catch (error) { MNUtil.showHUD(error.message || String(error)); return false; }
+      finally { __MN_DYNAMIC_COMMENT_ACTIONS__.endInteraction(self, sender); }
+    },
+    openBatchCommentEditor: function (sender) {
+      try { validateBatchMenuToken(self, sender); return __MN_BATCH_COMMENT_ACTIONS__.openEditor(self, sender); }
+      catch (error) { MNUtil.showHUD(error.message || String(error)); console.log('[MN Comment Manager] batch editor failed: ' + (error.message || error)); return false; }
+      finally { __MN_BATCH_COMMENT_ACTIONS__.endInteraction(self, sender); }
+    },
+    selectAllQuickComments: function (sender) { return runMovePanelAction(self, 'selectAll', sender); },
+    clearQuickCommentSelection: function (sender) { return runMovePanelAction(self, 'clearSelection', sender); },
+    dynamicCommentButtonTouchDown: function (sender) {
+      __MN_DYNAMIC_COMMENT_ACTIONS__.beginInteraction(self, sender);
+    },
+    dynamicCommentButtonTouchEnded: function (sender) {
+      return __MN_DYNAMIC_COMMENT_ACTIONS__.endInteraction(self, sender);
     },
 
     dynamicCommentButtonTapped: function (sender) {
-      return dispatchDynamicButton(self, false, false, sender);
+      try { return dispatchDynamicButton(self, false, false, sender); }
+      finally { __MN_DYNAMIC_COMMENT_ACTIONS__.endInteraction(self, sender); }
     },
     dynamicAddCommentButtonTapped: function (sender) {
-      return dispatchDynamicButton(self, true, false, sender);
+      try { return dispatchDynamicButton(self, true, false, sender); }
+      finally { __MN_DYNAMIC_COMMENT_ACTIONS__.endInteraction(self, sender); }
     },
     dynamicMoveCommentButtonTapped: function (sender) {
-      if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isButtonEnabled("move")) return false;
-      return runMovePanelAction(self, "open", sender);
+      try {
+        if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isButtonEnabled("move")) return false;
+        if (!__MN_DYNAMIC_COMMENT_ACTIONS__.isCurrentTouch(self, sender)) return false;
+        return runMovePanelAction(self, "open", sender);
+      } finally { __MN_DYNAMIC_COMMENT_ACTIONS__.endInteraction(self, sender); }
     },
     openMoveCommentActions: function (sender) { return runMovePanelAction(self, "select", sender); },
+    openQuickCommentPanel: function (sender) { return runMovePanelAction(self, "open", sender); },
     dynamicMoveRailPanned: function (sender) { return runMovePanelAction(self, "gesture", sender); },
     dynamicMoveStepBegan: function (sender) { return runMovePanelAction(self, "stepBegan", sender); },
     dynamicMoveStepEnded: function (sender) { return runMovePanelAction(self, "stepEnded", sender); },
     dynamicMoveStepCancelled: function (sender) { return runMovePanelAction(self, "stepCancelled", sender); },
     dynamicMoveSourceTouchDown: function (sender) { return runMovePanelAction(self, "sourceTouchDown", sender); },
     toggleMoveCommentFold: function (sender) { return runMovePanelAction(self, "toggleFold", sender); },
+    toggleQuickCommentSelection: function (sender) { return runMovePanelAction(self, "toggleSelection", sender); },
+    openQuickCommentActions: function (sender) { return runMovePanelAction(self, "openActions", sender); },
+    runQuickCommentAction: function (sender) { return runMovePanelAction(self, "runQuickAction", sender); },
+    addQuickCommentFromRail: function (sender) { return runMovePanelAction(self, "addComment", sender); },
     filterMoveCommentPicker: function (sender) { return runMovePanelAction(self, "filter", sender); },
     undoQuickCommentMove: function (sender) { return runMovePanelAction(self, "undo", sender); },
     dismissQuickCommentMoveFeedback: function (sender) { return runMovePanelAction(self, "dismiss", sender); },
     closeMoveCommentRail: function (sender) { return runMovePanelAction(self, "close", sender); },
     backMoveCommentMenu: function (sender) { return runMovePanelAction(self, "back", sender); },
     dynamicCommentButtonLongPressed: function (gesture) {
-      if (!gesture || gesture.state !== 1) return;
-      return dispatchDynamicButton(self, false, true, gesture.view);
+      if (!gesture) return;
+      if (gesture.state === 1) return dispatchDynamicButton(self, false, true, gesture.view);
+      if ([3, 4, 5].includes(gesture.state)) return __MN_DYNAMIC_COMMENT_ACTIONS__.endLongPress(self, gesture.view, gesture.state);
     },
     dynamicAddCommentButtonLongPressed: function (gesture) {
-      if (!gesture || gesture.state !== 1) return;
-      return dispatchDynamicButton(self, true, true, gesture.view);
+      if (!gesture) return;
+      if (gesture.state === 1) return dispatchDynamicButton(self, true, true, gesture.view);
+      if ([3, 4, 5].includes(gesture.state)) return __MN_DYNAMIC_COMMENT_ACTIONS__.endLongPress(self, gesture.view, gesture.state);
     },
 
     popoverControllerDidDismissPopover: function (controller) {
+      if (self.mncmActionPopover === controller) self.mncmActionPopover = null;
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__.menuDismissed === 'function' && __MN_BATCH_COMMENT_ACTIONS__.menuDismissed(self, controller)) return;
+      if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined" && typeof __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed === "function" && __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed(self, controller)) return;
       __MN_DYNAMIC_COMMENT_ACTIONS__.handleMenuDismissed(self, controller);
     },
 

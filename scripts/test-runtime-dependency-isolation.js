@@ -185,6 +185,7 @@ function loadAddon({
   if (provideMNUtilsRuntime) installMNUtilsRuntime();
 
   vm.createContext(context);
+  for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(path.join(rootDir, "src"), module + ".js"), "utf8"), context);
   vm.runInContext(addonSource, context, { filename: "MNCommentManagerAddon.js" });
   const members = context.createMNCommentManagerAddon("/addons/marginnote.extension.mncommentmanager");
   context.self = { window: { id: "addon-window" } };
@@ -220,6 +221,7 @@ function loadAddon({
     "CommentMutations",
     "CommentBatchEditor",
     "CommentWorkflowRunner",
+    "CommentActionUI",
     "CommentWorkflowMenu",
     "CommentActionSettings",
     "AddonUpdater",
@@ -233,8 +235,13 @@ function loadAddon({
     "WebBridgeCommands",
     "PanelContentBounds",
     "WebPanelController",
+    "NativeQuickCommentController",
     "QuickCommentController",
     "ExternalCardEditor",
+    "NativeEntryPolicy",
+    "NativeMenuVisibility",
+    "NativeSceneEntries",
+    "NativeCardMenuActions",
     "MNCommentManagerAddon",
   ]);
   assert.strictEqual(result.addon.mainPath, "/addons/marginnote.extension.mncommentmanager");

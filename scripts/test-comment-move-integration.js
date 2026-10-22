@@ -111,6 +111,7 @@ function setup(options = {}) {
   };
   if (options.runLoopUnavailable) delete context.NSRunLoop;
   vm.createContext(context);
+  for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(runtime, module + ".js"), "utf8"), context);
   for (const file of ['FloatingControlLayout.js', 'CommentMutations.js', 'CommentMoveGesture.js', 'CommentMoveViews.js', 'CommentMoveController.js', 'DynamicCommentActions.js', 'MNCommentManagerAddon.js']) {
     vm.runInContext(fs.readFileSync(path.join(runtime, file), 'utf8'), context, { filename: file });
   }
@@ -166,6 +167,8 @@ function setup(options = {}) {
     focus(id) { focusId = id; }, order(id = 'one') { return notes[id].comments.map(comment => comment.text); } };
 }
 
+module.exports = { setup };
+if (process.env.MNCM_QUICK_ACTION_FIXTURE_ONLY !== '1') {
 let cases = 0;
 const failures = [];
 function textOf(view) { return [view.text || '', ...view.subviews.map(textOf)].join('\n'); }
@@ -409,6 +412,16 @@ test('changing cards discards the old session and ignores its stale close and ar
   s.addon.dynamicMoveStepBegan(oldDown); s.addon.dynamicMoveStepEnded(oldDown); s.addon.closeMoveCommentRail(oldClose);
   assert.equal(s.nativeMoves.length, 0);
   assert.equal(s.state(), next);
+});
+
+test('a delayed poll from a removed panel cannot close a newer card panel', () => {
+  const s = setup(); s.open();
+  const old = s.state(), oldCallback = old.pollTimer.callback;
+  s.controller.remove(s.addon); s.selectCard('two'); s.open();
+  const next = s.state();
+  oldCallback();
+  assert.equal(s.state(), next);
+  assert.equal(s.nativeMoves.length, 0);
 });
 
 for (const modification of ['reorder', 'append', 'edit', 'identity', 'wrapper']) test('changed comment data rejects an in-flight move: ' + modification, () => {
@@ -703,8 +716,11 @@ test('production floating layout honors every button combination and order after
       assert.equal(s.addon[property].enabled, visible.includes(property));
       assert.equal(s.addon[property].userInteractionEnabled, visible.includes(property));
     });
+    let cursor = visible.length ? s.addon[visible[0]].frame.x : 0;
     visible.forEach((property, index) => {
-      assert.equal(s.addon[property].frame.x, s.addon[visible[0]].frame.x + index * 48);
+      assert.equal(s.addon[property].frame.x, cursor);
+      if (property === 'dynamicCommentButton') { assert.equal(s.addon.dynamicCommentMenuButton.frame.x, cursor + 44); assert.equal(s.addon.dynamicCommentMenuButton.hidden, false); }
+      cursor += property === 'dynamicCommentButton' ? 92 : 48;
       assert(s.addon[property].frame.x >= 0);
       assert(s.addon[property].frame.x + 44 <= s.host.bounds.width);
     });
@@ -816,7 +832,7 @@ test('short lists open a compact inline rail and the content picker works before
   const s = setup({ count: 3 }); s.open(); const state = s.state();
   assert.equal(state.geometry.inline, true);
   assert.equal(state.views.rail.frame.height, 44);
-  assert.equal(state.views.rail.frame.width, 228);
+  assert.equal(state.views.rail.frame.width, 272);
   assert.equal(state.views.picker, null);
   s.addon.backMoveCommentMenu(state.views.list); assert.ok(state.views.picker);
   assert.equal(state.views.rail.frame.height, 44, 'the expanded summary must not cover the picker header or search');
@@ -881,3 +897,4 @@ test('inline fold uses the current revision and refreshes markers without moving
 
 if (failures.length) throw new AggregateError(failures.map(failure => failure.error), failures.length + ' of ' + cases + ' quick-move integration cases failed');
 console.log('Comment quick-move integration: ' + cases + ' cases passed');
+}

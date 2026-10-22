@@ -40,7 +40,7 @@ function setup(preferences = new Map(), nativePropertyBridge = false) {
     __MN_UNDO_GROUPING_MNCommentManagerAddon: { run(_name, _opts, callback) { events.push('undo-start'); const result = callback(); events.push('undo-end'); return result; } },
     __MN_DYNAMIC_COMMENT_ACTIONS__: { hideButton(addon) { addon.dynamicCommentContext = null; } },
   });
-  for (const file of ['CommentActionSettings', 'CommentMutations', 'PanelContentBounds', 'QuickCommentController']) vm.runInContext(fs.readFileSync(`src/${file}.js`, 'utf8'), context);
+  for (const file of ['CommentActionSettings', 'CommentMutations', 'PanelContentBounds', 'QuickCommentController']) vm.runInContext(fs.readFileSync(`${process.env.MNCM_RUNTIME_DIR || 'src'}/${file}.js`, 'utf8'), context);
   const api = context.__MN_QUICK_COMMENT_MNCommentManagerAddon;
   const addon = { mainPath: '/addon', window: {} };
   const open = (id = 'a') => { addon.dynamicCommentContext = { noteId: id, anchorRect: { x: 20, y: 20, width: 120, height: 60 } }; api.open(addon, addon.dynamicCommentContext); return addon.quickCommentController; };

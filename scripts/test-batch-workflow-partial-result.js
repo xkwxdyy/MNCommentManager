@@ -186,7 +186,7 @@ const executeFactory = vm.runInNewContext(`
       selectorError, report, setExecutionFailure, selector, action,
       destination, MNBridge, state, appendRecorded, buildBatchExecutionFailure,
       workflowStepTitle, normalizeError, beginBatchOperation, finishBatchOperation,
-      invalidateBatchPreview, mountedRef, batchOperationRef,
+      invalidateBatchPreview, mountedRef, batchOperationRef, currentScopeRef,
     } = deps;
     return (${executeSource});
   })
@@ -212,6 +212,7 @@ async function runExecute(resultOrError) {
       },
     },
     state: { token: "TOKEN-1" },
+    currentScopeRef: { current: { token: "TOKEN-1", active: true } },
     appendRecorded: (steps) => events.push(["record", steps]),
     buildBatchExecutionFailure: (result, nextWorkflow, title) => ({ described: true, result, nextWorkflow, title: title(nextWorkflow.steps[1]) }),
     workflowStepTitle: (step) => step.kind === "select" ? "选择" : "合并",
@@ -219,7 +220,7 @@ async function runExecute(resultOrError) {
     mountedRef: { current: true },
     invalidateBatchPreview: () => events.push(["preview-invalidated"]),
     beginBatchOperation: (kind) => {
-      const operation = { kind };
+      const operation = { kind, token: "TOKEN-1" };
       batchOperationRef.current = operation;
       events.push(["busy", true]);
       return operation;

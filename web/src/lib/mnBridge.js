@@ -5,6 +5,7 @@ const COMMAND_TIMEOUTS = Object.freeze({
   closeQuickComment: 1500,
   presentQuickComment: 1500,
   setQuickCommentExit: 1500,
+  workflowManagerClosed: 1500,
   ping: 30000,
   openHelpVideo: 30000,
   getAddonUpdateState: 30000,

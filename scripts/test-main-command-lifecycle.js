@@ -74,6 +74,38 @@ const openSettingsSource = extractConstArrow(app, "openActionButtonSettings");
 const openWorkflowSource = extractConstArrow(app, "openWorkflowManager");
 const persistMergeSource = extractConstArrow(app, "persistMergeToExcerptDefault");
 const persistSettingSource = extractFunction(source, "persistActionButtonSetting");
+const batchReceiverStart = app.indexOf('window.__MNCommentManagerBatchNativeSync = ');
+const batchReceiverOpen = app.indexOf('{', app.indexOf('=>', batchReceiverStart));
+const batchReceiverSource = app.slice(batchReceiverStart, matchingBrace(app, batchReceiverOpen) + 2);
+const batchOverlayResetSource = app.includes('const resetSingleOverlaysForBatch = ')
+  ? extractConstArrow(app, 'resetSingleOverlaysForBatch') : '';
+const wholeCloseMarker = 'window.__MNCommentManagerNativePanelClosed = ';
+const wholeCloseStart = app.indexOf(wholeCloseMarker);
+const wholeCloseOpen = app.indexOf('{', app.indexOf('=>', wholeCloseStart));
+const wholeCloseReceiverSource = wholeCloseStart < 0 ? '' : app.slice(wholeCloseStart, matchingBrace(app, wholeCloseOpen) + 2);
+const panelSource = fs.readFileSync(path.join(root, 'src/WebPanelController.js'), 'utf8');
+const wholeCloseScriptMatch = panelSource.match(/if \(controller\.webView\) evaluateScript\(controller\.webView, ("window\.__MNCommentManagerRequestedView=.*")\);/);
+assert(wholeCloseScriptMatch, 'the actual whole-native-close script must be discoverable');
+const wholeCloseScript = JSON.parse(wholeCloseScriptMatch[1]);
+
+function makeBatchOverlayContext(send = async () => []) {
+  const states = { workflow: { name: '旧工作流窗口' }, settings: {}, modules: true, moduleResult: {}, dialog: {}, invalidLinks: {}, selection: true, opening: 'workflow' };
+  const recordingDraft = { name: '保留的多卡录制', steps: [{ actionId: 'clearAllComments' }] };
+  const context = vm.createContext({
+    Promise, JSON, window: { __MNCommentManagerRequestedView: 'workflow' },
+    retainedBatchEditorRef: { current: { token: 'old', recordingDraft } },
+    actionButtonSettingsSessionRef: { current: 1 }, invalidLinkCleanupSessionRef: { current: 1 },
+    overlayOpeningRef: { current: '' }, appMountedRef: { current: true },
+    MNBridge: { send }, notifyStatus() {}, normalizeError: error => String(error?.message || error),
+    setWorkflowManager: value => { states.workflow = value; }, setActionButtonSettings: value => { states.settings = value; },
+    setModuleSettingsOpen: value => { states.modules = value; }, setModuleResult: value => { states.moduleResult = value; },
+    setDialog: value => { states.dialog = value; }, setInvalidLinkCleanup: value => { states.invalidLinks = value; },
+    setSelectionActionsOpen: value => { states.selection = value; }, setOpeningOverlay: value => { states.opening = value; },
+    setBatchEditor: value => { states.batch = value; }, hideBatchEditorRetainingDraft() { states.batch = null; },
+  });
+  vm.runInContext(`${batchOverlayResetSource}\n${batchReceiverSource}\n${wholeCloseReceiverSource}\n${openWorkflowSource}\nthis.openWorkflowManager = openWorkflowManager;`, context);
+  return { context, states, recordingDraft };
+}
 
 function makeRunContext(send) {
   const events = [];
@@ -95,6 +127,57 @@ function makeRunContext(send) {
 }
 
 (async () => {
+  for (const failedCommand of ['getWorkflowActionCatalog', 'listWorkflows', 'getWorkflowTemplates']) {
+    const addon = { mncmWorkflowManagerModalOpen: true, mncmWorkflowPanelOwnsEntries: true };
+    let syncs = 0;
+    const native = vm.createContext({ __MN_WEB_API_MNCommentManagerAddon: { syncCurrentNote() { syncs++; } } });
+    vm.runInContext(fs.readFileSync(path.join(root, 'src/WebBridgeCommands.js'), 'utf8'), native);
+    const { context, states } = makeBatchOverlayContext(async command => {
+      if (command === failedCommand) throw new Error('读取失败');
+      if (command === 'workflowManagerClosed') return native.__MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands.workflowManagerClosed({ addon, controller: { addon } });
+      return [];
+    });
+    await context.openWorkflowManager();
+    assert.equal(addon.mncmWorkflowManagerModalOpen, false, 'a failed current workflow opening must release the native modal gate');
+    assert.equal(addon.mncmWorkflowPanelOwnsEntries, true, 'failure recovery must keep following controls behind the main panel');
+    assert.equal(syncs, 1); assert.equal(states.opening, '');
+  }
+  for (const result of ['resolve', 'reject']) {
+    const response = deferred(); let closedRequests = 0;
+    const { context, states } = makeBatchOverlayContext(command => {
+      if (command === 'listWorkflows') return response.promise;
+      if (command === 'workflowManagerClosed') closedRequests++;
+      return Promise.resolve([]);
+    });
+    const pending = context.openWorkflowManager();
+    vm.runInContext(wholeCloseScript, context);
+    assert.equal(states.workflow, null, 'whole native closing must clear an existing workflow layer');
+    assert.equal(context.overlayOpeningRef.current, '', 'whole native closing must cancel the active opening identity');
+    if (result === 'resolve') response.resolve([]); else response.reject(new Error('旧请求失败'));
+    await pending;
+    assert.equal(states.workflow, null, 'an old response cannot resurrect a workflow layer after whole native closing');
+    assert.equal(closedRequests, 0, 'cancelled old failures must not release a later modal session');
+  }
+  {
+    const { context, states, recordingDraft } = makeBatchOverlayContext();
+    const selection = { mode: 'batch', token: 'new-selection', noteIds: ['a', 'b'], cards: [] };
+    context.window.__MNCommentManagerBatchNativeSync({ state: selection });
+    for (const key of ['workflow', 'settings', 'moduleResult', 'dialog', 'invalidLinks']) assert.equal(states[key], null, 'entering batch mode must close the old ' + key + ' layer');
+    assert.equal(states.modules, false); assert.equal(states.selection, false); assert.equal(states.opening, '');
+    assert.equal(context.window.__MNCommentManagerRequestedView, '');
+    assert.equal(states.batch, selection); assert.equal(context.retainedBatchEditorRef.current, selection);
+    assert.deepEqual(recordingDraft, { name: '保留的多卡录制', steps: [{ actionId: 'clearAllComments' }] }, 'mode handoff must leave the mounted batch recording draft untouched');
+    assert(app.includes('state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor}'), 'the existing batch editor must remain mounted to retain recording state');
+  }
+  {
+    const response = deferred();
+    const { context, states } = makeBatchOverlayContext(() => response.promise);
+    const pending = context.openWorkflowManager();
+    context.window.__MNCommentManagerBatchNativeSync({ state: { mode: 'batch', token: 'new-selection', noteIds: ['a', 'b'] } });
+    response.resolve([]); await pending;
+    assert.equal(states.workflow, null, 'a late old-mode workflow read must not reopen above the batch editor');
+    assert.equal(states.batch.token, 'new-selection');
+  }
   {
     const first = deferred();
     let sends = 0;

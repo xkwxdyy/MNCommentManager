@@ -54,6 +54,19 @@ Install and enable MN Utils first, then download or build
 MN Utils is a required runtime dependency. MN Comment Manager intentionally does
 not bundle copies of `MNUtil` or `MNNote`.
 
+## MN5 native card menus and scene templates
+
+Native card-menu integration is optional on MN5 beta hosts. A scene can add
+Comment management, Add comment, or both; floating controls keep custom actions
+and remain available when native coverage cannot be confirmed. MN Utils and
+Comment Manager must be enabled globally and allowed in the scene. A prepared
+scene template can carry those permissions and commands without a toolbar button.
+
+See the [new scene template setup guide](README.native-card-menu.md) for import,
+partial integration, gestures, duplicate controls, switching scenes and restart
+behavior. Mac card menus have been tested; older hosts, mobile devices, document
+excerpt menus, keyboard and VoiceOver acceptance remain pending.
+
 ## Comment Folding
 
 The disclosure button is at the left of each comment, before its selection

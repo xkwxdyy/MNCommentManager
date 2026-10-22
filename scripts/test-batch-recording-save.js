@@ -126,6 +126,7 @@ function createDeferred() {
       },
       onStatus: (message) => events.push(["status", message]),
       mountedRef: overrides.mountedRef || { current: true },
+      currentScopeRef: { current: { active: true } },
       setEditorMessage: (message) => events.push(["editorMessage", message]),
       setEditorMessageKind: (value) => events.push(["editorMessageKind", value]),
       setSavedRecordingSignature: (value) => events.push(["savedSignature", value]),
@@ -229,7 +230,7 @@ function createDeferred() {
   assert.ok(batchSource.includes("mountedRef.current = true"), "StrictMode setup must restore the mounted flag");
   assert.ok(batchSource.includes("if (!recording || recordingSaveRef.current) return;"), "late batch completions must not append steps while the draft is being saved");
   assert.ok(batchSource.includes('disabled={busy || savingRecording} onClick={toggleRecording}'), "recording mode must not be changed during either a batch operation or a recording save");
-  assert.ok(batchSource.includes("disabled={busy || savingRecording || !!selectorError}"), "new recorded actions must be blocked while saving the current draft");
+  assert.ok(batchSource.includes("disabled={!hasCurrentSelection || busy || savingRecording || !!selectorError}"), "new recorded actions must be blocked while saving the current draft or without a valid selection");
   assert.ok(batchSource.includes('readOnly={savingRecording}'), "the submitted workflow name must remain visible but immutable while pending");
   assert.ok(batchSource.includes('aria-label="工作流名称"'), "the workflow name needs an explicit accessible name");
   assert.ok(batchSource.includes("disabled={savingRecording || busy}"), "save must not overlap with itself or an active batch operation");

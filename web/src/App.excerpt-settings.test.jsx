@@ -155,7 +155,7 @@ it("independently disables every floating button, preserves choices under the ma
   await click(button("设置"));
   const checkbox = label => [...host.querySelectorAll('.action-button-settings label')]
     .find(node => node.querySelector('strong')?.textContent === label)?.querySelector('input');
-  for (const [label, key] of [['显示管理按钮', 'showManagementButton'], ['显示添加评论按钮', 'showQuickCommentButton'], ['显示移动评论按钮', 'showMoveCommentButton']]) {
+  for (const [label, key] of [['显示管理按钮', 'showManagementButton'], ['显示添加评论按钮', 'showQuickCommentButton'], ['显示评论整理按钮', 'showMoveCommentButton']]) {
     expect(checkbox(label).checked).toBe(true);
     await click(checkbox(label));
     expect(MNBridge.send).toHaveBeenCalledWith('updateActionButtonSettings', { [key]: false });
@@ -172,7 +172,7 @@ it("independently disables every floating button, preserves choices under the ma
   await click(button('完成')); await click(button('设置'));
   expect(checkbox('显示管理按钮').checked).toBe(true);
   expect(checkbox('显示添加评论按钮').checked).toBe(false);
-  expect(checkbox('显示移动评论按钮').checked).toBe(false);
+  expect(checkbox('显示评论整理按钮').checked).toBe(false);
 });
 
 it("saves reordered buttons through Native and checks array contents across a lost response", async () => {
@@ -180,8 +180,8 @@ it("saves reordered buttons through Native and checks array contents across a lo
   const order = () => [...host.querySelectorAll('.dynamic-button-setting')].map(row => row.dataset.buttonId);
   const arrow = name => host.querySelector(`button[aria-label="${name}"]`);
   expect(arrow('前移：显示管理按钮').disabled).toBe(true);
-  expect(arrow('后移：显示移动评论按钮').disabled).toBe(true);
-  await click(arrow('前移：显示移动评论按钮'));
+  expect(arrow('后移：显示评论整理按钮').disabled).toBe(true);
+  await click(arrow('前移：显示评论整理按钮'));
   expect(settings.dynamicButtonOrder).toEqual(['management', 'move', 'add']);
   expect(order()).toEqual(settings.dynamicButtonOrder);
   expect(host.querySelector('.action-button-settings [role=status]').textContent).toContain('已保存');
@@ -194,7 +194,7 @@ it("saves reordered buttons through Native and checks array contents across a lo
     const result = await send(command, payload);
     return JSON.parse(JSON.stringify(result));
   });
-  await click(arrow('前移：显示移动评论按钮'));
+  await click(arrow('前移：显示评论整理按钮'));
   expect(order()).toEqual(['move', 'management', 'add']);
   expect(host.querySelector('.action-button-settings [role=alert]').textContent).toContain('已生效');
   await click(button('完成')); await click(button('设置'));
@@ -208,7 +208,7 @@ it("keeps the existing order when Native rejects a reorder", async () => {
     if (command === 'updateActionButtonSettings') throw new Error('测试排序保存失败');
     return send(command, payload);
   });
-  await click(host.querySelector('button[aria-label="前移：显示移动评论按钮"]'));
+  await click(host.querySelector('button[aria-label="前移：显示评论整理按钮"]'));
   expect([...host.querySelectorAll('.dynamic-button-setting')].map(row => row.dataset.buttonId)).toEqual(['management', 'add', 'move']);
   expect(host.querySelector('.action-button-settings [role=alert]').textContent).toContain('测试排序保存失败');
 });

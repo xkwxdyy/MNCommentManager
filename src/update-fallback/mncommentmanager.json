@@ -2,12 +2,61 @@
   "id": "mncommentmanager",
   "addonid": "marginnote.extension.mncommentmanager",
   "title": "MN Comment Manager",
-  "version": "0.1.22",
+  "version": "0.1.31",
   "channel": "stable",
-  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.22.mnaddon",
-  "filename": "mn-comment-manager-v0.1.22.mnaddon",
-  "updatedAt": "2026-09-20T08:56:40.050Z",
+  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.31.mnaddon",
+  "filename": "mn-comment-manager-v0.1.31.mnaddon",
+  "updatedAt": "2026-10-20T05:55:17.960Z",
   "history": [
+    {
+      "version": "0.1.31",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.31.mnaddon",
+      "filename": "mn-comment-manager-v0.1.31.mnaddon",
+      "updatedAt": "2026-10-20T05:55:17.960Z"
+    },
+    {
+      "version": "0.1.30",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.30.mnaddon",
+      "filename": "mn-comment-manager-v0.1.30.mnaddon",
+      "updatedAt": "2026-10-19T12:19:05.657Z"
+    },
+    {
+      "version": "0.1.29",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.29.mnaddon",
+      "filename": "mn-comment-manager-v0.1.29.mnaddon",
+      "updatedAt": "2026-10-19T11:29:06+00:00"
+    },
+    {
+      "version": "0.1.28",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.28.mnaddon",
+      "filename": "mn-comment-manager-v0.1.28.mnaddon",
+      "updatedAt": "2026-10-18T07:25:01.523Z"
+    },
+    {
+      "version": "0.1.27",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.27.mnaddon",
+      "filename": "mn-comment-manager-v0.1.27.mnaddon",
+      "updatedAt": "2026-10-13T15:14:56.502Z"
+    },
+    {
+      "version": "0.1.26",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.26.mnaddon",
+      "filename": "mn-comment-manager-v0.1.26.mnaddon",
+      "updatedAt": "2026-10-12T17:04:26.446Z"
+    },
+    {
+      "version": "0.1.23",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.23.mnaddon",
+      "filename": "mn-comment-manager-v0.1.23.mnaddon",
+      "updatedAt": "2026-10-01T11:23:05.896Z"
+    },
     {
       "version": "0.1.22",
       "channel": "stable",
@@ -136,5 +185,7 @@
       "fileID": 28490444
     }
   ],
-  "changelogUrl": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json"
+  "changelogUrl": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+  "sha256": "0e34b5a76c49c4206589505aabe0e45b6720aae12fc14c2515bf264a46743d40",
+  "size": 690797
 }
