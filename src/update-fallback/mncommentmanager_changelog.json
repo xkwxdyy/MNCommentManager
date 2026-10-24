@@ -50,14 +50,6 @@
         {
           "zh": "开发测试包已完成 Mac 实际操作及数据库回读；iPad、iPhone、软键盘、系统中断和多窗口仍待验收。",
           "en": "The development package passed actual Mac interactions and native data verification. iPad, iPhone, software keyboards, system interruptions, and multiple windows still require acceptance."
-        },
-        {
-          "zh": "MN5 场景可接入原生评论管理与添加评论入口；已确认主菜单覆盖时自动隐藏重复动态入口，保留自定义动作及兼容回退。",
-          "en": "MN5 scenes can use native comment-management and add-comment commands. Confirmed main-menu coverage hides duplicate floating controls while preserving custom actions and compatibility fallbacks."
-        },
-        {
-          "zh": "快速输入增加原生编辑界面与键盘适配，保留当前会话草稿；评论菜单、批量选择、移动与未保存内容关闭检查同步完善。",
-          "en": "Quick input adds a native editor with keyboard adaptation and session drafts. Improve comment menus, batch selection, moving, and unsaved-content close checks."
         }
       ]
     },
