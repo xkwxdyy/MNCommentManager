@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "private": true,
   "packageManager": "pnpm@10.34.7",
   "scripts": {

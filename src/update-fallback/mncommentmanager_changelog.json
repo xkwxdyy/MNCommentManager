@@ -1,8 +1,27 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-20T05:42:52.442202+00:00",
+  "updatedAt": "2026-10-24T16:22:51+08:00",
   "entries": [
+    {
+      "version": "0.1.32",
+      "channel": "stable",
+      "date": "2026-10-24",
+      "items": [
+        {
+          "zh": "MN5 场景可接入原生评论管理与添加评论入口；已确认主菜单覆盖时自动隐藏重复动态入口，保留自定义动作及兼容回退。",
+          "en": "MN5 scenes can use native comment-management and add-comment commands. Confirmed main-menu coverage hides duplicate floating controls while preserving custom actions and compatibility fallbacks."
+        },
+        {
+          "zh": "快速输入增加原生编辑界面与键盘适配，保留当前会话草稿；评论菜单、批量选择、移动与未保存内容关闭检查同步完善。",
+          "en": "Quick input adds a native editor with keyboard adaptation and session drafts. Improve comment menus, batch selection, moving, and unsaved-content close checks."
+        },
+        {
+          "zh": "网页和原生快捷输入采用透明背景，保留输入面板主题、草稿恢复与关闭操作。",
+          "en": "Use transparent backdrops for web and native quick input while retaining themed input panels, draft recovery and closing actions."
+        }
+      ]
+    },
     {
       "version": "0.1.31",
       "channel": "stable",
