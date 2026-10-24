@@ -3,10 +3,12 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { setup } = require('./test-quick-comment');
 
-function fixture(platform = 'iphone', wrapActions = null) {
+function fixture(platform = 'iphone', wrapActions = null, theme = 'Default') {
   const s = setup();
   s.api.dispose(s.addon); s.timers.length = 0;
   const root = s.context;
+  const sharedApplication = root.Application.sharedInstance;
+  root.Application.sharedInstance = () => Object.assign(sharedApplication(), { currentTheme: theme });
   class View {
     constructor(frame = { x: 0, y: 0, width: 900, height: 600 }) {
       this.frame = frame; this.layer = { removeAllAnimations() {} }; this.subviews = []; this.text = '';
@@ -96,6 +98,23 @@ function test(name, fn) {
   if (require.main !== module) return;
   if (process.env.MNCM_NATIVE_CASE && !name.includes(process.env.MNCM_NATIVE_CASE)) return;
   fn(); cases.push(name);
+}
+
+for (const platform of ['iphone', 'ipad']) for (const theme of ['Default', 'Sepia', 'Green', 'Gray', 'Dark']) {
+  test(`${platform}: ${theme} preserves the background and themed input`, () => {
+    const s = fixture(platform, null, theme);
+    const backdrop = s.controller.view.subviews.find(view => view.selector === 'mncmNativeClose');
+    assert.equal(backdrop.backgroundColor, 'clear');
+    assert.equal(backdrop.enabled, true);
+    assert.equal(s.input().backgroundColor, 'clear');
+    const dark = theme === 'Dark' || theme === 'Gray';
+    assert.equal(s.panel().backgroundColor.hex, dark ? '#252b35' : '#fcfcfd');
+    assert.equal(s.panel().backgroundColor.alpha, 1);
+    assert.equal(s.input().textColor.hex, dark ? '#edf0f5' : '#202632');
+    s.input().text = '主题草稿'; s.change();
+    s.click(backdrop.selector); s.flush(); s.controller = s.open();
+    assert.equal(s.input().text, '主题草稿');
+  });
 }
 
 for (const platform of ['iphone', 'ipad']) test(`${platform}: native input, draft, close and reopen`, () => {

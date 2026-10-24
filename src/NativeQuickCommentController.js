@@ -283,7 +283,7 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     const theme = Application.sharedInstance().currentTheme;
     const dark = theme === "Dark" || theme === "Gray", ink = dark ? "#edf0f5" : "#202632", muted = dark ? "#a3adbc" : "#707a88";
     s.backdrop = button(controller, controller.view, "", "关闭输入并保留草稿", "mncmNativeClose");
-    s.backdrop.backgroundColor = color(dark ? "#10141c" : "#dee4ec", 0.65);
+    s.backdrop.backgroundColor = UIColor.clearColor();
     s.panel = new UIScrollView(controller.view.bounds);
     s.panel.backgroundColor = color(dark ? "#252b35" : "#fcfcfd"); s.panel.layer.cornerRadius = 24;
     s.panel.clipsToBounds = true; s.panel.bounces = false;
