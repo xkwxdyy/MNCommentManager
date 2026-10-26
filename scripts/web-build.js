@@ -38,9 +38,11 @@ function main() {
   const rootDir = path.join(__dirname, "..");
   execFileSync(process.execPath, [path.join(rootDir, "scripts", "sync-comment-move-gesture.mjs"), "--check"], { cwd: rootDir, stdio: "inherit" });
   const viteConfigPath = path.join(rootDir, "web", "vite.release.config.js");
-  const distDirPath = path.join(rootDir, "src", "web-dist");
+  const output = process.env.ADDON_WEB_OUTPUT_DIR;
+  if (!output) throw new Error("ADDON_WEB_OUTPUT_DIR must name an isolated build output directory");
+  const distDirPath = path.resolve(output);
   const distAssetsDirPath = path.join(distDirPath, "assets");
-  const distIndexPath = path.join(rootDir, "src", "web-dist", "index.html");
+  const distIndexPath = path.join(distDirPath, "index.html");
   const viteBin = getLocalBin(rootDir, "vite");
   const distCssPath = path.join(distAssetsDirPath, "app.css");
 
@@ -48,7 +50,7 @@ function main() {
   fs.mkdirSync(distAssetsDirPath, { recursive: true });
   prepareKatexCss(rootDir);
 
-  execFileSync(viteBin, ["build", "--config", viteConfigPath], {
+  execFileSync(viteBin, ["build", "--config", viteConfigPath, "--outDir", distAssetsDirPath], {
     cwd: rootDir,
     stdio: "inherit",
   });
@@ -80,7 +82,7 @@ function main() {
 `;
   fs.writeFileSync(distIndexPath, html);
 
-  execFileSync(viteBin, ["build", "--config", path.join(rootDir, "web", "vite.quick-comment.config.js")], {
+  execFileSync(viteBin, ["build", "--config", path.join(rootDir, "web", "vite.quick-comment.config.js"), "--outDir", path.join(distDirPath, "quick-assets")], {
     cwd: rootDir, stdio: "inherit",
   });
   const quickAssets = path.join(distDirPath, "quick-assets");

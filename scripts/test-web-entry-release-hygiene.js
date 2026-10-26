@@ -41,9 +41,13 @@ assert.ok(/input:not\(\[type="checkbox"\]\),\s*select\s*\{[^}]*min-height:\s*44p
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"));
 assert.ok(app.includes('window.matchMedia("(prefers-reduced-motion: reduce)")'));
 
-const builtIndex = path.join(root, "src", "web-dist", "index.html");
-const builtCss = path.join(root, "src", "web-dist", "assets", "app.css");
-const builtJs = path.join(root, "src", "web-dist", "assets", "app.js");
-[builtIndex, builtCss, builtJs].forEach((file) => assert.ok(fs.existsSync(file), `existing packaged resource must remain present: ${file}`));
+if (process.env.ADDON_WEB_OUTPUT_DIR) {
+  for (const name of ["index.html", "assets/app.css", "assets/app.js"]) {
+    const file = path.join(process.env.ADDON_WEB_OUTPUT_DIR, name);
+    assert.ok(fs.existsSync(file), `packaged resource must exist: ${file}`);
+  }
+} else {
+  assert.ok(!fs.existsSync(path.join(root, "src", "web-dist")), "generated web assets must stay outside source");
+}
 
 console.log("web entry, manifest test, and release-style hygiene regression passed");
