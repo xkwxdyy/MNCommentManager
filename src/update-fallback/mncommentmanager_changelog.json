@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-24T16:22:51+08:00",
+  "updatedAt": "2026-10-29T20:19:15+08:00",
   "entries": [
+    {
+      "version": "0.1.33",
+      "channel": "stable",
+      "date": "2026-10-29",
+      "items": [
+        {
+          "zh": "评论增加拖动排序概览，支持目标预览、键盘操作、取消和撤销。",
+          "en": "Add a drag overview for reordering comments, with destination previews, keyboard controls, cancellation and undo."
+        },
+        {
+          "zh": "移动前核对评论顺序、内容和版本，移动后验证结果；过期操作保留明确错误。",
+          "en": "Check comment order, content and revision before moving, verify the result afterwards, and reject stale operations with a clear error."
+        }
+      ]
+    },
     {
       "version": "0.1.32",
       "channel": "stable",

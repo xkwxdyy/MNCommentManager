@@ -1498,7 +1498,8 @@
         "web/src/components/HtmlSelect.test.jsx",
         "web/src/components/WorkflowParameters.test.jsx",
         "web/src/lib/contentSelection.test.js",
-        "web/src/lib/markdownRenderer.test.js"
+        "web/src/lib/markdownRenderer.test.js",
+        "web/src/App.drag-overview.test.jsx"
       ]
     },
     {
@@ -1623,6 +1624,13 @@
       "argv": [
         "node",
         "scripts/test-native-entry-settings.cjs"
+      ]
+    },
+    {
+      "name": "Comment drag Native guard",
+      "argv": [
+        "node",
+        "scripts/test-comment-drag-guard.js"
       ]
     }
   ]

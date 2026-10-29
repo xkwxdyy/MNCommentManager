@@ -1,0 +1,38 @@
+.comment-card.has-drag-handle { padding-right: 54px; }
+.comment-drag-handle { position: absolute; top: 0; bottom: 0; right: 0; width: 40px; min-height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-light); border-radius: 0; background: var(--bg-app); color: var(--text-secondary); touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.comment-drag-handle svg { width: 20px; height: 26px; }
+.comment-drag-handle:hover:not(:disabled) { color: var(--accent-blue); background: var(--accent-blue-soft); transform: none; }
+.comment-pane.comment-drag-active { overflow: hidden; touch-action: none; cursor: grabbing; }
+.comment-pane.comment-drag-active > * { visibility: hidden; }
+.cm-drag-undo { position: sticky; top: 0; z-index: 3; margin: 8px 24px 0; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 8px; }
+.cm-drag-undo button { min-width: 36px; min-height: 36px; padding: 6px; }
+.cm-drag-undo svg { width: 20px; height: 20px; }
+.cm-drag-overview { --drag-accent: var(--accent-blue); --drag-tint: var(--accent-blue-soft); position: fixed; z-index: 1200; overflow: hidden; background: var(--bg-panel); color: var(--text-primary); pointer-events: none; user-select: none; -webkit-user-select: none; border: 1px solid var(--border-light); border-radius: 10px; }
+.cm-drag-overview header { height: 62px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border-light); }
+.cm-drag-overview header strong { font-size: 13px; color: var(--drag-accent); }
+.cm-drag-overview header small { display: block; margin-top: 4px; font-size: 10px; color: var(--text-secondary); }
+.cm-drag-overview header > span { color: var(--drag-accent); font-size: 17px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cm-drag-viewport { position: absolute; top: 62px; bottom: 36px; left: 12px; right: 66px; overflow: hidden; mask-image: linear-gradient(transparent,#000 8px,#000 calc(100% - 8px),transparent); }
+.cm-drag-strip { position: relative; padding: 18px 0; }
+.cm-drag-summary { height: 30px; display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid var(--border-light); opacity: .7; }
+.cm-drag-ordinal { width: 24px; flex-shrink: 0; font-size: 10px; font-variant-numeric: tabular-nums; }
+.cm-drag-summary img { width: 24px; height: 22px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.cm-drag-type { flex: 0 0 30px; font-size: 9px; overflow: hidden; white-space: nowrap; }
+.cm-drag-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.cm-drag-summary.neighbor { height: 67px; margin: 4px 0; border: 0; border-radius: 6px; background: var(--bg-app); color: var(--text-primary); opacity: 1; }
+.cm-drag-summary.neighbor .cm-drag-copy { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; white-space: normal; line-height: 1.5; }
+.cm-drag-summary.neighbor img { width: 44px; height: 44px; }
+.cm-drag-summary small { font-size: 9px; flex-shrink: 0; color: var(--text-secondary); }
+.cm-drag-landing { position: relative; margin: 8px 0; padding: 10px; height: 62px; border: 1px solid var(--drag-accent); border-left-width: 4px; border-radius: 8px; background: var(--drag-tint); color: var(--drag-accent); }
+.cm-drag-landing > div { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 6px; font-size: 10px; }
+.cm-drag-landing strong { display: block; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cm-drag-landing::before { content: ''; position: absolute; left: -4px; right: 0; top: -5px; height: 2px; background: var(--drag-accent); }
+.cm-drag-rail { position: absolute; top: 76px; bottom: 49px; right: 23px; width: 18px; border: 1px solid var(--border-light); border-radius: 12px; background: var(--bg-app); }
+.cm-drag-rail::before { content: ''; position: absolute; left: 7px; top: 5px; bottom: 5px; width: 2px; background: repeating-linear-gradient(to bottom,var(--text-secondary) 0,var(--text-secondary) 1px,transparent 1px,transparent 9px); opacity: .5; }
+.cm-drag-rail small { position: absolute; left: -10px; right: -10px; font-size: 9px; color: var(--text-secondary); text-align: center; }
+.cm-drag-rail .first { top: -16px; }.cm-drag-rail .last { bottom: -18px; }
+.cm-drag-thumb { position: absolute; left: -9px; width: 34px; height: 31px; transform: translateY(-50%); display: grid; place-items: center; border-radius: 8px; background: var(--drag-accent); color: white; }
+.cm-drag-thumb svg { width: 15px; height: 20px; }
+.cm-drag-overview footer { position: absolute; bottom: 0; left: 12px; right: 12px; height: 33px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border-light); font-size: 10px; color: var(--text-secondary); }
+.cm-drag-overview.cancelled { --drag-accent: var(--accent-orange); }.cm-drag-overview.cancelled .cm-drag-viewport { opacity: .4; }
+@media(max-width: 600px) { .cm-drag-undo { margin: 8px 12px 0; }.cm-drag-summary small { display: none; } }

@@ -1599,8 +1599,23 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     });
   }
 
-  function moveComments(noteId, indices, targetIndex) {
+  function moveComments(noteId, indices, targetIndex, guard) {
     const note = getNoteOrThrow(noteId);
+    let expectedStructure = null;
+    if (guard !== undefined) {
+      const before = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+      if (typeof guard.expectedStructure !== 'string' || !guard.expectedStructure || typeof guard.expectedRevision !== 'string' ||
+        !Array.isArray(indices) || indices.length !== 1 || !Number.isInteger(indices[0]) || indices[0] < 0 || indices[0] >= before.comments.length ||
+        !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex > before.comments.length) throw new Error('拖动移动参数无效');
+      if (__MN_COMMENT_MODULE_RULES__.structureSignature(before.comments) !== guard.expectedStructure ||
+        (guard.expectedRevision && before.commentFold?.revision !== guard.expectedRevision)) {
+        const error = new Error('评论列表已变化，请刷新后重新拖动'); error.code = 'COMMENT_CHANGED'; throw error;
+      }
+      requireCapability(before.comments[indices[0]], 'canMove', '当前评论不能移动');
+      const expected = before.comments.slice(), from = indices[0];
+      expected.splice(targetIndex > from ? targetIndex - 1 : targetIndex, 0, expected.splice(from, 1)[0]);
+      expectedStructure = __MN_COMMENT_MODULE_RULES__.structureSignature(expected.map((comment, index) => Object.assign({}, comment, { index })));
+    }
     let selectedIndices = [];
     withUndoGrouping("移动评论", { note }, () => {
       selectedIndices = moveCommentIndices(note, indices, targetIndex);
@@ -1609,6 +1624,9 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     refreshNotebookAfterCommentMutation(note);
 
     const snapshot = __MN_COMMENT_DATA__.getNoteSnapshot(note);
+    if (expectedStructure !== null && __MN_COMMENT_MODULE_RULES__.structureSignature(snapshot.comments) !== expectedStructure) {
+      throw new Error('未能确认评论移动结果，请刷新后检查');
+    }
     snapshot.selectedIndices = selectedIndices;
     return snapshot;
   }

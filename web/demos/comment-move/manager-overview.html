@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>评论管理器 · 拖动总览原型</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#23332f;background:#edf0ed;font-synthesis:none;--paper:#fff;--soft:#f5f7f5;--line:#dfe6e0;--muted:#75817b;--accent:#23775b;--tint:#e8f3ec;--ink:#23332f}
+*{box-sizing:border-box}body{margin:0}button,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{opacity:.32;cursor:default}button:focus-visible,select:focus-visible{outline:3px solid #85bda4;outline-offset:3px}svg{display:block}button svg{width:20px;height:20px}button{touch-action:manipulation}button.icon{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+.shell{max-width:1050px;margin:auto;padding:24px 32px 16px}.masthead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.brand{display:flex;gap:12px;align-items:center}.brandmark{background:var(--accent);color:white;width:36px;height:36px;display:grid;place-items:center;border-radius:11px}.brandmark svg{width:21px;height:21px}.eyebrow{font-size:10px;letter-spacing:2px;color:var(--muted);font-weight:600}.brand-title{font-size:14px;font-weight:650;margin-top:3px}.prototype{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:5px 9px;border-radius:20px}
+.intro{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:20px}h1{font-size:28px;letter-spacing:-.8px;margin:0 0 8px;font-weight:650}.intro p{font-size:13px;color:var(--muted);margin:0;line-height:1.7}.demo-tools{display:flex;gap:8px;align-items:center;flex-shrink:0}select{background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:8px 28px 8px 11px;font-size:12px;height:36px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:0 12px 40px #273d2c08}.panel-head{display:flex;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--line)}.note-icon{width:35px;height:40px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;color:var(--accent);background:var(--soft)}.note-icon svg{width:19px;height:19px}.note-title{font-size:15px;font-weight:600}.sub{font-size:11px;color:var(--muted);margin-top:5px}.panel-actions{margin-left:auto;display:flex;gap:8px}.count{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);margin-right:7px;align-self:center}
+.pane{height:clamp(350px,calc(100dvh - 325px),680px);min-height:0;position:relative;overflow:hidden}.full-list{height:100%;overflow:auto;padding:18px 20px;scrollbar-gutter:stable}.comment{position:relative;display:flex;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:var(--paper);overflow:hidden}.content{padding:15px 17px;flex:1;min-width:0}.meta{display:flex;align-items:center;gap:10px;margin-bottom:9px;color:var(--muted);font-size:10px}.number{font-variant-numeric:tabular-nums}.type{padding:3px 7px;background:var(--soft);border-radius:5px}.comment h2{margin:0 0 8px;font-size:14px;font-weight:600}.comment p{margin:0;line-height:1.85;font-size:13px;color:#63716b;white-space:pre-line}.comment img{display:block;width:100%;max-width:440px;height:135px;object-fit:cover;border:1px solid var(--line);border-radius:7px;margin-top:10px}.grip{flex-shrink:0;width:44px;border:0;border-left:1px solid var(--line);background:var(--soft);color:#9aa8a0;cursor:grab;touch-action:none;user-select:none;display:grid;place-items:center}.grip svg{width:19px;height:27px}.grip:hover{background:var(--tint);color:var(--accent)}.comment.landed{border-color:var(--accent);box-shadow:0 0 0 2px var(--tint)}.comment.landed .grip{color:var(--accent)}
+.panel-foot{min-height:43px;padding:10px 20px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}.foot-key{white-space:nowrap}kbd{font:10px inherit;padding:2px 5px;background:var(--soft);border:1px solid var(--line);border-radius:4px}.caption{display:flex;gap:16px;justify-content:space-between;margin-top:12px;color:var(--muted);font-size:11px;line-height:1.6}.caption strong{font-weight:500;color:var(--accent)}
+.overview{position:absolute;inset:0;z-index:2;background:var(--paper);display:none;pointer-events:none;user-select:none}.pane.dragging .overview{display:block}.pane.dragging .full-list{visibility:hidden}.pane.dragging{cursor:grabbing;touch-action:none}.overview-head{height:62px;padding:13px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.overview-title{font-size:13px;font-weight:600;color:var(--accent)}.overview-detail{font-size:11px;color:var(--muted);margin-top:4px}.live-position{font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}.live-position small{font-size:11px;color:var(--muted)}.summary-viewport{position:absolute;top:62px;bottom:36px;left:20px;right:82px;overflow:hidden;mask-image:linear-gradient(transparent,#000 12px,#000 calc(100% - 12px),transparent)}.summary-list{padding:18px 0}.summary{height:30px;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line);opacity:.7;padding:4px 9px}.summary .ordinal{width:22px;font-size:10px;flex-shrink:0;font-variant-numeric:tabular-nums}.summary .summary-copy{min-width:0;flex:1}.summary .summary-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.summary .body{display:none}.summary img,.summary .text-thumb{width:24px;height:22px;object-fit:cover;flex-shrink:0;border-radius:3px}.text-thumb{display:grid;place-items:center;background:var(--soft);color:var(--muted);font-size:10px}.summary.neighbor{height:67px;opacity:1;background:var(--soft);border-radius:6px;border-bottom:0;margin:4px 0;color:var(--ink)}.summary.neighbor .body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;line-height:1.5;color:var(--muted);margin-top:3px}.summary.neighbor img{width:48px;height:44px}.neighbor-label{font-size:9px;color:var(--muted);flex-shrink:0}.landing{position:relative;margin:8px 0;padding:10px 12px;border:1px solid var(--accent);border-left:4px solid var(--accent);background:var(--tint);border-radius:8px;color:var(--accent)}.landing-label{font-size:10px;margin-bottom:5px;display:flex;justify-content:space-between}.landing-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.landing:before{content:"";position:absolute;left:-8px;top:-5px;right:0;height:2px;background:var(--accent)}.rail{position:absolute;top:76px;bottom:49px;right:31px;width:18px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}.rail:before{content:"";position:absolute;top:5px;bottom:5px;left:7px;width:2px;background:repeating-linear-gradient(to bottom,#a9b9ae 0,#a9b9ae 1px,transparent 1px,transparent 9px)}.rail-label{position:absolute;right:-10px;left:-10px;text-align:center;font-size:9px;color:var(--muted)}.rail-label.first{top:-16px}.rail-label.last{bottom:-18px}.thumb{position:absolute;width:34px;height:31px;left:-9px;top:0;border-radius:8px;display:grid;place-items:center;color:white;background:var(--accent);box-shadow:0 3px 10px #23775b24;transform:translateY(-50%)}.thumb svg{width:15px;height:20px}.overview-hint{position:absolute;bottom:0;height:33px;left:20px;right:20px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:10px}.overview.cancelled{--accent:#a75b49;--tint:#f9eee9}.overview.cancelled .summary-viewport{opacity:.4}
+@media(max-width:600px){.shell{padding:16px 12px 12px}.masthead{margin-bottom:20px}.intro{align-items:start;flex-direction:column;margin-bottom:14px;gap:14px}h1{font-size:24px}.intro p{font-size:12px}.demo-tools{width:100%}.demo-tools select{flex:1}.panel-head{padding:13px}.note-title{font-size:13px}.panel-head .count{display:none}.pane{height:clamp(290px,calc(100dvh - 345px),630px)}.full-list{padding:12px 10px}.content{padding:12px}.comment p{font-size:12px}.panel-foot{padding:10px 12px}.foot-key{display:none}.caption{font-size:10px;gap:7px}.overview-head{padding:12px}.summary-viewport{left:10px;right:66px}.rail{right:23px}.neighbor-label{display:none}.overview-hint{left:12px;right:12px}}
+@media(prefers-color-scheme:dark){:root{background:#171e1b;color:#dce5df;--paper:#222c26;--soft:#29352d;--line:#3b483f;--muted:#a0b0a5;--accent:#8bc9a8;--tint:#30483b;--ink:#dce5df}.comment p{color:#b2c0b6}.brandmark{background:#355e48}.overview.cancelled{--accent:#e2a18e;--tint:#4f352f}.thumb{color:#163422}}
+@media(prefers-reduced-motion:no-preference){.comment.landed{animation:land .5s ease-out}@keyframes land{from{box-shadow:0 0 0 5px #23775b32}to{box-shadow:0 0 0 2px var(--tint)}}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="masthead"><div class="brand"><div class="brandmark" data-icon="note"></div><div><div class="eyebrow">MARGINNOTE</div><div class="brand-title">评论管理器</div></div></div><span class="prototype">交互原型 · 仅模拟数据</span></header>
+  <section class="intro"><div><h1>按住，拖动，落位。</h1><p>从完整评论进入缩略总览，快速调整任意位置。</p></div><div class="demo-tools"><select id="sample" aria-label="演示场景"><option value="mixed">文字与图片 · 14 条</option><option value="short">短列表 · 5 条</option><option value="long">长列表 · 80 条</option></select><button id="reset" class="icon" aria-label="重置演示" title="重置演示" data-icon="reset"></button></div></section>
+  <main class="panel">
+    <header class="panel-head"><div class="note-icon" data-icon="note"></div><div><div class="note-title">阅读笔记：从观察到理解</div><div class="sub" id="mode-label">当前卡片 · 全部评论</div></div><div class="panel-actions"><span class="count" id="count"></span><button id="undo" class="icon" disabled aria-label="撤销移动" title="撤销移动" data-icon="undo"></button></div></header>
+    <div class="pane" id="pane">
+      <div class="full-list" id="full-list" aria-label="完整评论列表"></div>
+      <section class="overview" id="overview" aria-label="评论移动总览" aria-hidden="true">
+        <div class="overview-head"><div><div class="overview-title" id="overview-title">拖动总览</div><div class="overview-detail" id="overview-detail">全部评论 · 落点附近展开</div></div><div class="live-position" id="position"></div></div>
+        <div class="summary-viewport" id="summary-viewport"><div class="summary-list" id="summary-list"></div></div>
+        <div class="rail" id="rail"><span class="rail-label first">首条</span><span class="rail-label last">末条</span><div class="thumb" id="thumb" data-icon="grip"></div></div>
+        <div class="overview-hint"><span>松手完成移动</span><span>横向移开取消 · Esc</span></div>
+      </section>
+    </div>
+    <footer class="panel-foot"><span id="status" role="status">拖动评论右侧手柄，查看缩略总览</span><span class="foot-key"><kbd>Esc</kbd> 取消拖动</span></footer>
+  </main>
+  <div class="caption"><span><strong>操作提示</strong>　右侧手柄支持鼠标与触摸拖动。</span><span>模拟排序 · 无需保存 · 不影响真实笔记</span></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const paths = {note:'M5 3h11l3 3v15H5z M8 9h8 M8 13h8 M8 17h5',undo:'M8 5 3 10l5 5 M3 10h10a6 6 0 0 1 0 12',reset:'M4 9a8 8 0 1 1 0 7 M4 3v6h6',grip:'M9 5h.01 M15 5h.01 M9 12h.01 M15 12h.01 M9 19h.01 M15 19h.01'};
+  const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${name === 'grip' ? 3 : 1.5}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]}"/></svg>`;
+  document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
+  const diagram = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="700" height="220" viewBox="0 0 700 220"><rect width="700" height="220" fill="#edf3ee"/><g fill="none" stroke="#aac2b1" stroke-width="2"><path d="M170 110H310M390 110H530"/><path d="m300 105 10 5-10 5m220-10 10 5-10 5"/></g><g fill="#fff" stroke="#b6cbbb"><rect x="40" y="65" width="130" height="90" rx="12"/><rect x="285" y="65" width="130" height="90" rx="12"/><rect x="530" y="65" width="130" height="90" rx="12"/></g><g font-family="sans-serif" font-size="19" text-anchor="middle" fill="#35664c"><text x="105" y="116">观察</text><text x="350" y="116">联系</text><text x="595" y="116">理解</text></g><text x="350" y="195" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#7b9582">READ · CONNECT · REFLECT</text></svg>');
+  const examples = [
+    ['阅读之前，先明确问题','阅读目标会影响材料选择与记录方式。先写下需要解决的问题，再决定哪些内容值得保留。'],
+    ['保留上下文','摘录中的一句话往往依赖前文的定义和条件。记录结论时，同时保留适用范围，避免脱离语境。'],
+    ['理解过程示意图','从具体观察出发，寻找已有知识之间的联系，再用自己的语言重述理解。','image'],
+    ['区分事实与解释','事实记录观察到的现象，解释说明现象产生的原因。阅读时分别标注，有助于检查论证。'],
+    ['重要概念的定义','先确认术语在当前材料中的含义。同一术语可能用于不同语境，不能直接替换。\n记录定义后，再补充一个具体例子。'],
+    ['用例子检验理解','尝试构造一个符合条件的例子，再寻找一个不满足条件的反例。比较两者的差异。'],
+    ['论证中的关键步骤','从前提到结论需要经过哪些步骤？省略的推导值得补充，隐含条件也需要单独检查。'],
+    ['建立内容之间的联系','把新结论与已经熟悉的内容比较，记录共同条件、差异和适用范围。'],
+    ['保留尚未解决的问题','暂时无法回答的问题单独记录，避免把猜测当成已经确认的结论。'],
+    ['第二轮阅读笔记','重新阅读时，重点核对首次理解是否准确，并检查此前遗漏的条件。','image'],
+    ['从记忆转向使用','尝试在新的例子中使用刚刚学习的方法。能够复述结论，还不等于能够独立应用。'],
+    ['整理评论顺序','按照定义、例子、论证和应用安排内容，使后续复习更容易找到关联。'],
+    ['复习时的检查','不看原文重新写出关键结论，再对照材料修正遗漏和错误。'],
+    ['下一步阅读安排','整理待解决问题，选择相关章节继续阅读，并在获得新证据后更新记录。']
+  ];
+  const pane = $('pane'), list = $('full-list'), overview = $('overview');
+  let comments = [], history = [], session = null, lastMoved = null;
+  const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+  const status = text => $('status').textContent = text;
+  function render(focusId, scroll = true) {
+    list.innerHTML = comments.map((c,i) => `<article class="comment${c.id === lastMoved ? ' landed' : ''}" data-id="${c.id}"><div class="content"><div class="meta"><span class="number">${String(i+1).padStart(2,'0')}</span><span class="type">${c.image ? '图片评论' : '文字评论'}</span></div><h2>${escape(c.title)}</h2><p>${escape(c.body)}</p>${c.image ? `<img src="${diagram}" alt="观察、联系与理解的过程示意图" draggable="false">` : ''}</div><button class="grip" aria-label="拖动评论：${escape(c.title)}" title="按住拖动排序；也可按空格开始，方向键定位" data-id="${c.id}">${icon('grip')}</button></article>`).join('');
+    $('count').textContent = `${comments.length} 条评论`;
+    $('undo').disabled = history.length === 0;
+    if (focusId) {
+      const row = list.querySelector(`[data-id="${focusId}"]`);
+      if (scroll) row?.scrollIntoView({block:'center',behavior:'instant'});
+      row?.querySelector('button').focus({preventScroll:true});
+    }
+  }
+  function reset() {
+    cancel();
+    const kind = $('sample').value, n = kind === 'short' ? 5 : kind === 'long' ? 80 : 14;
+    comments = Array.from({length:n},(_,i) => {const e = examples[i % examples.length]; return {id:`c${i}`,title:kind === 'long' ? `${Math.floor(i/14)+1}.${i%14+1} ${e[0]}` : e[0],body:e[1],image:e[2] === 'image'};});
+    history = []; lastMoved = null; render(); list.scrollTop = 0;
+    status('拖动评论右侧手柄，查看缩略总览');
+  }
+  function start(id, x, y, pointerId, keyboard = false) {
+    const from = comments.findIndex(c => c.id === id);
+    if (session || from < 0) return;
+    const rect = pane.getBoundingClientRect();
+    session = {id,from,target:from,x,y,pointerId,keyboard,rect,active:false,cancelled:false,scrollTop:list.scrollTop,base:comments.slice(),lastTarget:null};
+    if (keyboard) activate();
+    else pane.setPointerCapture?.(pointerId);
+  }
+  function activate() {
+    const s = session; if (!s) return;
+    s.active = true;
+    pane.classList.add('dragging'); list.inert = true; overview.setAttribute('aria-hidden','false');
+    $('mode-label').textContent = '移动评论 · 缩略总览';
+    // Keep capture on the pane: the handle remains mounted under the overview.
+    const track = $('rail').getBoundingClientRect();
+    s.top = track.top + 6; s.bottom = track.bottom - 6;
+    s.anchor = clamp(s.y,s.top+1,s.bottom-1);
+    draw();
+  }
+  function draw() {
+    const s = session; if (!s?.active) return;
+    overview.classList.toggle('cancelled',s.cancelled);
+    $('overview-title').textContent = s.cancelled ? '松手取消移动' : '拖动总览';
+    $('overview-detail').textContent = s.cancelled ? '返回手柄所在区域可以继续拖动' : `全部 ${comments.length} 条评论 · 落点附近展开`;
+    $('position').innerHTML = `${s.target+1}<small> / ${comments.length}</small>`;
+    const ratio = s.keyboard ? s.target / Math.max(1,comments.length-1) : (clamp(s.currentY ?? s.y,s.top,s.bottom)-s.top)/(s.bottom-s.top);
+    if (s.lastTarget !== s.target) {
+      s.lastTarget = s.target;
+      const rest = s.base.filter(c => c.id !== s.id), moving = s.base[s.from];
+      const rows = rest.map((c,i) => {
+        const neighbor = i === s.target-1 || i === s.target;
+        return `<div class="summary${neighbor ? ' neighbor' : ''}"><span class="ordinal">${s.base.indexOf(c)+1}</span>${c.image ? `<img src="${diagram}" alt="图片缩略图">` : '<span class="text-thumb">文</span>'}<div class="summary-copy"><div class="summary-title">${escape(c.title)}</div><div class="body">${escape(c.body)}</div></div>${neighbor ? `<span class="neighbor-label">${i < s.target ? '上方' : '下方'}</span>` : ''}</div>`;
+      });
+      rows.splice(s.target,0,`<div class="landing" id="landing" data-target="${s.target}"><div class="landing-label"><span>正在移动 · 原第 ${s.from+1} 条</span><span>${s.target === s.from ? '原位置' : '松手放在此处'}</span></div><div class="landing-title">${escape(moving.title)}</div></div>`);
+      $('summary-list').innerHTML = rows.join('');
+    }
+    // Both the landing card and the thumb use the same viewport-space center.
+    // Translate the summary strip instead of centering/clamping its scrollTop:
+    // short lists and the first/last item also need room on either side.
+    const viewport = $('summary-viewport'), strip = $('summary-list'), landing = $('landing');
+    strip.style.position = 'relative';
+    const viewportRect = viewport.getBoundingClientRect(), railRect = $('rail').getBoundingClientRect();
+    const half = landing.offsetHeight / 2;
+    const centerY = clamp(s.top + ratio * (s.bottom-s.top), viewportRect.top + half + 8, viewportRect.bottom - half - 8);
+    viewport.scrollTop = 0;
+    strip.style.transform = `translateY(${centerY - viewportRect.top - landing.offsetTop - half}px)`;
+    $('thumb').style.top = `${centerY - railRect.top - $('rail').clientTop}px`;
+  }
+  function move(event) {
+    const s = session;
+    if (!s || s.keyboard || event.pointerId !== s.pointerId) return;
+    if (!s.active && Math.hypot(event.clientX-s.x,event.clientY-s.y) <= 6) return;
+    if (!s.active) activate();
+    event.preventDefault();
+    s.currentY = event.clientY;
+    s.cancelled = Math.abs(event.clientX-s.x) > 100 || event.clientY < s.rect.top-55 || event.clientY > s.rect.bottom+55;
+    // Anchor mapping at the original press to prevent the overview from jumping
+    // the source to another position as soon as the full list disappears.
+    const y = clamp(event.clientY,s.top,s.bottom);
+    s.target = y <= s.anchor
+      ? Math.round(s.from * (y-s.top) / (s.anchor-s.top))
+      : s.from + Math.round((comments.length-1-s.from) * (y-s.anchor) / (s.bottom-s.anchor));
+    s.target = clamp(s.target,0,comments.length-1);
+    draw();
+  }
+  function finish(commit) {
+    const s = session; if (!s) return;
+    session = null;
+    if (!s.keyboard && pane.hasPointerCapture?.(s.pointerId)) pane.releasePointerCapture(s.pointerId);
+    pane.classList.remove('dragging'); list.inert = false; overview.setAttribute('aria-hidden','true');
+    $('mode-label').textContent = '当前卡片 · 全部评论';
+    const changed = commit && s.active && !s.cancelled && s.target !== s.from;
+    if (changed) {
+      history.push({comments:s.base,id:s.id});
+      comments = s.base.slice(); comments.splice(s.target,0,comments.splice(s.from,1)[0]);
+      lastMoved = s.id; render(s.id);
+      status(`已移至第 ${s.target+1} 条 · 可撤销`);
+    } else {
+      list.scrollTop = s.scrollTop;
+      list.querySelector(`button[data-id="${s.id}"]`)?.focus({preventScroll:true});
+      if (s.active) status(commit && !s.cancelled ? '位置未改变' : '已取消移动，顺序未改变');
+    }
+  }
+  function cancel() { finish(false); }
+  pane.addEventListener('pointerdown',event => {
+    const grip = event.target.closest('.grip');
+    if (!grip || event.button !== 0 || event.isPrimary === false || session) return;
+    event.preventDefault(); start(grip.dataset.id,event.clientX,event.clientY,event.pointerId);
+  });
+  pane.addEventListener('pointermove',move);
+  pane.addEventListener('pointerup',event => { if (session && !session.keyboard && event.pointerId === session.pointerId) {if(session.active) move(event); finish(true);} });
+  pane.addEventListener('pointercancel',event => {if(event.pointerId === session?.pointerId) cancel();});
+  pane.addEventListener('lostpointercapture',event => {if(event.pointerId === session?.pointerId) cancel();});
+  pane.addEventListener('contextmenu',event => {if(session) event.preventDefault();});
+  document.addEventListener('pointerdown',event => {if(session && event.pointerId !== session.pointerId) cancel();},true);
+  document.addEventListener('keydown',event => {
+    if (event.key === 'Escape') {cancel(); return;}
+    if (!session && event.target.closest('.grip') && [' ','Enter'].includes(event.key)) {
+      event.preventDefault(); const grip = event.target.closest('.grip'), r = grip.getBoundingClientRect();
+      start(grip.dataset.id,r.left,r.top+r.height/2,null,true); return;
+    }
+    if (!session?.keyboard) return;
+    if (['ArrowUp','ArrowDown','Home','End',' ','Enter','Tab'].includes(event.key)) {
+      event.preventDefault();
+      if (event.key === 'Tab') return cancel();
+      if ([' ','Enter'].includes(event.key)) return finish(true);
+      session.target = event.key === 'Home' ? 0 : event.key === 'End' ? comments.length-1 : clamp(session.target + (event.key === 'ArrowUp' ? -1 : 1),0,comments.length-1);
+      draw(); status(`预览第 ${session.target+1} 条，回车确认，Escape 取消`);
+    }
+  });
+  window.addEventListener('blur',cancel); window.addEventListener('resize',cancel);
+  document.addEventListener('visibilitychange',() => {if(document.hidden) cancel();});
+  $('sample').addEventListener('change',reset); $('reset').addEventListener('click',reset);
+  $('undo').addEventListener('click',() => {cancel(); const prior = history.pop(); if (!prior) return; comments=prior.comments;lastMoved=prior.id;render(prior.id);status('已撤销上次移动');});
+  reset();
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
   "name": "mn-comment-manager",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "private": true,
   "packageManager": "pnpm@10.34.7",
   "scripts": {
@@ -12,6 +12,7 @@
     "test:batch-selection-lifecycle": "node scripts/test-batch-comment-selection-lifecycle.js",
     "test:comment-edit-refresh": "node scripts/test-comment-edit-refresh.js",
     "test:comment-move-refresh": "node scripts/test-comment-move-refresh.js",
+    "test:comment-drag-overview": "node scripts/test-comment-drag-guard.js && vitest run web/src/App.drag-overview.test.jsx",
     "test:comment-action-settings": "node scripts/test-comment-action-settings.js",
     "test:content-selection": "vitest run web/src/lib/contentSelection.test.js",
     "test:comment-gesture": "node --test web/demos/comment-modules/test-gesture.mjs scripts/test-comment-selection-geometry.mjs && vitest run web/src/App.gesture.test.jsx",

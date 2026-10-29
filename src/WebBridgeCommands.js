@@ -67,7 +67,8 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function moveComments(context, payload) {
-    return __MN_COMMENT_MUTATIONS__.moveComments(payload.noteId, payload.indices, payload.targetIndex);
+    return __MN_COMMENT_MUTATIONS__.moveComments(payload.noteId, payload.indices, payload.targetIndex,
+      payload.expectedStructure !== undefined ? { expectedStructure: payload.expectedStructure, expectedRevision: payload.expectedRevision } : undefined);
   }
 
   function setCommentsCollapsed(context, payload) {

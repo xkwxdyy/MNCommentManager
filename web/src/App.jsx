@@ -4,6 +4,9 @@ import AddonUpdate from "./components/AddonUpdate";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import useTwoFingerCommentSelection from "./lib/useTwoFingerCommentSelection";
+import useCommentDragOverview from "./lib/useCommentDragOverview";
+import CommentDragOverview, { CommentDragIcon } from "./components/CommentDragOverview";
+import { dragInsertionIndex } from "./lib/commentDragGeometry.mjs";
 import CommentTypeSelector from "./components/CommentTypeSelector";
 import WorkflowParameters from "./components/WorkflowParameters";
 import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
@@ -879,6 +882,8 @@ function App() {
   const [search, setSearch] = useState("");
   const searchInputRef = useRef(null);
   const commentPaneRef = useRef(null);
+  const dragSessionRef = useRef(null);
+  const [dragHistory, setDragHistory] = useState([]);
   const [status, setStatus] = useState("正在读取当前卡片…");
   const [statusKey, setStatusKey] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -1089,13 +1094,31 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen,
+    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
+  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleResult || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragOverview = useCommentDragOverview({
+    paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
+    contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
+    onClaim: () => { twoFingerSelection.cancel(); setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
+    onCommit: (base, from, to) => commitOverviewMove(base, from, to),
+  });
+  dragSessionRef.current = dragOverview;
+  const dragSnapshotKey = (value) => `${value.noteId}:${structureSignature(value.comments || [])}:${value.commentFold?.revision || ''}`;
+  const lastDrag = dragHistory[dragHistory.length - 1];
+  const canUndoDrag = !!lastDrag && lastDrag.after === dragSnapshotKey(snapshot);
+  const describeDragComment = (comment) => ({
+    label: getTypeMeta(comment).label,
+    text: (getLinkedNoteDisplay(comment)?.title || commentText(comment)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+    image: getCommentMediaSources(comment)[0]?.src || '',
+  });
+
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
+    dragSessionRef.current?.cancel();
     twoFingerSelection.cancel(undefined, { restore: false });
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
     currentNoteIdRef.current = normalizedSnapshot.noteId;
@@ -1682,6 +1705,40 @@ function App() {
       indices: [commentIndex],
       targetIndex,
     }, { message: toEdge ? "已移到最下方" : "已下移一位" });
+  };
+
+  const commitOverviewMove = async (base, from, to, undoing = false) => {
+    if (currentViewRef.current.snapshot !== base || commandInFlightRef.current || from === to) return;
+    const expected = base.comments.slice();
+    expected.splice(to, 0, expected.splice(from, 1)[0]);
+    const expectedStructure = structureSignature(expected.map((comment, index) => ({ ...comment, index })));
+    const result = await runCommand('moveComments', {
+      noteId: base.noteId, indices: [base.comments[from].index], targetIndex: dragInsertionIndex(from, to),
+      expectedStructure: structureSignature(base.comments), expectedRevision: base.commentFold?.revision || '',
+    }, {
+      message: '', expectedNoteId: base.noteId, refreshOnError: true,
+      validateResult: value => {
+        if (value?.noteId !== base.noteId || !Array.isArray(value.comments) || structureSignature(value.comments) !== expectedStructure ||
+          value.selectedIndices?.length !== 1 || value.selectedIndices[0] !== to) throw new Error('未能确认评论移动结果，请刷新后检查');
+      },
+    });
+    if (!appMountedRef.current || currentNoteIdRef.current !== base.noteId) return;
+    const after = dragSnapshotKey(result);
+    setDragHistory(previous => {
+      const valid = previous[previous.length - 1]?.after === dragSnapshotKey(base) ? previous : [];
+      if (undoing) {
+        const remaining = valid.slice(0, -1);
+        if (remaining.length) remaining[remaining.length - 1] = { ...remaining[remaining.length - 1], after };
+        return remaining;
+      }
+      return [...valid, { from, to, after }].slice(-30);
+    });
+    requestAnimationFrame(() => {
+      if (!appMountedRef.current || currentNoteIdRef.current !== base.noteId) return;
+      const row = document.getElementById(`comment-${to}`);
+      scrollElementIntoView(row, 'center');
+      row?.querySelector('.comment-drag-handle')?.focus({ preventScroll: true });
+    });
   };
 
   const deleteSingleComment = async (commentIndex) => {
@@ -2698,6 +2755,7 @@ function App() {
         </aside>
 
         <div ref={commentPaneRef} className="comment-pane" id="comment-pane">
+          {canUndoDrag ? <div className="cm-drag-undo"><span>评论位置已更新</span><button type="button" className="ghost" aria-label="撤销拖动移动" title="撤销拖动移动" disabled={dragDisabled} onClick={() => execute(() => commitOverviewMove(snapshot, lastDrag.to, lastDrag.from, true))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m8 4-5 5 5 5M3 9h11a6 6 0 0 1 0 12" /></svg></button></div> : null}
           {hasActiveFilter || rangePicking || insertMode ? (
             <div className="list-context" role="group" aria-label={rangePicking || insertMode ? "选择操作" : "筛选结果"}>
               {rangePicking || insertMode ? (
@@ -2837,7 +2895,7 @@ function App() {
                 <article
                   id={`comment-${comment.index}`}
                   data-comment-index={comment.index}
-                  className={`comment-card comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
+                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
                   }}
@@ -3029,6 +3087,11 @@ function App() {
                     ) : null}
                     </>}
                   </div>
+                  <button type="button" className="comment-drag-handle" aria-label={`拖动评论 #${comment.index}`} title="按住拖动排序；空格开始，方向键定位"
+                    disabled={dragDisabled || comments.length < 2 || !canComment(comment, 'canMove')}
+                    onPointerDown={event => dragOverview.begin(event, comment.index)}
+                    onKeyDown={event => { if ([' ', 'Enter'].includes(event.key)) dragOverview.begin(event, comment.index, true); }}
+                    onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()} onDragStart={event => event.preventDefault()}><CommentDragIcon /></button>
                 </article>
               </div>
             );
@@ -3040,6 +3103,7 @@ function App() {
 
         </div>
 
+        <CommentDragOverview frame={dragOverview.frame} describe={describeDragComment} />
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
             <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? `已选 ${excerptSelected ? "摘录 + " : ""}${selectedIndices.length} 条评论` : "尚未选择"}</p>
