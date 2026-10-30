@@ -3031,6 +3031,9 @@ function App() {
                     </div>
                   </div>
                   <div className="comment-body" id={`comment-${comment.index}-body`}>
+                    {comment.drawingPreviewOnly && comment.drawingPreviewDataURI ? (
+                      <p className="media-warning" role="status">绘图格式尚未完全支持，仅供近似预览。</p>
+                    ) : null}
                     {comment.collapsed === true ? (
                       <CollapsedCommentPreview comment={comment} text={commentText(comment)} mediaSources={mediaSources} linkedDisplay={linkedDisplay} />
                     ) : <>

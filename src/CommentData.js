@@ -355,6 +355,9 @@ var __MN_COMMENT_DATA__ = (function () {
       return {
         drawingHash,
         dataURI: preview && preview.dataURI ? String(preview.dataURI) : "",
+        approximate: !!(preview && preview.approximate),
+        previewOnly: !!(preview && preview.previewOnly),
+        diagnostics: preview && Array.isArray(preview.diagnostics) ? preview.diagnostics : [],
         error: "",
         pending: false,
       };
@@ -476,6 +479,9 @@ var __MN_COMMENT_DATA__ = (function () {
       drawingPreviewDataURI: drawingPreview.dataURI,
       drawingPreviewError: drawingPreview.error,
       drawingPreviewPending: drawingPreview.pending === true,
+      drawingPreviewApproximate: drawingPreview.approximate === true,
+      drawingPreviewOnly: drawingPreview.previewOnly === true,
+      drawingPreviewDiagnostics: drawingPreview.diagnostics || [],
       mediaKind: capabilities.hasImage ? "image" : (capabilities.hasAudio ? "audio" : ""),
       audioHash,
       linkedNoteId: linked ? linked.noteId : "",

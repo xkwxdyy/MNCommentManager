@@ -209,6 +209,7 @@ function loadAddon({
   const result = loadMain();
   assert.deepStrictEqual(result.required, [
     "WebDevServerConfig",
+    "HandwritingDecoder",
     "HandwritingPreview",
     "CommentFoldState",
     "CommentModuleRules",

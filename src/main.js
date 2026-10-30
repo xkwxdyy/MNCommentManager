@@ -1,4 +1,5 @@
 JSB.require("WebDevServerConfig");
+JSB.require("HandwritingDecoder");
 JSB.require("HandwritingPreview");
 JSB.require("CommentFoldState");
 JSB.require("CommentModuleRules");

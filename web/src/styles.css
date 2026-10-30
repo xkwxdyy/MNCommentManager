@@ -1444,6 +1444,7 @@ button.pressing {
 }
 
 .media-converting,
+.media-warning,
 .media-error {
   margin: 0 0 10px;
   padding: 8px 10px;

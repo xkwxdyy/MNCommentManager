@@ -22,7 +22,7 @@
     "test:comment-move": "node scripts/sync-comment-move-gesture.mjs --check && node --test web/demos/comment-move/test-gesture.mjs web/demos/comment-move/test-model.mjs && node scripts/test-comment-move-views.js && node scripts/test-comment-move.js",
     "test:quick-comment": "node scripts/test-quick-comment.js && node scripts/test-native-quick-comment.js && node scripts/test-quick-comment-transitions.js && vitest run web/src/QuickComment.test.jsx",
     "test:invalid-link-cleanup": "node scripts/test-invalid-link-cleanup.js",
-    "test:handwriting-preview": "node scripts/test-handwriting-preview.js",
+    "test:handwriting-preview": "node scripts/test-handwriting-decoder.js && node scripts/test-handwriting-preview.js",
     "test:markdown": "vitest run web/src/lib/markdownRenderer.test.js",
     "test:merged-markdown": "node scripts/test-merged-markdown.js",
     "test:no-excerpt": "node scripts/test-batch-no-excerpt-conversion.js",
