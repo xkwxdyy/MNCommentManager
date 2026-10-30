@@ -8,7 +8,7 @@ const context = vm.createContext({console:{log(){}},
   __MN_COMMENT_BATCH_EDITOR__:{buildOverview(){return []},mergeSelected(_notes,_selector,options){calls.push(JSON.parse(JSON.stringify(options)));return {failed:0}}},
 });
 const sourceDir=process.env.COMMENT_WORKFLOW_SOURCE || path.join(__dirname,'../src');
-for(const name of ['CommentWorkflowRegistry','CommentWorkflowRunner','WebBridgeCommands']) vm.runInContext(fs.readFileSync(path.join(sourceDir,name+'.js'),'utf8'),context);
+for(const name of ['NoteAccess','CommentWorkflowRegistry','CommentWorkflowRunner','WebBridgeCommands']) vm.runInContext(fs.readFileSync(path.join(sourceDir,name+'.js'),'utf8'),context);
 const registry=context.__MN_COMMENT_WORKFLOW_REGISTRY__, runner=context.__MN_COMMENT_WORKFLOW_RUNNER__;
 const commands=context.__MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands;
 const addon={batchCommentContext:{token:'t',notes:[{noteId:'A'},{noteId:'B'}]}};

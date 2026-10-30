@@ -229,6 +229,7 @@ const context = {
 const addonWindow = { id: "addon-window" };
 
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(sourceRoot, "NoteAccess.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(sourceRoot, "CommentFoldState.js"), "utf8"), context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
 vm.runInContext(mutationsSource, context, { filename: "CommentMutations.js" });
@@ -819,6 +820,7 @@ const failingSource = addNoteMethods({
     createChildNote() { throw new Error("create failed"); },
   },
 });
+registry.set(failingSource.parentNote.noteId, addNoteMethods(failingSource.parentNote));
 const failureStats = context.__MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptForNotes([
   failingSource,
   noExcerpt,
@@ -846,6 +848,7 @@ const unidentifiedSource = addNoteMethods({
   excerptPic: { selLst: [] },
   parentNote: unidentifiedParent,
 });
+registry.set(unidentifiedParent.noteId, unidentifiedParent);
 const unidentifiedStats = context.__MN_COMMENT_MUTATIONS__.convertNotesToNoExcerptForNotes([
   unidentifiedSource,
 ], { allowSingle: true });

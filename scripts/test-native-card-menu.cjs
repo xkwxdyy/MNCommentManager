@@ -48,6 +48,12 @@ function fixture() {
     __MN_COMMENT_WORKFLOW_MENU__: { buildItems: () => [{ title: '已有工作流', selector: 'runSingleWorkflow:', param: { workflowId: 'original' } }] },
     __MN_COMMENT_ACTION_UI_MNCommentManagerAddon: { present(a, anchor, items) { calls.push(['menu', items]); return { dismissPopoverAnimated() {} }; } }
   });
+  Object.defineProperty(context.MNUtil, 'notebookController', { get() {
+    if (focusError) throw focusError;
+    if (!Array.isArray(focus)) throw new Error('native selection unavailable');
+    return { notebookId: 'notebook-A', view: { hidden: false }, mindmapView: { selViewLst: focus.map(note => ({ note: { note } })) } };
+  } });
+  vm.runInContext(fs.readFileSync(path.join(runtime, 'NoteAccess.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(runtime, 'NativeCardMenuActions.js'), 'utf8'), context);
   const api = context.__MN_NATIVE_CARD_MENU_MNCommentManagerAddon;
   function tick(seconds = Infinity) { const pending = timers.splice(0); pending.forEach(t => { if (!t.invalid && t.seconds <= seconds) t.cb(); else if (!t.invalid) timers.push(t); }); }

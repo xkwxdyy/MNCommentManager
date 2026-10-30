@@ -94,6 +94,9 @@ function fixture() {
     __MN_NATIVE_SCENE_ENTRIES_MNCommentManagerAddon: { read: () => scene },
     __MN_DYNAMIC_COMMENT_ACTIONS__: { relayout() {} },
   });
+  context.MNUtil.notebookController = { notebookId: "notebook1", view: { hidden: false },
+    get mindmapView() { return { selViewLst: [{ note: { note: notes[selectedId] } }] }; } };
+  vm.runInContext(fs.readFileSync(path.join(runtime, "NoteAccess.js"), "utf8"), context);
   for (const name of ["NativeMenuVisibility", "NativeCardMenuActions"]) vm.runInContext(fs.readFileSync(path.join(runtime, name + ".js"), "utf8"), context, { filename: name + ".js" });
   const api = context.__MN_NATIVE_CARD_MENU_MNCommentManagerAddon;
   function tick(seconds) {

@@ -179,8 +179,8 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       lanes: source.notes.map((note) => ({
         originNoteId: text(note && note.noteId),
         currentNoteId: text(note && note.noteId),
-        parentNoteId: text(note && note.parentNote && note.parentNote.noteId),
-        originalSiblingIndex: Number(note && note.indexInBrotherNotes),
+        parentNoteId: __MN_NOTE_ACCESS_MNCommentManagerAddon.parentId(note),
+        originalSiblingIndex: Number(note && __MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(note)),
         status: "ready",
       })),
     };
@@ -216,8 +216,8 @@ var __MN_COMMENT_WORKFLOW_RUNNER__ = (function () {
       lanes: [{
         originNoteId: id,
         currentNoteId: id,
-        parentNoteId: text(note && note.parentNote && note.parentNote.noteId),
-        originalSiblingIndex: Number(note && note.indexInBrotherNotes),
+        parentNoteId: __MN_NOTE_ACCESS_MNCommentManagerAddon.parentId(note),
+        originalSiblingIndex: Number(note && __MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(note)),
         status: "ready",
       }],
     };

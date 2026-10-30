@@ -48,6 +48,7 @@ const context = {
   },
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(sourceDir, "NoteAccess.js"), "utf8"), context);
 vm.runInContext(
   fs.readFileSync(path.join(sourceDir, "CommentWorkflowRegistry.js"), "utf8"),
   context,

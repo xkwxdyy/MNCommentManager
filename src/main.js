@@ -4,6 +4,7 @@ JSB.require("HandwritingPreview");
 JSB.require("CommentFoldState");
 JSB.require("CommentModuleRules");
 JSB.require("CommentModuleStore");
+JSB.require("NoteAccess");
 JSB.require("CommentData");
 JSB.require("UndoGroupingHelper");
 JSB.require("CommentWorkflowStore");

@@ -58,9 +58,8 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
   function actionContextMatches(addon, state, noteId) {
     try {
       const origin = state.actionOrigin, scope = actionScope();
-      // MN Utils exposes currentNotebookId and getFocusNotes(); the latter
-      // returns the current map selection, including floating map selections.
-      const selected = typeof MNNote !== 'undefined' && typeof MNNote.getFocusNotes === 'function' ? MNNote.getFocusNotes() : null;
+      // Read native selection locally; older MNUtils focus helpers can create notes.
+      const selected = __MN_NOTE_ACCESS_MNCommentManagerAddon.selected();
       const selectedIds = [];
       if (!Array.isArray(selected) || !selected.length) throw new Error('当前选择不可用');
       for (const note of selected) {

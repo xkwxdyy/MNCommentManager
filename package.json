@@ -7,6 +7,7 @@
     "build": "node scripts/build-release.js",
     "dev": "node scripts/dev-web.js",
     "manifest": "node scripts/update-manifest.js",
+    "test:note-access": "node scripts/test-note-access.js",
     "test:manifest": "node scripts/test-update-manifest.js",
     "test:updater": "node --test scripts/test-addon-updater.js && vitest run web/src/components/AddonUpdate.test.jsx",
     "test:batch-selection-lifecycle": "node scripts/test-batch-comment-selection-lifecycle.js",

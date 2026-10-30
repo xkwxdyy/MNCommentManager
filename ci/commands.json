@@ -1632,6 +1632,20 @@
         "node",
         "scripts/test-comment-drag-guard.js"
       ]
+    },
+    {
+      "name": "Read-only note access regression",
+      "argv": [
+        "node",
+        "scripts/test-note-access.js"
+      ]
+    },
+    {
+      "name": "Bounded handwriting decoder regression",
+      "argv": [
+        "node",
+        "scripts/test-handwriting-decoder.js"
+      ]
     }
   ]
 }

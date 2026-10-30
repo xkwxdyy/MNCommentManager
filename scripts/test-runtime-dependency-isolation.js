@@ -36,6 +36,7 @@ function loadMain() {
   };
 
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(rootDir, "src", "NoteAccess.js"), "utf8"), context);
   vm.runInContext(mainSource, context, { filename: "main.js" });
   const addon = context.JSB.newAddon("/addons/marginnote.extension.mncommentmanager");
   return { required, addon };
@@ -185,6 +186,7 @@ function loadAddon({
   if (provideMNUtilsRuntime) installMNUtilsRuntime();
 
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(rootDir, "src", "NoteAccess.js"), "utf8"), context);
   for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(path.join(rootDir, "src"), module + ".js"), "utf8"), context);
   vm.runInContext(addonSource, context, { filename: "MNCommentManagerAddon.js" });
   const members = context.createMNCommentManagerAddon("/addons/marginnote.extension.mncommentmanager");
@@ -214,6 +216,7 @@ function loadAddon({
     "CommentFoldState",
     "CommentModuleRules",
     "CommentModuleStore",
+    "NoteAccess",
     "CommentData",
     "UndoGroupingHelper",
     "CommentWorkflowStore",

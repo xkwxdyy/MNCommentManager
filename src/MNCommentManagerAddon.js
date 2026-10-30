@@ -166,7 +166,7 @@ function createMNCommentManagerAddon(mainPath) {
       return MNUtil.getNoteById(target.noteid, false);
     }
     if (typeof target === "string") {
-      const note = MNNote.new(target, false);
+      const note = __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(target);
       return note ? note.note : null;
     }
     return target;

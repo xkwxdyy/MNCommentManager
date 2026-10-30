@@ -41,7 +41,7 @@ var __MN_COMMENT_DATA__ = (function () {
   function getWrappedNoteById(noteId) {
     if (!noteId) return null;
     try {
-      return MNNote.new(String(noteId), false) || null;
+      return __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(noteId);
     } catch (error) {
       return null;
     }
@@ -49,7 +49,7 @@ var __MN_COMMENT_DATA__ = (function () {
 
   function getCurrentNote() {
     try {
-      return MNNote.getFocusNote(true) || null;
+      return __MN_NOTE_ACCESS_MNCommentManagerAddon.current();
     } catch (error) {
       return null;
     }
@@ -188,7 +188,7 @@ var __MN_COMMENT_DATA__ = (function () {
     );
     let conversionReason = "noExcerpt";
     let conversionEligible = false;
-    if (present && !note.parentNote) {
+    if (present && !__MN_NOTE_ACCESS_MNCommentManagerAddon.parentId(note)) {
       conversionReason = "noParent";
     } else if (present && (type === "text" || type === "image")) {
       conversionEligible = true;

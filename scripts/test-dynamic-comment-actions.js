@@ -75,8 +75,12 @@ const context = {
   },
   __MN_COMMENT_ACTION_SETTINGS__: { getSettings() { return { enableDynamicSingleCardButton: true }; } },
 };
+Object.defineProperty(context.MNUtil, "notebookController", { get() {
+  return { notebookId: "BOOK", view: { hidden: false }, focusNote: focusNoteId ? { noteId: focusNoteId } : null };
+} });
 context.globalThis = context;
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(path.join(__dirname, "../src"), "NoteAccess.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowStore.js"), "utf8"), context);
 const templates = context.__MN_COMMENT_WORKFLOW_STORE__.templates();
 context.__MN_COMMENT_WORKFLOW_STORE__.list = () => templates;
