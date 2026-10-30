@@ -58,7 +58,7 @@
     "template": "web"
   },
   "dependencies": {
-    "dompurify": "3.4.1",
+    "dompurify": "3.4.17",
     "katex": "0.17.0",
     "marked": "5.1.2",
     "marked-katex-extension": "5.1.10"
