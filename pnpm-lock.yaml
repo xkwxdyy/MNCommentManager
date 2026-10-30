@@ -12,14 +12,14 @@ importers:
         specifier: 3.4.1
         version: 3.4.1
       katex:
-        specifier: 0.17.0
-        version: 0.17.0
+        specifier: 0.18.2
+        version: 0.18.2
       marked:
         specifier: 5.1.2
         version: 5.1.2
       marked-katex-extension:
         specifier: 5.1.10
-        version: 5.1.10(katex@0.17.0)(marked@5.1.2)
+        version: 5.1.10(katex@0.18.2)(marked@5.1.2)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^6.0.1
@@ -431,8 +431,8 @@ packages:
       canvas:
         optional: true
 
-  katex@0.17.0:
-    resolution: {integrity: sha512-Vdw0ATsQ9V+LuegM/BTwQqV/6cTl5lbGcIrU+BCgLxyf6bo38ybOr372tuSIxir3CN720flu1meYR6XzNMwQnw==}
+  katex@0.18.2:
+    resolution: {integrity: sha512-3snve4y0SXTMequLim1FMiPvLGElySam0blN5xQZBqEY3lOJz1TnuaaiugnBZBqHzlSAGmFTYL7MCQkORuLKCA==}
     hasBin: true
 
   lightningcss-android-arm64@1.32.0:
@@ -1147,7 +1147,7 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  katex@0.17.0:
+  katex@0.18.2:
     dependencies:
       commander: 8.3.0
 
@@ -1210,9 +1210,9 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  marked-katex-extension@5.1.10(katex@0.17.0)(marked@5.1.2):
+  marked-katex-extension@5.1.10(katex@0.18.2)(marked@5.1.2):
     dependencies:
-      katex: 0.17.0
+      katex: 0.18.2
       marked: 5.1.2
 
   marked@5.1.2: {}
