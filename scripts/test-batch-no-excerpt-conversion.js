@@ -64,6 +64,14 @@ function addNoteMethods(note) {
     if (!this.childNotes.includes(child)) this.childNotes.push(child);
     child.parentNote = this;
   };
+  note.deleteDescendants = function () {
+    this.childNotes.slice().forEach(child => child._delete(true));
+  };
+  note._delete = function (withDescendants) {
+    if (withDescendants) this.deleteDescendants();
+    this.removeFromParent();
+    registry.delete(this.noteId);
+  };
   return note;
 }
 
@@ -342,6 +350,17 @@ function createActionSource(suffix, options = {}) {
     });
     clone.delete = function () { registry.delete(this.noteId); };
     registry.set(clone.noteId, clone);
+    const copyChildren = (from, to) => from.childNotes.forEach(child => {
+      cloneSequence += 1;
+      const copied = addNoteMethods({
+        noteId: `DDDDDDDD-DDDD-DDDD-DDDD-${String(cloneSequence).padStart(12, "0")}`,
+        comments: child.comments.map(comment => ({ ...comment })),
+      });
+      registry.set(copied.noteId, copied);
+      to.addChild(copied);
+      copyChildren(child, copied);
+    });
+    copyChildren(this, clone);
     return clone;
   };
   Object.defineProperty(note, "indexInBrotherNotes", {
@@ -969,3 +988,67 @@ restoreNativeState(beforeConversion);
 editorApi.clear(editor);
 assert.strictEqual(editor.externalCardEditorSession, null);
 console.log('pinned editor Native history simulation, repeated undo/redo, edit, copy and refresh passed');
+
+for (const removeOriginal of [false, true]) {
+  const note = createActionSource(removeOriginal ? 82 : 81, {
+    excerptText: 'main excerpt must remain on source',
+    comments: [
+      { type: 'TextNote', text: 'keep original' },
+      { type: 'TextNote', text: '**Markdown**', markdown: true },
+      { type: 'LinkNote', noteid: mergedExcerptSourceId, q_hpic: { paint: 'selected-media', location: mergedLocation }, q_htext: 'image OCR' },
+    ],
+  });
+  const result = context.__MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(note.noteId, [1, 2], 'Comments only', removeOriginal);
+  const child = registry.get(result.createdNoteId);
+  assert.strictEqual(context.__MN_COMMENT_DATA__.getExcerptState(child).present, false);
+  assert.strictEqual(note.excerptText, 'main excerpt must remain on source');
+  assert.strictEqual(child.comments.length, 2); assert.strictEqual(child.comments[0].markdown, true);
+  assert.strictEqual(child.comments[1].q_hpic.paint, 'selected-media');
+  assert.deepStrictEqual(child.comments[1].q_hpic.location, mergedLocation);
+  assert.strictEqual(child.parentNote, note);
+  assert.strictEqual(note.comments.length, removeOriginal ? 1 : 3);
+}
+{
+  const note = createActionSource(83, { excerptText: 'source excerpt', comments: [{ type: 'TextNote', text: 'original' }] });
+  targetMergeHook = target => { target.comments[1].text = 'corrupted clone'; };
+  assert.throws(() => context.__MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(note.noteId, [0], '', true), /未保持|核对/);
+  targetMergeHook = null;
+  assert.strictEqual(note.comments[0].text, 'original'); assert.strictEqual(note.excerptText, 'source excerpt');
+}
+{
+  const note = createActionSource(84, { comments: [{ type: 'TextNote', text: 'source' }] });
+  note.clone = () => note;
+  assert.throws(() => context.__MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(note.noteId, [0], '', true), /独立副本/);
+  assert.strictEqual(note.comments[0].text, 'source');
+}
+console.log('comment-only extraction, source excerpt preservation, media, Markdown, corrupt copies and alias refusal passed');
+
+for (const removeOriginal of [false, true]) {
+  const note = createActionSource(removeOriginal ? 142 : 140, {
+    excerptText: 'source with descendants', comments: [{ type: 'TextNote', text: 'selected comment' }],
+  });
+  const existingChild = createActionSource(removeOriginal ? 143 : 141, { comments: [{ type: 'TextNote', text: 'existing child' }] });
+  const grandchild = createActionSource(removeOriginal ? 145 : 144, { comments: [{ type: 'TextNote', text: 'existing grandchild' }] });
+  note.addChild(existingChild); existingChild.addChild(grandchild);
+  const beforeIds = new Set(registry.keys());
+  const result = context.__MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(note.noteId, [0], '', removeOriginal);
+  const created = [...registry.values()].filter(item => !beforeIds.has(item.noteId));
+  assert.strictEqual(created.length, 2, 'only the result and its merged backing record may remain; cloned descendants must not become orphans');
+  assert.strictEqual(registry.get(existingChild.noteId), existingChild);
+  assert.strictEqual(registry.get(grandchild.noteId), grandchild);
+  assert.strictEqual(existingChild.parentNote, note); assert.strictEqual(grandchild.parentNote, existingChild);
+  assert.strictEqual(existingChild.comments[0].text, 'existing child');
+  assert.strictEqual(registry.get(result.createdNoteId).parentNote, note);
+}
+{
+  const note = createActionSource(146, { comments: [{ type: 'TextNote', text: 'source' }] });
+  const existingChild = createActionSource(147, { comments: [{ type: 'TextNote', text: 'must survive' }] });
+  note.addChild(existingChild);
+  const clone = note.clone;
+  note.clone = function () { const copy = clone.call(this); copy.childNotes = [existingChild]; return copy; };
+  assert.throws(() => context.__MN_COMMENT_MUTATIONS__.extractCommentsToChildNote(note.noteId, [0], '', true), /共用标识/);
+  assert.strictEqual(registry.get(existingChild.noteId), existingChild);
+  assert.strictEqual(existingChild.parentNote, note);
+  assert.strictEqual(note.comments[0].text, 'source');
+}
+console.log('recursive clone cleanup, original descendants preserved and descendant alias refusal passed');

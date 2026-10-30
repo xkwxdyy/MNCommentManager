@@ -2,12 +2,16 @@ const path = require("node:path");
 const { defineConfig } = require("vite");
 const react = require("@vitejs/plugin-react");
 
-module.exports = defineConfig({
+module.exports = defineConfig(({ command }) => {
+  if (command === "build" && !process.env.ADDON_WEB_OUTPUT_DIR) {
+    throw new Error("ADDON_WEB_OUTPUT_DIR is required for an isolated web build");
+  }
+  return {
   plugins: [react()],
   root: __dirname,
   base: "./",
   build: {
-    outDir: path.resolve(__dirname, "../src/web-dist"),
+    outDir: process.env.ADDON_WEB_OUTPUT_DIR ? path.resolve(process.env.ADDON_WEB_OUTPUT_DIR) : undefined,
     emptyOutDir: true,
     sourcemap: false,
     target: "es2018",
@@ -17,4 +21,5 @@ module.exports = defineConfig({
     port: 5173,
     strictPort: true,
   },
+  };
 });

@@ -51,6 +51,38 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
+  delete window.__MNCommentManagerPendingBatchSync;
+  delete window.__MNCommentManagerPendingNativeClose;
+  delete window.__MNCommentManagerPendingPanelClose;
+});
+
+it("opens the first batch editor from a native payload delivered before React is mounted", async () => {
+  await act(async () => root.unmount());
+  window.__MNCommentManagerPendingBatchSync = JSON.stringify({ state: {
+    mode: "batch", token: "before-react", noteIds: ["note-a", "note-b"], cards: [], catalog: [], workflows: [],
+  } });
+  root = createRoot(host);
+  await act(async () => root.render(<App />));
+  expect(host.querySelector('.batch-editor')).not.toBeNull();
+  expect(host.querySelector('.batch-editor').textContent).toContain("2 张卡片");
+  expect(window.__MNCommentManagerPendingBatchSync).toBeUndefined();
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: {
+    noteId: "single-again", noteTitle: "单卡", comments: [], excerpt: { present: false },
+  } }));
+  expect(host.querySelector('.batch-editor-backdrop').hidden).toBe(true);
+  expect(host.querySelector('.batch-editor').getAttribute('aria-modal')).toBeNull();
+});
+
+it("keeps an early native close request until the batch editor mounts its guard", async () => {
+  window.__MNCommentManagerPendingNativeClose = true;
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "early-close", noteIds: ["note-a"], cards: [], catalog: [], workflows: [],
+  } }));
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "closePanel")).toHaveLength(1);
+  expect(host.querySelector('.batch-editor')).toBeNull();
+  expect(window.__MNCommentManagerPendingNativeClose).toBeUndefined();
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
 });
 
 it.each([{ isComposing: true }, { keyCode: 229 }])("keeps workflow drafts open while IME handles Escape: %j", async (options) => {
@@ -83,6 +115,7 @@ it("keeps the workflow footer in the focus loop and restores the opener on close
   expect(document.activeElement).toBe(save);
   await key(save, "Escape");
   await click(button("放弃并关闭"));
+  expect(MNBridge.send).toHaveBeenCalledWith("workflowManagerClosed");
   await vi.waitFor(() => expect(document.activeElement).toBe(opener));
 });
 
@@ -354,6 +387,254 @@ async function openRecordedBatch(saveReply, name = "录制回归") {
   });
   return input;
 }
+
+it("routes native close through the recorded batch draft confirmation", async () => {
+  const input = await openRecordedBatch({});
+  const recordedSteps = [...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent);
+  expect(recordedSteps.length).toBeGreaterThan(0);
+  expect(typeof window.__MNCommentManagerNativeRequestClose).toBe("function");
+  await act(async () => { window.__MNCommentManagerNativeRequestClose(); window.__MNCommentManagerNativeRequestClose(); });
+  expect(host.querySelector('.batch-recording-close-dialog').dataset.closeKind).toBe("unsaved");
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "closePanel")).toHaveLength(0);
+  await click(host.querySelector('[data-batch-close-cancel]'));
+  expect(input.value).toBe("录制回归");
+  expect([...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent)).toEqual(recordedSteps);
+  await act(async () => window.__MNCommentManagerNativeRequestClose());
+  await click(button("放弃并关闭"));
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "closePanel")).toHaveLength(1);
+  expect(host.querySelector('.batch-editor')).toBeNull();
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
+});
+
+it("keeps a recording save and its draft when native close is cancelled", async () => {
+  let resolve, submitted;
+  const pending = new Promise(yes => { resolve = yes; });
+  const input = await openRecordedBatch(payload => { submitted = payload; return pending; });
+  await click(button("保存工作流"));
+  await act(async () => window.__MNCommentManagerNativeRequestClose());
+  expect(host.querySelector('.batch-recording-close-dialog').dataset.closeKind).toBe("saving");
+  await click(host.querySelector('[data-batch-close-cancel]'));
+  expect(input.value).toBe("录制回归");
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "saveWorkflow")).toHaveLength(1);
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "closePanel")).toHaveLength(0);
+  await act(async () => resolve({ ...submitted, id: "native-save-confirmed" }));
+  expect(host.querySelector('.batch-editor')).not.toBeNull();
+  expect(host.querySelector('.batch-recording-save-feedback.success')).not.toBeNull();
+});
+
+it("retains recorded names and steps across a new current card selection", async () => {
+  const input = await openRecordedBatch({});
+  const steps = [...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent);
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "new-current-selection", noteIds: ["new-a", "new-b"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.batch-recording input')).toBe(input);
+  expect(input.value).toBe("录制回归");
+  expect([...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent)).toEqual(steps);
+  expect(host.querySelector('.batch-editor-header').textContent).toContain("2 张卡片");
+  expect(host.querySelector('.batch-editor').textContent).toContain("已有未保存的录制草稿");
+});
+
+it("preserves a hidden recording without keeping its old targets, close handler or focus", async () => {
+  const input = await openRecordedBatch({}); input.focus();
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  expect(host.querySelector('.batch-editor-backdrop').hidden).toBe(true);
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
+  expect(document.activeElement).not.toBe(input);
+  expect(button("执行当前操作").disabled).toBe(true);
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: {
+    noteId: "single-between", noteTitle: "中途单卡", comments: [], excerpt: { present: false },
+  } }));
+  const workflowOpener = button("工作流"); workflowOpener.focus();
+  await click(workflowOpener);
+  expect(host.querySelector('.workflow-manager')).not.toBeNull();
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
+  await click(host.querySelector('[data-workflow-close]'));
+  await vi.waitFor(() => expect(document.activeElement).toBe(workflowOpener));
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "resumed-scope", noteIds: ["new-a", "new-b"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.batch-recording input')).toBe(input);
+  expect(input.value).toBe("录制回归");
+  MNBridge.send.mockClear();
+  await click(button("执行当前操作"));
+  expect(MNBridge.send).toHaveBeenCalledWith("runBatchWorkflow", expect.objectContaining({ token: "resumed-scope" }));
+});
+
+it("closes an old workflow layer when batch mode reopens while retaining its recording draft", async () => {
+  const input = await openRecordedBatch({});
+  const steps = [...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent);
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  await click(button("工作流"));
+  expect(host.querySelector('.workflow-manager')).not.toBeNull();
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "after-workflow", noteIds: ["new-a", "new-b"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(host.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+  expect(host.querySelector('.batch-recording input')).toBe(input);
+  expect(input.value).toBe("录制回归");
+  expect([...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent)).toEqual(steps);
+  expect(window.__MNCommentManagerRequestedView).toBe("");
+});
+
+it.each(["settings", "edit"])("closes a stale %s layer when native batch mode opens", async (kind) => {
+  if (kind === "settings") await click(button("设置"));
+  else {
+    await click(host.querySelector('#comment-0 input[type="checkbox"]'));
+    await click(button("编辑文本"));
+  }
+  expect(host.querySelector('.dialog')).not.toBeNull();
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "after-" + kind, noteIds: ["new-a", "new-b"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.action-button-settings')).toBeNull();
+  expect(host.querySelector('.dialog textarea')).toBeNull();
+  expect(host.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+  expect(host.querySelector('.batch-editor')).not.toBeNull();
+});
+
+it.each(["workflow", "settings"])("ignores an in-flight old %s opening after switching to batch mode", async (kind) => {
+  const send = MNBridge.send.getMockImplementation();
+  let finish;
+  const response = new Promise(resolve => { finish = resolve; });
+  const delayedCommand = kind === "workflow" ? "listWorkflows" : "getActionButtonSettings";
+  MNBridge.send.mockImplementation((command, payload) => command === delayedCommand ? response : send(command, payload));
+  await click(button(kind === "workflow" ? "工作流" : "设置"));
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "pending-" + kind, noteIds: ["new-a", "new-b"], cards: [], catalog: [],
+  } }));
+  await act(async () => finish(kind === "workflow" ? [] : {}));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(host.querySelector('.action-button-settings')).toBeNull();
+  expect(host.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+  expect(host.querySelector('.batch-editor')).not.toBeNull();
+});
+
+it.each(["getWorkflowActionCatalog", "listWorkflows", "getWorkflowTemplates"])("restores native card synchronization when %s fails to open the workflow manager", async (failedCommand) => {
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === failedCommand ? Promise.reject(new Error("工作流读取失败")) : send(command, payload));
+  await click(button("工作流"));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "workflowManagerClosed")).toHaveLength(1);
+  expect(host.querySelector('.status-message').textContent).toContain("工作流读取失败");
+  expect(button("工作流")).toBeTruthy();
+});
+
+it.each(["resolve", "reject"])("does not resurrect a workflow opening after whole native close and late %s", async (result) => {
+  const send = MNBridge.send.getMockImplementation();
+  let finish, fail;
+  const response = new Promise((resolve, reject) => { finish = resolve; fail = reject; });
+  MNBridge.send.mockImplementation((command, payload) => command === "listWorkflows" ? response : send(command, payload));
+  await click(button("工作流"));
+  await act(async () => window.__MNCommentManagerNativePanelClosed());
+  await act(async () => result === "resolve" ? finish([]) : fail(new Error("旧请求失败")));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "workflowManagerClosed")).toHaveLength(0);
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: { noteId: "normal-reopen", noteTitle: "普通管理器重开", comments: [], excerpt: { present: false } } }));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: { mode: "batch", token: "batch-reopen", noteIds: ["a", "b"], cards: [], catalog: [] } }));
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(host.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+});
+
+it("whole native closing clears an existing workflow layer while preserving the hidden recording draft", async () => {
+  const input = await openRecordedBatch({});
+  const steps = [...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent);
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  await click(button("工作流"));
+  expect(host.querySelector('.workflow-manager')).not.toBeNull();
+  await act(async () => window.__MNCommentManagerNativePanelClosed());
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(host.querySelector('.batch-editor-backdrop').hidden).toBe(true);
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: { mode: "batch", token: "recording-reopen", noteIds: ["new-a", "new-b"], cards: [], catalog: [] } }));
+  expect(host.querySelector('.batch-recording input')).toBe(input);
+  expect(input.value).toBe("录制回归");
+  expect([...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent)).toEqual(steps);
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+});
+
+it("consumes a whole close delivered before React can receive it", async () => {
+  await act(async () => root.unmount());
+  window.__MNCommentManagerPendingPanelClose = true;
+  window.__MNCommentManagerRequestedView = "workflow";
+  window.__MNCommentManagerPendingBatchSync = { state: { mode: "batch", token: "stale-before-close", noteIds: ["a", "b"], cards: [], catalog: [] } };
+  root = createRoot(host);
+  await act(async () => root.render(<App />));
+  expect(window.__MNCommentManagerPendingPanelClose).toBeUndefined();
+  expect(window.__MNCommentManagerPendingBatchSync).toBeUndefined();
+  expect(window.__MNCommentManagerRequestedView).toBe("");
+  expect(host.querySelector('.workflow-manager')).toBeNull();
+  expect(host.querySelector('.batch-editor')).toBeNull();
+});
+
+it("does not record a completed execution from an earlier selection into the current draft", async () => {
+  let finish;
+  const response = new Promise(resolve => { finish = resolve; });
+  await openRecordedBatch({});
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === "runBatchWorkflow" ? response : send(command, payload));
+  const priorSteps = [...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent);
+  await click(button("执行当前操作"));
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "replacement-scope", noteIds: ["new-a"], cards: [], catalog: [],
+  } }));
+  await act(async () => finish({ completed: true }));
+  expect([...host.querySelectorAll('.batch-recording > p > span')].map(node => node.textContent)).toEqual(priorSteps);
+});
+
+it("discards an old selection preview after the editor is hidden and restored", async () => {
+  let finish;
+  const response = new Promise(resolve => { finish = resolve; });
+  await openRecordedBatch({});
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === "previewBatchWorkflow" ? response : send(command, payload));
+  await click(button("预览匹配"));
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "new-preview-scope", noteIds: ["new-a"], cards: [], catalog: [],
+  } }));
+  await act(async () => finish({ steps: [{ totalMatched: 999, perCard: [{ matched: 999 }] }] }));
+  expect(host.querySelector('.batch-preview-list')).toBeNull();
+  expect(host.querySelector('.batch-editor').textContent).not.toContain("999");
+});
+
+it("settles a recording save during forced hiding without replaying it on a new selection", async () => {
+  let finish, submitted;
+  const response = new Promise(resolve => { finish = resolve; });
+  await openRecordedBatch(payload => { submitted = payload; return response; });
+  await click(button("保存工作流"));
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  expect(window.__MNCommentManagerNativeRequestClose).toBeUndefined();
+  const visibleStatus = host.querySelector('.status-message').textContent;
+  await act(async () => finish({ ...submitted, id: "saved-while-hidden" }));
+  expect(host.querySelector('.status-message').textContent).toBe(visibleStatus);
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "after-hidden-save", noteIds: ["new-a"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.batch-recording input').value).toBe("");
+  expect(host.querySelector('.batch-recording-save-feedback.success')).not.toBeNull();
+  expect(MNBridge.send.mock.calls.filter(([command]) => command === "saveWorkflow")).toHaveLength(1);
+  await act(async () => window.__MNCommentManagerNativeRequestClose());
+  expect(host.querySelector('.batch-recording-close-dialog')).toBeNull();
+  expect(host.querySelector('.batch-editor')).toBeNull();
+});
+
+it("retains a failed recording save while hidden and restores its failure guard", async () => {
+  let fail;
+  const response = new Promise((_resolve, reject) => { fail = reject; });
+  await openRecordedBatch(() => response);
+  await click(button("保存工作流"));
+  await act(async () => window.__MNCommentManagerBatchNativeSync(null));
+  await act(async () => fail(new Error("隐藏期间保存失败")));
+  await act(async () => window.__MNCommentManagerBatchNativeSync({ state: {
+    mode: "batch", token: "after-hidden-failure", noteIds: ["new-a"], cards: [], catalog: [],
+  } }));
+  expect(host.querySelector('.batch-recording input').value).toBe("录制回归");
+  expect(host.querySelector('.batch-recording-save-feedback.error').textContent).toContain("隐藏期间保存失败");
+  await act(async () => window.__MNCommentManagerNativeRequestClose());
+  expect(host.querySelector('.batch-recording-close-dialog').dataset.closeKind).toBe("failed");
+});
 
 it.each([null, {}, { id: "only-id" }, { id: "bad", name: "录制回归", scope: "batch", steps: [null, null] }])(
   "retains recorded batch drafts on unconfirmed save receipt %j", async (reply) => {

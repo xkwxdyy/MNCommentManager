@@ -4,6 +4,9 @@ import AddonUpdate from "./components/AddonUpdate";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
 import useTwoFingerCommentSelection from "./lib/useTwoFingerCommentSelection";
+import useCommentDragOverview from "./lib/useCommentDragOverview";
+import CommentDragOverview, { CommentDragIcon } from "./components/CommentDragOverview";
+import { dragInsertionIndex } from "./lib/commentDragGeometry.mjs";
 import CommentTypeSelector from "./components/CommentTypeSelector";
 import WorkflowParameters from "./components/WorkflowParameters";
 import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
@@ -879,6 +882,8 @@ function App() {
   const [search, setSearch] = useState("");
   const searchInputRef = useRef(null);
   const commentPaneRef = useRef(null);
+  const dragSessionRef = useRef(null);
+  const [dragHistory, setDragHistory] = useState([]);
   const [status, setStatus] = useState("正在读取当前卡片…");
   const [statusKey, setStatusKey] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -914,6 +919,13 @@ function App() {
   const [hiddenModules, setHiddenModules] = useState(() => new Set());
   const [moduleResult, setModuleResult] = useState(null);
   const [batchEditor, setBatchEditor] = useState(null);
+  const retainedBatchEditorRef = useRef(null);
+  const hideBatchEditorRetainingDraft = () => {
+    if (retainedBatchEditorRef.current) retainedBatchEditorRef.current = {
+      mode: "batch", token: "", noteIds: [], cards: [], catalog: [], workflows: [], error: "当前多卡选区已失效，请重新选择卡片",
+    };
+    setBatchEditor(null);
+  };
   const [invalidLinkCleanup, setInvalidLinkCleanup] = useState(null);
   const invalidLinkCleanupSessionRef = useRef(0);
   const invalidLinkCleanupPreviewRef = useRef(null);
@@ -924,6 +936,20 @@ function App() {
   const mergeDefaultPersistenceRef = useRef({ busy: false, queued: null, latest: false });
   const appMountedRef = useRef(true);
   const currentNoteIdRef = useRef(snapshot.noteId);
+  const resetSingleOverlaysForBatch = () => {
+    overlayOpeningRef.current = "";
+    actionButtonSettingsSessionRef.current += 1;
+    invalidLinkCleanupSessionRef.current += 1;
+    window.__MNCommentManagerRequestedView = "";
+    setOpeningOverlay("");
+    setWorkflowManager(null);
+    setActionButtonSettings(null);
+    setModuleSettingsOpen(false);
+    setModuleResult(null);
+    setDialog(null);
+    setInvalidLinkCleanup(null);
+    setSelectionActionsOpen(false);
+  };
   useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
   useEffect(() => {
     if (dialog || moduleSettingsOpen || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) setSelectionActionsOpen(false);
@@ -1068,13 +1094,31 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen,
+    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
+  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleResult || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragOverview = useCommentDragOverview({
+    paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
+    contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
+    onClaim: () => { twoFingerSelection.cancel(); setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
+    onCommit: (base, from, to) => commitOverviewMove(base, from, to),
+  });
+  dragSessionRef.current = dragOverview;
+  const dragSnapshotKey = (value) => `${value.noteId}:${structureSignature(value.comments || [])}:${value.commentFold?.revision || ''}`;
+  const lastDrag = dragHistory[dragHistory.length - 1];
+  const canUndoDrag = !!lastDrag && lastDrag.after === dragSnapshotKey(snapshot);
+  const describeDragComment = (comment) => ({
+    label: getTypeMeta(comment).label,
+    text: (getLinkedNoteDisplay(comment)?.title || commentText(comment)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+    image: getCommentMediaSources(comment)[0]?.src || '',
+  });
+
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
+    dragSessionRef.current?.cancel();
     twoFingerSelection.cancel(undefined, { restore: false });
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
     currentNoteIdRef.current = normalizedSnapshot.noteId;
@@ -1340,16 +1384,28 @@ function App() {
   }, []);
 
   useEffect(() => {
+    window.__MNCommentManagerNativePanelClosed = () => {
+      delete window.__MNCommentManagerPendingPanelClose;
+      delete window.__MNCommentManagerPendingBatchSync;
+      resetSingleOverlaysForBatch();
+      hideBatchEditorRetainingDraft();
+    };
     window.__MNCommentManagerBatchNativeSync = (raw) => {
+      delete window.__MNCommentManagerPendingBatchSync;
       try {
         const payload = typeof raw === "string" ? JSON.parse(raw) : raw;
-        if (payload?.state?.mode === "batch") setBatchEditor(payload.state);
-        else setBatchEditor(null);
+        if (payload?.state?.mode === "batch") {
+          resetSingleOverlaysForBatch();
+          retainedBatchEditorRef.current = payload.state;
+          setBatchEditor(payload.state);
+        } else hideBatchEditorRetainingDraft();
       } catch (error) {
         notifyStatus(normalizeError(error));
       }
     };
-    return () => { delete window.__MNCommentManagerBatchNativeSync; };
+    if (window.__MNCommentManagerPendingPanelClose) window.__MNCommentManagerNativePanelClosed();
+    if (window.__MNCommentManagerPendingBatchSync != null) window.__MNCommentManagerBatchNativeSync(window.__MNCommentManagerPendingBatchSync);
+    return () => { delete window.__MNCommentManagerBatchNativeSync; delete window.__MNCommentManagerNativePanelClosed; };
   }, []);
 
   const persistMergeToExcerptDefault = (nextChecked) => {
@@ -1411,9 +1467,11 @@ function App() {
     window.__MNCommentManagerNativeSync = (rawPayload) => {
       try {
         const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+        delete window.__MNCommentManagerPendingBatchSync;
+        delete window.__MNCommentManagerPendingNativeClose;
         // A native close or a switch back to single-card mode must dismiss a
         // stale batch overlay that may still be mounted in the WebView.
-        setBatchEditor(null);
+        hideBatchEditorRetainingDraft();
         if (!payload?.snapshot) return;
         const syncMessage = payload.snapshot.error
           ? payload.snapshot.error
@@ -1647,6 +1705,40 @@ function App() {
       indices: [commentIndex],
       targetIndex,
     }, { message: toEdge ? "已移到最下方" : "已下移一位" });
+  };
+
+  const commitOverviewMove = async (base, from, to, undoing = false) => {
+    if (currentViewRef.current.snapshot !== base || commandInFlightRef.current || from === to) return;
+    const expected = base.comments.slice();
+    expected.splice(to, 0, expected.splice(from, 1)[0]);
+    const expectedStructure = structureSignature(expected.map((comment, index) => ({ ...comment, index })));
+    const result = await runCommand('moveComments', {
+      noteId: base.noteId, indices: [base.comments[from].index], targetIndex: dragInsertionIndex(from, to),
+      expectedStructure: structureSignature(base.comments), expectedRevision: base.commentFold?.revision || '',
+    }, {
+      message: '', expectedNoteId: base.noteId, refreshOnError: true,
+      validateResult: value => {
+        if (value?.noteId !== base.noteId || !Array.isArray(value.comments) || structureSignature(value.comments) !== expectedStructure ||
+          value.selectedIndices?.length !== 1 || value.selectedIndices[0] !== to) throw new Error('未能确认评论移动结果，请刷新后检查');
+      },
+    });
+    if (!appMountedRef.current || currentNoteIdRef.current !== base.noteId) return;
+    const after = dragSnapshotKey(result);
+    setDragHistory(previous => {
+      const valid = previous[previous.length - 1]?.after === dragSnapshotKey(base) ? previous : [];
+      if (undoing) {
+        const remaining = valid.slice(0, -1);
+        if (remaining.length) remaining[remaining.length - 1] = { ...remaining[remaining.length - 1], after };
+        return remaining;
+      }
+      return [...valid, { from, to, after }].slice(-30);
+    });
+    requestAnimationFrame(() => {
+      if (!appMountedRef.current || currentNoteIdRef.current !== base.noteId) return;
+      const row = document.getElementById(`comment-${to}`);
+      scrollElementIntoView(row, 'center');
+      row?.querySelector('.comment-drag-handle')?.focus({ preventScroll: true });
+    });
   };
 
   const deleteSingleComment = async (commentIndex) => {
@@ -2392,9 +2484,9 @@ function App() {
   const openActionButtonSettings = async (event) => {
     const returnFocusTarget = event?.currentTarget || null;
     if (overlayOpeningRef.current) return;
-    const openingToken = "settings";
+    const openingToken = { kind: "settings" };
     overlayOpeningRef.current = openingToken;
-    setOpeningOverlay(openingToken);
+    setOpeningOverlay("settings");
     notifyStatus("正在打开评论管理设置…");
     const sessionId = actionButtonSettingsSessionRef.current + 1;
     actionButtonSettingsSessionRef.current = sessionId;
@@ -2444,9 +2536,9 @@ function App() {
   const openWorkflowManager = async (event) => {
     const returnFocusTarget = event?.currentTarget || null;
     if (overlayOpeningRef.current) return;
-    const openingToken = "workflow";
+    const openingToken = { kind: "workflow" };
     overlayOpeningRef.current = openingToken;
-    setOpeningOverlay(openingToken);
+    setOpeningOverlay("workflow");
     notifyStatus("正在打开工作流管理器…");
     try {
       const [catalog, workflows, templates] = await Promise.all([
@@ -2455,6 +2547,7 @@ function App() {
         MNBridge.send("getWorkflowTemplates"),
       ]);
       if (!appMountedRef.current) return;
+      if (overlayOpeningRef.current !== openingToken) return;
       setWorkflowManager({
         catalog: Array.isArray(catalog) ? catalog : [],
         workflows: Array.isArray(workflows) ? workflows : [],
@@ -2463,7 +2556,14 @@ function App() {
       });
       notifyStatus("菜单与工作流设置已打开");
     } catch (error) {
-      if (appMountedRef.current) notifyStatus(normalizeError(error));
+      if (appMountedRef.current && overlayOpeningRef.current === openingToken) {
+        notifyStatus(normalizeError(error));
+        try {
+          await MNBridge.send("workflowManagerClosed");
+        } catch (recoveryError) {
+          if (appMountedRef.current && overlayOpeningRef.current === openingToken) notifyStatus(`${normalizeError(error)}；恢复同步未确认：${normalizeError(recoveryError)}`);
+        }
+      }
     } finally {
       if (overlayOpeningRef.current === openingToken) {
         overlayOpeningRef.current = "";
@@ -2509,6 +2609,7 @@ function App() {
     // Clear the overlay immediately, then ask the native controller to close
     // and invalidate the batch token. This keeps WebView and native lifecycle
     // state aligned even when the bridge response is delayed.
+    retainedBatchEditorRef.current = null;
     setBatchEditor(null);
     try {
       await MNBridge.send("closePanel", { reason: "batch-editor-close" });
@@ -2519,8 +2620,8 @@ function App() {
 
   return (
     <div className="comment-manager" onKeyDownCapture={handleSelectionModeKeyDown}>
-      {batchEditor ? (
-        <BatchCommentEditor key={batchEditor.token || "batch"} state={batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
+      {retainedBatchEditorRef.current ? (
+        <BatchCommentEditor state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
       ) : null}
       <header className="topbar">
         <div className="topbar-title">
@@ -2654,6 +2755,7 @@ function App() {
         </aside>
 
         <div ref={commentPaneRef} className="comment-pane" id="comment-pane">
+          {canUndoDrag ? <div className="cm-drag-undo"><span>评论位置已更新</span><button type="button" className="ghost" aria-label="撤销拖动移动" title="撤销拖动移动" disabled={dragDisabled} onClick={() => execute(() => commitOverviewMove(snapshot, lastDrag.to, lastDrag.from, true))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m8 4-5 5 5 5M3 9h11a6 6 0 0 1 0 12" /></svg></button></div> : null}
           {hasActiveFilter || rangePicking || insertMode ? (
             <div className="list-context" role="group" aria-label={rangePicking || insertMode ? "选择操作" : "筛选结果"}>
               {rangePicking || insertMode ? (
@@ -2793,7 +2895,7 @@ function App() {
                 <article
                   id={`comment-${comment.index}`}
                   data-comment-index={comment.index}
-                  className={`comment-card comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
+                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
                   }}
@@ -2985,6 +3087,11 @@ function App() {
                     ) : null}
                     </>}
                   </div>
+                  <button type="button" className="comment-drag-handle" aria-label={`拖动评论 #${comment.index}`} title="按住拖动排序；空格开始，方向键定位"
+                    disabled={dragDisabled || comments.length < 2 || !canComment(comment, 'canMove')}
+                    onPointerDown={event => dragOverview.begin(event, comment.index)}
+                    onKeyDown={event => { if ([' ', 'Enter'].includes(event.key)) dragOverview.begin(event, comment.index, true); }}
+                    onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()} onDragStart={event => event.preventDefault()}><CommentDragIcon /></button>
                 </article>
               </div>
             );
@@ -2996,6 +3103,7 @@ function App() {
 
         </div>
 
+        <CommentDragOverview frame={dragOverview.frame} describe={describeDragComment} />
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
             <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? `已选 ${excerptSelected ? "摘录 + " : ""}${selectedIndices.length} 条评论` : "尚未选择"}</p>
@@ -3081,6 +3189,9 @@ function App() {
           returnFocusTarget={workflowManager.returnFocusTarget}
           onClose={() => {
             setWorkflowManager(null);
+            MNBridge.send("workflowManagerClosed").catch((error) => {
+              if (appMountedRef.current) notifyStatus(normalizeError(error));
+            });
             setStatus((current) => (
               current === "正在打开工作流管理器…" || current === "菜单与工作流设置已打开"
                 ? "当前卡片已就绪"
@@ -3105,7 +3216,7 @@ function App() {
   );
 }
 
-function BatchCommentEditor({ state, onClose, onStatus }) {
+function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
   const [selectorTypes, setSelectorTypes] = useState([]);
   const [order, setOrder] = useState("forward");
   const [positionMode, setPositionMode] = useState("all");
@@ -3134,9 +3245,13 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   const previewRevisionRef = useRef(0);
   const closeConfirmationRef = useRef(null);
   const closeRequestedRef = useRef(false);
+  const nativeCloseRequestRef = useRef(null);
   const batchEditorRef = useRef(null);
   const closeDialogRef = useRef(null);
   const mountedRef = useRef(true);
+  const currentScopeRef = useRef(null);
+  currentScopeRef.current = { token: state.token, active };
+  const hasCurrentSelection = active && !!state.token && (state.noteIds || []).length > 0 && !state.error;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -3144,13 +3259,27 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   }, []);
 
   useEffect(() => {
+    if (!active) {
+      if (batchEditorRef.current?.contains(document.activeElement)) document.activeElement.blur();
+      return;
+    }
     const dialogElement = batchEditorRef.current;
     const recordingToggle = dialogElement?.querySelector?.("[data-batch-recording-toggle]") || null;
     focusInitialDialogControl(dialogElement, recordingToggle);
-  }, []);
+  }, [active]);
 
   useEffect(() => {
-    if (!closeConfirmation) return;
+    previewRevisionRef.current += 1;
+    setPreview(null);
+    setExecutionFailure(null);
+    setEditorMessage(state.error || "");
+    setEditorMessageKind(state.error ? "error" : "status");
+    closeConfirmationRef.current = null;
+    setCloseConfirmation(null);
+  }, [state.token, active]);
+
+  useEffect(() => {
+    if (!active || !closeConfirmation) return;
     if (closeConfirmation.kind === "saving" && !savingRecording) {
       cancelEditorClose();
       return;
@@ -3158,7 +3287,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
     const dialogElement = closeDialogRef.current;
     const cancelButton = dialogElement?.querySelector?.("[data-batch-close-cancel]") || null;
     focusInitialDialogControl(dialogElement, cancelButton);
-  }, [closeConfirmation, savingRecording]);
+  }, [active, closeConfirmation, savingRecording]);
 
   const selectorBase = {
     subject: "comments",
@@ -3220,11 +3349,12 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   };
 
   const beginBatchOperation = (kind) => {
+    if (!hasCurrentSelection) { report("当前多卡选区已失效，请重新选择卡片", "error"); return null; }
     if (batchOperationRef.current) {
       report("请等待当前批量操作完成");
       return null;
     }
-    const operation = { kind };
+    const operation = { kind, token: state.token };
     batchOperationRef.current = operation;
     setBusy(true);
     setBatchOperationKind(kind);
@@ -3260,6 +3390,21 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
     closeConfirmationRef.current = nextConfirmation;
     setCloseConfirmation(nextConfirmation);
   };
+
+  nativeCloseRequestRef.current = requestEditorClose;
+  useEffect(() => {
+    if (!active) return;
+    const requestNativeClose = () => {
+      delete window.__MNCommentManagerPendingNativeClose;
+      nativeCloseRequestRef.current(batchEditorRef.current?.querySelector("[data-batch-editor-close]"));
+    };
+    window.__MNCommentManagerNativeRequestClose = requestNativeClose;
+    if (window.__MNCommentManagerPendingNativeClose) requestNativeClose();
+    return () => {
+      if (window.__MNCommentManagerNativeRequestClose === requestNativeClose) delete window.__MNCommentManagerNativeRequestClose;
+      delete window.__MNCommentManagerPendingNativeClose;
+    };
+  }, [active]);
 
   const cancelEditorClose = () => {
     const current = closeConfirmationRef.current;
@@ -3311,7 +3456,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         ],
       };
       const result = await MNBridge.send("runBatchWorkflow", { token: state.token, workflow });
-      if (!mountedRef.current || batchOperationRef.current !== operation) return;
+      if (!mountedRef.current || batchOperationRef.current !== operation || !currentScopeRef.current.active || currentScopeRef.current.token !== operation.token) return;
       // Failed or cancelled executions are deliberately not recorded. A
       // partial result may have mutated some cards, but it is not a confirmed
       // workflow step from the user's perspective.
@@ -3325,7 +3470,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         report(result.statusMessage || "批量操作未完成");
       }
     } catch (error) {
-      if (mountedRef.current && batchOperationRef.current === operation) report(normalizeError(error), "error");
+      if (mountedRef.current && batchOperationRef.current === operation && currentScopeRef.current.active && currentScopeRef.current.token === operation.token) report(normalizeError(error), "error");
     } finally {
       finishBatchOperation(operation);
     }
@@ -3345,11 +3490,11 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         steps: [{ kind: "select", selector }],
       };
       const result = await MNBridge.send("previewBatchWorkflow", { token: state.token, workflow });
-      if (!mountedRef.current || batchOperationRef.current !== operation || previewRevisionRef.current !== previewRevision) return;
+      if (!mountedRef.current || batchOperationRef.current !== operation || previewRevisionRef.current !== previewRevision || !currentScopeRef.current.active || currentScopeRef.current.token !== operation.token) return;
       setPreview(result);
       report(`预览：共匹配 ${result?.steps?.[0]?.totalMatched || 0} 条评论`);
     } catch (error) {
-      if (mountedRef.current && batchOperationRef.current === operation && previewRevisionRef.current === previewRevision) {
+      if (mountedRef.current && batchOperationRef.current === operation && previewRevisionRef.current === previewRevision && currentScopeRef.current.active && currentScopeRef.current.token === operation.token) {
         report(normalizeError(error), "error");
       }
     } finally {
@@ -3393,7 +3538,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
         throw receiptError;
       }
       const message = `已保存工作流「${savedWorkflow.name}」`;
-      onStatus(message);
+      if (currentScopeRef.current.active) onStatus(message);
       if (!mountedRef.current) return;
       setEditorMessage(message);
       setEditorMessageKind("success");
@@ -3403,7 +3548,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
       setName("");
     } catch (error) {
       const message = normalizeError(error);
-      onStatus(message);
+      if (currentScopeRef.current.active) onStatus(message);
       if (!mountedRef.current) return;
       setEditorMessage(message);
       setEditorMessageKind("error");
@@ -3420,16 +3565,17 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
   };
 
   return (
-    <div className="dialog-backdrop batch-editor-backdrop" role="presentation">
+    <div className="dialog-backdrop batch-editor-backdrop" role="presentation" hidden={!active} style={active ? undefined : { display: "none" }}>
       <section
         ref={batchEditorRef}
         className="dialog batch-editor"
         role="dialog"
-        aria-modal="true"
+        aria-modal={active ? "true" : undefined}
         aria-labelledby="batch-editor-title"
         aria-busy={busy || savingRecording ? "true" : undefined}
         tabIndex={-1}
         onKeyDown={(event) => {
+          if (!active) return;
           if (isComposingKeyEvent(event)) return;
           if (closeConfirmationRef.current) return;
           keepFocusWithinDialog(event, batchEditorRef.current);
@@ -3439,14 +3585,16 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
           <div><h2 id="batch-editor-title">多卡评论编辑器</h2><p>{(state.noteIds || []).length} 张卡片 · 每张卡片分别处理</p></div>
           <Button data-batch-recording-toggle className={recording ? "danger" : "secondary"} aria-pressed={recording ? "true" : "false"} disabled={busy || savingRecording} onClick={toggleRecording}>{recording ? "停止录制" : "开始录制"}</Button>
         </header>
+        {batchRecordingDraftSignature(name, steps) !== savedRecordingSignature ? <p className="batch-editor-status" role="status">已有未保存的录制草稿。执行仅作用于当前选区，保存工作流不会修改卡片。</p> : null}
+        {state.error ? <p className="batch-editor-status error" role="alert">{state.error}</p> : null}
         {editorMessage ? <p className={`batch-editor-status ${editorMessageKind}`} role={editorMessageKind === "error" ? "alert" : "status"}>{editorMessage}</p> : null}
         <div className="batch-editor-grid">
-          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 摘录：{excerptTypeLabels[card.excerptType] || card.excerptType || "无"}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
+          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 主摘录：{excerptTypeLabels[card.excerptType] || card.excerptType || "无"}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
           <section>
-            <h3>选择器</h3>
+            <h3>评论范围</h3>
             <CommentTypeSelector types={selectorTypes} disabled={busy} onChange={(types) => { setSelectorTypes(types); invalidateBatchPreview(); }} />
             <label>
-              位置
+              评论位置
               <HtmlSelect disabled={busy} value={positionMode} onChange={(event) => { setPositionMode(event.target.value); invalidateBatchPreview(); }}>
                 {WORKFLOW_POSITION_MODES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
               </HtmlSelect>
@@ -3465,19 +3613,19 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
             ) : null}
             <small className={selectorError ? "workflow-input-error" : "workflow-options-hint"}>{selectorError || "0 = 第一条，-1 = 最后一条；范围端点含首尾"}</small>
             <label>
-              排列顺序
+              处理顺序
               <HtmlSelect disabled={busy} value={order} onChange={(event) => { setOrder(event.target.value); invalidateBatchPreview(); }}>
                 <option value="forward">正序</option>
                 <option value="reverse">倒序</option>
               </HtmlSelect>
             </label>
-            <label className="dialog-check"><input type="checkbox" disabled={busy} checked={mergeableOnly} onChange={(event) => { setMergeableOnly(event.target.checked); invalidateBatchPreview(); }} /><span>仅可合并文本</span></label>
-            <label className="dialog-check"><input type="checkbox" disabled={busy} checked={includeExcerpt} onChange={(event) => { setIncludeExcerpt(event.target.checked); invalidateBatchPreview(); }} /><span>包含原生摘录</span></label>
+            <label className="dialog-check"><input type="checkbox" disabled={busy} checked={mergeableOnly} onChange={(event) => { setMergeableOnly(event.target.checked); invalidateBatchPreview(); }} /><span>仅选择可合并的文本</span></label>
+            <label className="dialog-check"><input type="checkbox" disabled={busy} checked={includeExcerpt} onChange={(event) => { setIncludeExcerpt(event.target.checked); invalidateBatchPreview(); }} /><span>同时选择主摘录</span></label>
             {preview?.steps?.[0]?.perCard ? <div className="batch-preview-list">{preview.steps[0].perCard.map((item, index) => <span key={index}>卡片 {index + 1}：{item.positionOutOfRange ? "位置不存在，跳过" : `匹配 ${item.matched} 条`}</span>)}</div> : null}
-            <Button className="secondary wide" disabled={busy || !!selectorError} onClick={previewSelection}>{batchOperationKind === "preview" ? "预览中…" : "预览匹配"}</Button>
+            <Button className="secondary wide" disabled={!hasCurrentSelection || busy || !!selectorError} onClick={previewSelection}>{batchOperationKind === "preview" ? "预览中…" : "预览匹配"}</Button>
           </section>
           <section>
-            <h3>动作</h3>
+            <h3>处理方式</h3>
             <HtmlSelect disabled={busy || savingRecording} value={action} onChange={(event) => { setAction(event.target.value); invalidateBatchPreview(); }}>
               {(state.catalog || []).filter((item) => item.compatible !== false).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </HtmlSelect>
@@ -3490,7 +3638,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
                 </HtmlSelect>
               </label>
             ) : null}
-            <Button className="primary wide" disabled={busy || savingRecording || !!selectorError} onClick={execute}>{batchOperationKind === "execute" ? "执行中…" : "执行当前操作"}</Button>
+            <Button className="primary wide" disabled={!hasCurrentSelection || busy || savingRecording || !!selectorError} onClick={execute}>{batchOperationKind === "execute" ? "执行中…" : "执行当前操作"}</Button>
           </section>
         </div>
         {executionFailure ? (
@@ -3567,7 +3715,7 @@ function BatchCommentEditor({ state, onClose, onStatus }) {
           </section>
         ) : null}
         <div className="dialog-actions"><Button data-batch-editor-close className="secondary" disabled={busy} onClick={requestEditorClose}>关闭</Button></div>
-        {closeConfirmation ? (
+        {active && closeConfirmation ? (
           <div className="dialog-backdrop batch-recording-close-backdrop" role="presentation" onClick={cancelEditorClose}>
             <section
               ref={closeDialogRef}
@@ -3627,7 +3775,7 @@ function ActionButtonSettingsDialog({
   const actionShortLabels = {
     manager: "评论管理器",
     quickInput: "添加评论",
-    menu: "处理菜单",
+    menu: "整卡操作",
     none: "不执行操作",
   };
   const buttonOptions = {
@@ -3635,10 +3783,10 @@ function ActionButtonSettingsDialog({
       key: "showManagementButton",
       shortLabel: "管理",
       label: "显示管理按钮",
-      hint: "单击与长按的动作可以分别设置。",
+      hint: "单击与长按分别设置；下拉箭头始终打开整卡操作，并随管理入口一起显隐和排序。",
       icon: (
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="3.5" width="14" height="13" rx="2.5" />
+          <path d="M4 3.5h12a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H8L4 18v-2.5A1.5 1.5 0 0 1 2.5 14V5A1.5 1.5 0 0 1 4 3.5Z" />
           <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4.5" />
         </svg>
       ),
@@ -3665,13 +3813,12 @@ function ActionButtonSettingsDialog({
     },
     move: {
       key: "showMoveCommentButton",
-      shortLabel: "移动评论",
-      label: "显示移动评论按钮",
-      hint: "移动按钮仅在卡片至少有两条评论时显示。",
+      shortLabel: "评论整理",
+      label: "显示评论整理按钮",
+      hint: "卡片包含评论或主摘录时显示，支持排序、多选、折叠及提取到子卡片。",
       icon: (
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M7 4.5v11M7 4.5 4.5 7M7 4.5 9.5 7" />
-          <path d="M13 15.5v-11M13 15.5 10.5 13M13 15.5 15.5 13" />
+          <path d="m3 5 1.5 1.5L7 3M10 5h7M3 11l1.5 1.5L7 9M10 11h7M3 17l1.5 1.5L7 15M10 17h7" />
         </svg>
       ),
       actions: [],
@@ -3816,11 +3963,11 @@ function ActionButtonSettingsDialog({
                 type="checkbox"
                 checked={settings?.showBatchButton === true}
                 disabled={busy}
-                onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选时显示评论按钮")}
+                onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选卡片时显示操作入口")}
               />
               <span>
-                <strong>多选时显示评论按钮</strong>
-                <small>默认开启。关闭后，多选卡片不再显示“评论”批处理入口。</small>
+                <strong>多选卡片时显示操作入口</strong>
+                <small>默认开启。主按钮打开多卡评论编辑器，下拉按钮打开所选卡片操作菜单；长按主按钮仍可打开编辑器。关闭后同时隐藏相关入口。</small>
               </span>
             </label>
 
@@ -3835,6 +3982,19 @@ function ActionButtonSettingsDialog({
                 <span>
                   <strong>单卡时显示浮动按钮</strong>
                   <small>总开关。关闭后隐藏全部浮动按钮，保留各按钮的开关、顺序和动作设置。</small>
+                </span>
+              </label>
+
+              <label className={savingKey === "autoHideNativeDuplicates" ? "dialog-check saving" : "dialog-check"}>
+                <input
+                  type="checkbox"
+                  checked={settings?.autoHideNativeDuplicates !== false}
+                  disabled={busy}
+                  onChange={(event) => saveSetting("autoHideNativeDuplicates", event.target.checked, "自动隐藏重复动态入口")}
+                />
+                <span>
+                  <strong>自动隐藏重复动态入口</strong>
+                  <small>当前原生卡片菜单提供相应功能时，隐藏重复的默认浮动入口；自定义动作及原有显示设置继续保留。</small>
                 </span>
               </label>
 
@@ -3881,6 +4041,7 @@ function ActionButtonSettingsDialog({
                           >
                             <span className="dynamic-button-preview-dot">{enabled ? activeRank : "–"}</span>
                             <span className="dynamic-button-preview-icon">{option.icon}</span>
+                            {id === "management" ? <span aria-hidden="true">⌄</span> : null}
                             <span>{option.shortLabel}</span>
                           </span>
                         );

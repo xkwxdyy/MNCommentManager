@@ -2,6 +2,8 @@ const path = require("node:path");
 const { defineConfig } = require("vite");
 const react = require("@vitejs/plugin-react");
 
+if (!process.env.ADDON_WEB_OUTPUT_DIR) throw new Error("ADDON_WEB_OUTPUT_DIR is required for release builds");
+
 module.exports = defineConfig({
   plugins: [react()],
   root: __dirname,
@@ -9,7 +11,7 @@ module.exports = defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
   build: {
-    outDir: path.resolve(__dirname, "../src/web-dist/assets"),
+    outDir: path.resolve(process.env.ADDON_WEB_OUTPUT_DIR, "assets"),
     emptyOutDir: false,
     sourcemap: false,
     target: "safari11",

@@ -154,7 +154,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function pushCurrentNoteSnapshot(controller, reason) {
-    if (!controller || !controller.webView) return;
+    if (!controller || !controller.webView || controller.view && controller.view.hidden === true) return;
+    if (controller.panelMode === "batch") return pushBatchEditorState(controller, reason);
 
     let snapshot = null;
     try {
@@ -172,13 +173,19 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       reason: reason || "panel-sync",
       snapshot,
     };
-    const script = `window.__MNCommentManagerNativeSync&&window.__MNCommentManagerNativeSync('${encodeBridgeJSON(payload)}')`;
+    const script = `window.__MNCommentManagerPendingBatchSync=null;window.__MNCommentManagerPendingNativeClose=null;window.__MNCommentManagerNativeSync&&window.__MNCommentManagerNativeSync('${encodeBridgeJSON(payload)}')`;
     evaluateScript(controller.webView, script);
     coordinateHandwritingPreviewRefresh(controller, snapshot);
   }
 
+  function deliverBatchEditorState(controller, payload) {
+    // The page may finish loading before React installs the batch receiver.
+    const script = `window.__MNCommentManagerPendingBatchSync='${encodeBridgeJSON(payload)}';window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync(window.__MNCommentManagerPendingBatchSync)`;
+    evaluateScript(controller.webView, script);
+  }
+
   function pushBatchEditorState(controller, reason) {
-    if (!controller || !controller.webView) return;
+    if (!controller || !controller.webView || controller.panelMode !== "batch" || controller.view && controller.view.hidden === true) return;
     try {
       const batch = controller.addon && controller.addon.batchCommentContext;
       const state = batch && Array.isArray(batch.notes)
@@ -188,11 +195,10 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
         )
         : { mode: "batch", token: "", cards: [], noteIds: [], catalog: [], workflows: [], error: "未读取到多选卡片" };
       const payload = { reason: reason || "batch-panel-sync", state };
-      const script = `window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync('${encodeBridgeJSON(payload)}')`;
-      evaluateScript(controller.webView, script);
+      deliverBatchEditorState(controller, payload);
     } catch (error) {
       const payload = { reason: reason || "batch-panel-sync", state: { mode: "batch", cards: [], noteIds: [], catalog: [], workflows: [], error: String(error && error.message ? error.message : error) } };
-      evaluateScript(controller.webView, `window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync('${encodeBridgeJSON(payload)}')`);
+      deliverBatchEditorState(controller, payload);
     }
   }
 
@@ -331,9 +337,19 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
   }
 
   function performCloseWindow(controller) {
+    if (controller.addon) controller.addon.mncmWorkflowManagerModalOpen = false;
+    if (controller.addon && controller.addon.mncmWorkflowPanelOwnsEntries === true) {
+      controller.addon.mncmWorkflowPanelOwnsEntries = false;
+      // The panel owned these selections while visible. Its close must not
+      // revive old popup targets before the next real selection notification.
+      if (typeof __MN_DYNAMIC_COMMENT_ACTIONS__ !== "undefined") __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(controller.addon, "workflow.closed");
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== "undefined") __MN_BATCH_COMMENT_ACTIONS__.hideButton(controller.addon, "workflow.closed");
+    }
     if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(controller);
     controller._requestedView = "";
-    if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerRequestedView='';");
+    controller._snapshotSyncSeq = (controller._snapshotSyncSeq || 0) + 1;
+    controller._handwritingPreviewRetry = null;
+    if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerRequestedView='';window.__MNCommentManagerPendingBatchSync=null;window.__MNCommentManagerPendingNativeClose=null;window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync(null);window.__MNCommentManagerPendingPanelClose=true;window.__MNCommentManagerNativePanelClosed&&window.__MNCommentManagerNativePanelClosed();");
     controller.view.hidden = true;
     if (controller.view.superview) {
       controller.view.removeFromSuperview();
@@ -342,6 +358,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     if (controller && controller.panelMode === "batch" && controller.addon) {
       controller.addon.batchCommentContext = null;
       controller.panelMode = "single";
+      if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== 'undefined') __MN_BATCH_COMMENT_ACTIONS__.editorClosed(controller.addon);
     }
 
     NSTimer.scheduledTimerWithTimeInterval(0, false, function () {
@@ -349,6 +366,14 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       if (!targetWindow) return;
       Application.sharedInstance().studyController(targetWindow).refreshAddonCommands();
     });
+  }
+
+  function requestHidePanel(controller) {
+    if (controller.panelMode === "batch") {
+      if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerPendingNativeClose=true;window.__MNCommentManagerNativeRequestClose&&window.__MNCommentManagerNativeRequestClose();");
+      return;
+    }
+    performCloseWindow(controller);
   }
 
   function getStudyRootBounds(controller) {
@@ -620,7 +645,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     },
 
     closeWindow: function () {
-      performCloseWindow(self);
+      requestHidePanel(self);
     },
 
     handlePan: function (recognizer) {
@@ -800,9 +825,13 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
 
   function showPanel(controller, options) {
     const panelOptions = options && typeof options === "object" ? options : {};
+    if (controller.addon) controller.addon.mncmWorkflowPanelOwnsEntries = panelOptions.requestedView === "workflow";
+    if (controller.addon) controller.addon.mncmWorkflowManagerModalOpen = panelOptions.requestedView === "workflow";
+    if (controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerPendingPanelClose=null;");
     if (!panelOptions.externalCardEditor && typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(controller);
     controller._requestedView = panelOptions.requestedView === "workflow" ? "workflow" : "";
     controller.panelMode = panelOptions.mode === "batch" ? "batch" : "single";
+    if (controller.panelMode !== "batch" && controller.webView) evaluateScript(controller.webView, "window.__MNCommentManagerPendingBatchSync=null;window.__MNCommentManagerPendingNativeClose=null;window.__MNCommentManagerBatchNativeSync&&window.__MNCommentManagerBatchNativeSync(null);");
     const targetWindow = controller.addon ? controller.addon.window : controller.addonWindow;
     const studyController = Application.sharedInstance().studyController(targetWindow);
     if (!studyController || !studyController.view) {
@@ -849,6 +878,7 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
     createController,
     showPanel,
     hidePanel,
+    requestHidePanel,
     shouldRestorePanel,
     ensureLayout,
     syncCurrentNote: scheduleCurrentNoteSnapshotPush,

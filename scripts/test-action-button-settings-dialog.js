@@ -137,11 +137,11 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
       },
       "showBatchButton",
       false,
-      "多选时显示评论按钮",
+      "多选卡片时显示操作入口",
     );
     assert.deepStrictEqual(JSON.parse(JSON.stringify(result)), {
       kind: "success",
-      message: "“多选时显示评论按钮”已保存",
+      message: "“多选卡片时显示操作入口”已保存",
       settings: { showBatchButton: false, enableDynamicSingleCardButton: true },
     });
     assert.deepStrictEqual(calls, [["change", { showBatchButton: false }]], "a confirmed save must not issue an unnecessary readback");
@@ -161,7 +161,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
       },
       "showBatchButton",
       false,
-      "多选时显示评论按钮",
+      "多选卡片时显示操作入口",
     );
     assert.strictEqual(result.kind, "success");
     assert.ok(result.message.includes("完成核对"));
@@ -202,7 +202,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
       async () => ({ showBatchButton: true }),
       "showBatchButton",
       false,
-      "多选时显示评论按钮",
+      "多选卡片时显示操作入口",
     );
     assert.strictEqual(result.kind, "error");
     assert.ok(result.message.includes("write failed"));
@@ -217,7 +217,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
       async () => { throw new Error("read failed"); },
       "showBatchButton",
       false,
-      "多选时显示评论按钮",
+      "多选卡片时显示操作入口",
     );
     assert.strictEqual(result.kind, "error");
     assert.ok(result.message.includes("write failed"));
@@ -283,7 +283,7 @@ const { persistActionButtonSetting: persist, applyActionButtonSettingsForSession
   assert.ok(dialog.includes("tabIndex={-1}"));
   assert.ok(dialog.includes('role={feedback.kind === "error" || feedback.kind === "warning" ? "alert" : "status"}'));
   assert.ok(dialog.includes("关闭窗口不会取消本次保存"), "the pending state must not imply that closing cancels a Native mutation");
-  assert.ok(dialog.includes('onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选时显示评论按钮")}'));
+  assert.ok(dialog.includes('onChange={(event) => saveSetting("showBatchButton", event.target.checked, "多选卡片时显示操作入口")}'));
   assert.ok(dialog.includes('onChange={(event) => saveSetting("enableDynamicSingleCardButton", event.target.checked, "单卡浮动按钮")}'));
   assert.strictEqual((dialog.match(/persistActionButtonSetting\(/g) || []).length, 1, "each user change must pass through one guarded save lifecycle");
   assert.ok(dialog.includes("if (loading || savingRef.current) return"), "same-tick duplicate settings mutations must be blocked synchronously");

@@ -20,10 +20,16 @@ fs.mkdirSync(output, { recursive: true });
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('.quick-card').getBoundingClientRect();
         return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom,
+          backdrop: getComputedStyle(document.querySelector('.quick-backdrop')).backgroundColor,
+          surface: getComputedStyle(document.querySelector('.quick-card')).backgroundColor,
+          ink: getComputedStyle(document.querySelector('textarea')).color,
           overflow: document.documentElement.scrollWidth > innerWidth,
           controls: [...document.querySelectorAll('.quick-card button')].map(button => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })) };
       });
       assert(!layout.overflow); assert(layout.left >= 0 && layout.top >= 0 && layout.right <= width && layout.bottom <= height);
+      assert.equal(layout.backdrop, 'rgba(0, 0, 0, 0)');
+      assert.equal(layout.surface, colorScheme === 'dark' ? 'rgb(37, 43, 53)' : 'rgb(252, 252, 253)');
+      assert.equal(layout.ink, colorScheme === 'dark' ? 'rgb(237, 240, 245)' : 'rgb(32, 38, 50)');
       assert(layout.controls.every(rect => rect.width >= 43.99 && rect.height >= 43.99), JSON.stringify({ width, height, layout }));
       await page.getByRole('textbox', { name: '评论内容' }).fill('第一行');
       await page.getByRole('button', { name: '插入换行' }).click();
@@ -42,7 +48,7 @@ fs.mkdirSync(output, { recursive: true });
       assert.equal(await page.locator('#quick-demo-comments p').count(), 1);
       assert.equal(await page.locator('#quick-demo-comments').textContent(), '第一行\n第二行');
       assert.deepEqual(errors, []);
-      report.push({ width, height, colorScheme, directed: !!directed, errors, passed: true });
+      report.push({ width, height, colorScheme, layout, directed: !!directed, errors, passed: true });
       await page.close();
     }
     const page = await browser.newPage({ viewport: { width: 375, height: 600 }, reducedMotion: 'reduce' });

@@ -49,6 +49,15 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     };
   }
 
+  function workflowManagerClosed(context) {
+    const addon = context.addon || context.controller && context.controller.addon;
+    if (addon) addon.mncmWorkflowManagerModalOpen = false;
+    // Keep following controls behind the still-open native panel, while its
+    // ordinary comment view resumes syncing the current selected card.
+    __MN_WEB_API_MNCommentManagerAddon.syncCurrentNote(context.controller, "workflow-manager-closed");
+    return { closed: true };
+  }
+
   function getCurrentNoteComments(context) {
     return typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined" ? __MN_CARD_EDITOR_MNCommentManagerAddon.getSnapshot(context && context.controller) : __MN_COMMENT_DATA__.getCurrentNoteSnapshot();
   }
@@ -58,7 +67,8 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
   }
 
   function moveComments(context, payload) {
-    return __MN_COMMENT_MUTATIONS__.moveComments(payload.noteId, payload.indices, payload.targetIndex);
+    return __MN_COMMENT_MUTATIONS__.moveComments(payload.noteId, payload.indices, payload.targetIndex,
+      payload.expectedStructure !== undefined ? { expectedStructure: payload.expectedStructure, expectedRevision: payload.expectedRevision } : undefined);
   }
 
   function setCommentsCollapsed(context, payload) {
@@ -223,7 +233,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     const settings = __MN_COMMENT_ACTION_SETTINGS__.updateSettings(payload);
     if (settings.showBatchButton !== true) __MN_BATCH_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
     if (settings.enableDynamicSingleCardButton !== true) __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(context.addon, "settings.disabled");
-    else if (["enableDynamicSingleCardButton", "showManagementButton", "showQuickCommentButton", "showMoveCommentButton", "dynamicButtonOrder",
+    else if (["enableDynamicSingleCardButton", "autoHideNativeDuplicates", "showManagementButton", "showQuickCommentButton", "showMoveCommentButton", "dynamicButtonOrder",
       "managementTapAction", "managementHoldAction", "addTapAction", "addHoldAction"].some((key) => payload && payload[key] !== undefined)) {
       __MN_DYNAMIC_COMMENT_ACTIONS__.refreshButtons(context.addon);
     }
@@ -377,6 +387,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     ping,
     echo,
     closePanel,
+    workflowManagerClosed,
     openHelpVideo,
     getCurrentNoteComments,
     refreshCurrentNote,

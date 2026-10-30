@@ -69,10 +69,12 @@ var __MN_UPDATER_MNCommentManagerAddon = (function () {
   }
 
   async function request(url, binary) {
-    if (typeof MNConnection === "undefined") throw new Error("MN Utils 网络模块尚未就绪");
-    const method = typeof MNConnection.fetchDev === "function" ? MNConnection.fetchDev : MNConnection.fetch;
+    const owner = typeof MNUtil !== "undefined" && typeof MNUtil.fetch === "function" ? MNUtil
+      : (typeof MNConnection !== "undefined" ? MNConnection : null);
+    if (!owner) throw new Error("MN Utils 网络模块尚未就绪");
+    const method = typeof owner.fetchDev === "function" ? owner.fetchDev : owner.fetch;
     if (typeof method !== "function") throw new Error("MN Utils 网络模块不可用");
-    const response = await method.call(MNConnection, url, {
+    const response = await method.call(owner, url, {
       method: "GET", timeout: binary ? 180 : 15,
       headers: { "Cache-Control": "no-cache", "Accept-Encoding": "identity" },
     });
@@ -234,14 +236,25 @@ var __MN_UPDATER_MNCommentManagerAddon = (function () {
     let retries = 12;
     function attempt() {
       if (!preferences().autoCheck) { autoStarted = false; return; }
-      if (typeof MNConnection === "undefined" || (typeof MNConnection.fetchDev !== "function" && typeof MNConnection.fetch !== "function")) {
+      const modernReady = typeof MNUtil !== "undefined" && typeof MNUtil.fetch === "function";
+      const legacyReady = typeof MNConnection !== "undefined" && (typeof MNConnection.fetchDev === "function" || typeof MNConnection.fetch === "function");
+      if (!modernReady && !legacyReady) {
         if (retries-- > 0) NSTimer.scheduledTimerWithTimeInterval(1, false, attempt);
         else autoStarted = false;
         return;
       }
       check().then(function (state) {
         if (state.result && state.result.updateAvailable) {
-          try { Application.sharedInstance().showHUD("MN Comment Manager 有新版本 v" + state.result.latestVersion + "，可在设置中的插件更新区域安装", addon.window, 5); } catch (_) {}
+          try {
+            // Optional feedback must not initialize a cold notification view.
+            const controller = typeof notificationUtils !== "undefined" && notificationUtils.notifyController;
+            if (typeof MNNotification === "undefined" || typeof MNNotification.simple !== "function"
+              || !notificationUtils.config || !controller || !controller.webviewResponse || Number(controller.isWebViewDidFinishLoad) !== 1
+              || (typeof subscriptionUtils !== "undefined" && [false, 0, "0"].includes(subscriptionUtils.addonConnected))) return;
+            Promise.resolve(MNNotification.simple("MN Comment Manager", "有新版本 v" + state.result.latestVersion + "，可在设置中的插件更新区域安装", "MN Comment Manager", {
+              id: ADDON_ID + "-update", autoCloseSeconds: 5
+            })).catch(function (error) { console.log("[MN Comment Manager] update notification failed: " + error); });
+          } catch (_) {}
         }
       }).catch(function (error) { console.log("[MN Comment Manager] auto update check failed: " + error); });
     }

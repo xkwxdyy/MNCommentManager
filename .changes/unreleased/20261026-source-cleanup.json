@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "source-cleanup",
+  "changes": [
+    {
+      "id": "source-cleanup-20261026",
+      "type": "changed",
+      "zh": "移出历史快照与旧工作树，保留完整历史和未提交内容并限定源码检索范围。",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}

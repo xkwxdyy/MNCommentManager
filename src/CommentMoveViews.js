@@ -1,7 +1,16 @@
 var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
   const BLUE = "#2563eb", INK = "#1f2937", MUTED = "#64748b";
 
-  function color(value) { return MNUtil.hexColorAlpha(value, 1); }
+  function color(value) {
+    const ui = typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined' && __MN_COMMENT_ACTION_UI_MNCommentManagerAddon;
+    const p = ui && typeof ui.palette === 'function' ? ui.palette() : null;
+    const themed = p && p.dark && {
+      '#ffffff': p.surface, '#f8fafc': p.section, '#eff6ff': p.selected,
+      '#dbe3ef': p.line, '#bfdbfe': p.line, '#1f2937': p.ink,
+      '#64748b': p.muted, '#94a3b8': p.muted, '#2563eb': p.accent,
+    };
+    return MNUtil.hexColorAlpha(themed && themed[value] || value, 1);
+  }
   function input(state, extra) { return Object.assign({ panelToken: state.panelToken }, extra || {}); }
   function handwriting(comment) { return !!(comment.drawingHash || comment.drawingPreviewDataURI || /drawing|paint/i.test(String(comment.type || ""))); }
   function summary(comment) {
@@ -36,7 +45,12 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     view.accessibilityLabel = name;
     view.param = value;
     if (selector) view.addTargetActionForControlEvents(addon, selector, 1 << 6);
+    const names = { 'backMoveCommentMenu:': 'organize', 'toggleQuickCommentSelection:': 'multi', 'addQuickCommentFromRail:': 'add', 'undoQuickCommentMove:': 'undo', 'closeMoveCommentRail:': 'close', 'openQuickCommentActions:': 'more', 'selectAllQuickComments:': 'select-all', 'clearQuickCommentSelection:': 'clear' };
+    if (names[selector]) actionIcon(addon, view, names[selector], name);
     return view;
+  }
+  function actionIcon(addon, view, name, label, selected) {
+    if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, view, name, label || view.accessibilityLabel, selected);
   }
   function surface(frame) {
     const view = new UIView(frame);
@@ -98,11 +112,13 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
   }
   function detach(view) { if (view) view.removeFromSuperview(); }
   function createInline(addon, state) {
+    state.addon = addon;
     const rail = surface(state.geometry.rail), count = state.comments.length;
     const views = { rail, images: Object.create(null), pickerRows: [], preview: null, picker: null, dots: [] };
     state.views = views;
     rail.clipsToBounds = true;
-    const line = new UIView({ x: 16, y: 21, width: (count - 1) * 32, height: 2 });
+    const line = new UIView({ x: 16, y: 21, width: Math.max(0, (count - 1) * 32), height: 2 });
+    line.hidden = count < 2;
     line.backgroundColor = color("#bfdbfe"); line.userInteractionEnabled = false; rail.addSubview(line);
     for (let index = 0; index < count; index++) {
       const dot = button(addon, { x: index * 32, y: 0, width: 32, height: 44 }, "", "", "openMoveCommentActions:", input(state, { index }));
@@ -114,30 +130,39 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
       rail.addSubview(dot); views.dots.push(dot);
     }
     views.list = button(addon, { x: count * 32, y: 0, width: 44, height: 44 }, "≡", "按内容选择评论", "backMoveCommentMenu:", input(state));
-    views.undo = button(addon, { x: count * 32 + 44, y: 0, width: 44, height: 44 }, "↶", "撤回评论移动", "undoQuickCommentMove:", input(state));
-    views.close = button(addon, { x: count * 32 + 88, y: 0, width: 44, height: 44 }, "×", "关闭评论移动控件", "closeMoveCommentRail:", input(state));
-    views.status = label({ x: 10, y: 44, width: rail.frame.width - 62, height: 20 }, "", 11, MUTED);
-    views.inlineText = label({ x: 48, y: 68, width: rail.frame.width - 60, height: 62 }, "", 13, INK);
-    views.inlineText.numberOfLines = 3;
-    views.fold = button(addon, { x: rail.frame.width - 44, y: 44, width: 44, height: 32 }, "", "", "toggleMoveCommentFold:", input(state));
-    views.inlineThumb = new UIView({ x: 8, y: 78, width: 32, height: 32 });
+    views.multi = button(addon, { x: count * 32 + 44, y: 0, width: 44, height: 44 }, "☑", "进入评论多选", "toggleQuickCommentSelection:", input(state));
+    views.add = button(addon, { x: count * 32 + 88, y: 0, width: 44, height: 44 }, "+", "新增评论", "addQuickCommentFromRail:", input(state));
+    views.add.hidden = state.showAdd === false;
+    if (!count) views.add.frame = { x: 44, y: 0, width: 44, height: 44 };
+    views.undo = button(addon, { x: rail.frame.width - 88, y: 44, width: 44, height: 44 }, "↶", "撤回评论移动", "undoQuickCommentMove:", input(state));
+    views.close = button(addon, { x: rail.frame.width - 44, y: 0, width: 44, height: 44 }, "×", "关闭评论移动控件", "closeMoveCommentRail:", input(state));
+    views.actions = button(addon, { x: rail.frame.width - 132, y: 44, width: 44, height: 44 }, "⋯", "评论操作", "openQuickCommentActions:", input(state));
+    views.excerptActions = button(addon, { x: 0, y: 0, width: 44, height: 44 }, "◆", "主摘录操作", "openQuickCommentActions:", input(state));
+    views.excerptActions.hidden = !!count;
+    views.selectAll = button(addon, { x: rail.frame.width - 88, y: 44, width: 44, height: 44 }, '☑', '全选评论', 'selectAllQuickComments:', input(state));
+    views.clearSelection = button(addon, { x: rail.frame.width - 44, y: 44, width: 44, height: 44 }, '☐', '清空选择', 'clearQuickCommentSelection:', input(state));
+    views.status = label({ x: 10, y: 44, width: Math.max(0, rail.frame.width - 144), height: 32 }, "", 11, MUTED);
+    views.inlineText = label({ x: 48, y: 88, width: rail.frame.width - 60, height: 48 }, "", 13, INK);
+    views.inlineText.numberOfLines = 3; views.status.numberOfLines = 2;
+    views.fold = button(addon, { x: rail.frame.width - 44, y: 44, width: 44, height: 44 }, "", "", "toggleMoveCommentFold:", input(state));
+    views.inlineThumb = new UIView({ x: 8, y: 94, width: 32, height: 32 });
     views.inlineThumb.userInteractionEnabled = false;
-    [views.list, views.undo, views.close, views.status, views.inlineThumb, views.inlineText, views.fold].forEach(view => rail.addSubview(view));
+    [views.list, views.multi, views.add, views.undo, views.close, views.actions, views.excerptActions, views.status, views.inlineThumb, views.inlineText, views.fold, views.selectAll, views.clearSelection].forEach(view => rail.addSubview(view));
     state.host.addSubview(rail);
     renderInline(state);
     return views;
   }
   function renderInline(state, frame) {
     const views = state.views, comment = state.comments[state.sourceIndex];
-    const expanded = !!comment && !views.picker;
+    const expanded = (!!comment || state.selecting) && !views.picker;
     views.rail.frame = expanded ? state.geometry.expanded : state.geometry.rail;
     views.rail.hidden = !!views.picker;
     views.dots.forEach(function (dot, index) {
-      const selected = index === state.sourceIndex, item = state.comments[index];
+      const selected = state.selecting ? (state.selectedIndices || []).includes(index) : index === state.sourceIndex, item = state.comments[index];
       dot.param = input(state, { index });
-      dot.enabled = !!item && (!item.capabilities || item.capabilities.canMove !== false);
+      dot.enabled = !state.mutationPending && !!item && (state.selecting || !item.capabilities || item.capabilities.canMove !== false);
       dot.accessibilityLabel = "第 " + (index + 1) + " 条：" + summary(item) + (item && item.collapsed ? "，已折叠" : "");
-      dot.accessibilityValue = selected ? "已选中，左右拖动排序" : "轻点选择";
+      dot.accessibilityValue = state.selecting ? selected ? "已勾选，轻点取消选择" : "轻点勾选" : selected ? "已选中，左右拖动排序" : "轻点选择";
       dot.marker.frame = { x: selected ? 9 : 11, y: selected ? 15 : 17, width: selected ? 14 : 10, height: selected ? 14 : 10 };
       dot.marker.layer.cornerRadius = selected ? 7 : 5;
       dot.marker.backgroundColor = color(item && item.collapsed ? "#ffffff" : selected ? BLUE : "#94a3b8");
@@ -145,13 +170,31 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
       dot.marker.layer.borderColor = color(selected ? BLUE : "#94a3b8");
     });
     views.knob = views.dots[state.sourceIndex] || views.list;
-    [views.list, views.undo, views.close, views.fold].forEach(view => { view.param = input(state); });
-    views.undo.enabled = !!state.history.length; views.undo.alpha = views.undo.enabled ? 1 : 0.3;
+    [views.list, views.multi, views.add, views.actions, views.excerptActions, views.undo, views.close, views.fold, views.selectAll, views.clearSelection].forEach(view => { view.param = input(state); view.enabled = !state.mutationPending; });
+    views.list.hidden = !state.comments.length;
+    views.multi.hidden = !state.comments.length;
+    views.multi.setTitleForState(state.selecting ? "☒" : "☑", 0);
+    views.multi.accessibilityLabel = state.selecting ? "结束多选" : "多选评论";
+    actionIcon(state.addon, views.multi, 'multi', views.multi.accessibilityLabel, state.selecting);
+    views.actions.setTitleForState('⋯', 0);
+    actionIcon(state.addon, views.actions, 'more');
+    views.actions.accessibilityLabel = state.selecting ? "所选评论操作" : "评论与主摘录操作";
+    views.actions.hidden = state.selecting && !(state.selectedIndices || []).length;
+    views.selectAll.hidden = views.clearSelection.hidden = !state.selecting || !expanded || !!frame;
+    views.selectAll.enabled = !state.mutationPending && (state.selectedIndices || []).length < state.comments.length;
+    views.clearSelection.enabled = !state.mutationPending && !!(state.selectedIndices || []).length;
+    views.selectAll.alpha = views.selectAll.enabled ? 1 : 0.3; views.clearSelection.alpha = views.clearSelection.enabled ? 1 : 0.3;
+    views.undo.enabled = !state.mutationPending && !state.selecting && !!state.history.length; views.undo.alpha = views.undo.enabled ? 1 : 0.3;
     [views.status, views.inlineText, views.inlineThumb].forEach(view => { view.hidden = !expanded; });
-    views.fold.hidden = !expanded || !state.commentFold || !state.commentFold.supported || !!frame;
+    views.fold.hidden = !comment || state.selecting || !expanded || !state.commentFold || !state.commentFold.supported || !!frame;
     views.fold.setTitleForState(comment && comment.collapsed ? "▸" : "▾", 0);
+    actionIcon(state.addon, views.fold, comment && comment.collapsed ? 'expand' : 'fold');
     views.fold.accessibilityLabel = comment && comment.collapsed ? "展开当前评论" : "折叠当前评论";
-    if (expanded) {
+    views.inlineThumb.hidden = !comment || state.selecting;
+    if (expanded && state.selecting) {
+      views.status.text = "已选择 " + (state.selectedIndices || []).length + " 条评论";
+      views.inlineText.text = "仅处理所选评论，主摘录保留";
+    } else if (expanded && comment) {
       if (views.inlineThumbIndex !== state.sourceIndex || views.inlineThumbComment !== comment) {
         detach(views.sourceThumb);
         views.sourceThumb = thumbnail(state, views.inlineThumb, { x: 0, y: 0, width: 32, height: 32 }, comment);
@@ -159,6 +202,9 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
       }
       views.status.text = state.notice || "第 " + (state.sourceIndex + 1) + " 条，共 " + state.comments.length + " 条";
       views.inlineText.text = summary(comment);
+    } else if (expanded) {
+      views.status.text = "选择评论后可拖动排序";
+      views.inlineText.text = "轻点圆点或打开内容列表；多选可批量处理评论。";
     }
     if (frame) {
       const remaining = state.comments.filter((_, index) => index !== state.sourceIndex);
@@ -168,9 +214,11 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
       marker.frame = { x: Math.max(16, Math.min(16 + (state.comments.length - 1) * 32, frame.thumbY - state.geometry.rail.x)) - state.sourceIndex * 32 - 7, y: 15, width: 14, height: 14 };
       views.rail.bringSubviewToFront(views.dots[state.sourceIndex]);
     }
-    if (views.picker) { views.search.param = input(state); views.pickerClose.param = input(state); }
+    [views.undo, views.actions].forEach(view => { view.hidden = !expanded || !!frame || view === views.undo && state.selecting || view === views.actions && state.selecting && !(state.selectedIndices || []).length; });
+    if (views.picker) syncPicker(state);
   }
   function create(addon, state) {
+    state.addon = addon;
     if (state.geometry.inline) return createInline(addon, state);
     const rail = surface(state.geometry.rail);
     rail.clipsToBounds = true;
@@ -208,11 +256,11 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     views.knob.param = input(state);
     views.undo.param = input(state);
     views.close.param = input(state);
-    views.up.enabled = !!comment && state.sourceIndex > 0;
-    views.down.enabled = !!comment && state.sourceIndex < state.comments.length - 1;
+    views.up.enabled = !state.mutationPending && !!comment && state.sourceIndex > 0;
+    views.down.enabled = !state.mutationPending && !!comment && state.sourceIndex < state.comments.length - 1;
     views.up.alpha = views.up.enabled ? 1 : 0.3;
     views.down.alpha = views.down.enabled ? 1 : 0.3;
-    views.undo.enabled = !!(state.history && state.history.length);
+    views.undo.enabled = !state.mutationPending && !!(state.history && state.history.length);
     views.undo.alpha = views.undo.enabled ? 1 : 0.3;
     views.close.hidden = !!state.geometry.compactControls;
     views.status.text = comment ? (state.sourceIndex + 1) + "/" + state.comments.length : "";
@@ -223,7 +271,8 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     if (views.picker) {
       views.search.param = input(state);
       views.pickerClose.param = input(state);
-      filterPicker(state, views.search.text || "");
+      syncPicker(state);
+      filterPicker(state, views.search.text || "", true);
     }
   }
   function resetRail(state) {
@@ -427,8 +476,13 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     const panel = surface(state.geometry.picker), width = panel.frame.width, height = panel.frame.height;
     views.picker = panel;
     views.pickerAddon = addon;
-    panel.addSubview(label({ x: 14, y: 10, width: width - 66, height: 26 }, "选择评论", 15, INK, true));
+    panel.addSubview(label({ x: 14, y: 10, width: width - 146, height: 26 }, "评论整理", 15, INK, true));
+    views.pickerMulti = button(addon, { x: width - 132, y: 0, width: 44, height: 44 }, "☑", "进入评论多选", "toggleQuickCommentSelection:", input(state));
+    views.pickerAdd = button(addon, { x: width - 88, y: 0, width: 44, height: 44 }, "+", "新增评论", "addQuickCommentFromRail:", input(state));
+    views.pickerAdd.hidden = state.showAdd === false;
+    panel.addSubview(views.pickerMulti); panel.addSubview(views.pickerAdd);
     views.pickerClose = button(addon, { x: width - 44, y: 0, width: 44, height: 44 }, "×", state.geometry.compactControls ? "关闭评论移动控件" : "关闭评论列表", state.geometry.compactControls ? "closeMoveCommentRail:" : "backMoveCommentMenu:", input(state));
+    actionIcon(addon, views.pickerClose, 'close');
     panel.addSubview(views.pickerClose);
     const search = new UITextField({ x: 12, y: 46, width: width - 24, height: 40 });
     search.placeholder = "搜索评论内容";
@@ -444,27 +498,63 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     views.scroll = new UIScrollView({ x: 8, y: 94, width: width - 16, height: Math.max(0, height - 102) });
     views.scroll.clipsToBounds = true;
     panel.addSubview(views.scroll);
+    views.pickerStatus = label({ x: 14, y: height - 44, width: width - 72, height: 40 }, "", 12, MUTED);
+    views.pickerActions = button(addon, { x: width - 52, y: height - 44, width: 44, height: 44 }, "✓", "所选评论操作", "openQuickCommentActions:", input(state));
+    views.pickerSelectAll = button(addon, { x: width - 144, y: height - 44, width: 44, height: 44 }, '☑', '全选评论', 'selectAllQuickComments:', input(state));
+    views.pickerClearSelection = button(addon, { x: width - 100, y: height - 44, width: 44, height: 44 }, '☐', '清空选择', 'clearQuickCommentSelection:', input(state));
+    panel.addSubview(views.pickerSelectAll); panel.addSubview(views.pickerClearSelection);
+    views.pickerStatus.numberOfLines = 2;
+    panel.addSubview(views.pickerStatus); panel.addSubview(views.pickerActions);
+    syncPicker(state);
     filterPicker(state, "");
     if (state.geometry.inline) renderInline(state);
     state.host.addSubview(panel);
     state.host.bringSubviewToFront(views.rail);
   }
-  function filterPicker(state, query) {
+  function syncPicker(state) {
+    const views = state.views;
+    if (!views || !views.picker || !views.pickerMulti) return;
+    [views.pickerMulti, views.pickerAdd, views.pickerActions, views.pickerClose, views.pickerSelectAll, views.pickerClearSelection].forEach(view => { view.param = input(state); view.enabled = !state.mutationPending; });
+    views.pickerMulti.setTitleForState(state.selecting ? "☒" : "☑", 0);
+    views.pickerMulti.accessibilityLabel = state.selecting ? "结束多选" : "多选评论";
+    const available = state.selecting ? !!(state.selectedIndices || []).length : state.sourceIndex >= 0 || !!(state.excerpt && state.excerpt.present);
+    views.pickerStatus.hidden = !state.selecting;
+    views.pickerStatus.text = "已选择 " + (state.selectedIndices || []).length + " 条评论";
+    views.pickerStatus.frame = Object.assign({}, views.pickerStatus.frame, { width: views.picker.frame.width - 164 });
+    views.pickerSelectAll.hidden = views.pickerClearSelection.hidden = !state.selecting;
+    views.pickerSelectAll.enabled = !state.mutationPending && (state.selectedIndices || []).length < state.comments.length;
+    views.pickerClearSelection.enabled = !state.mutationPending && !!(state.selectedIndices || []).length;
+    views.pickerSelectAll.alpha = views.pickerSelectAll.enabled ? 1 : 0.3; views.pickerClearSelection.alpha = views.pickerClearSelection.enabled ? 1 : 0.3;
+    actionIcon(state.addon, views.pickerMulti, 'multi', views.pickerMulti.accessibilityLabel, state.selecting);
+    views.pickerActions.hidden = !available;
+    views.pickerActions.setTitleForState('⋯', 0);
+    actionIcon(state.addon, views.pickerActions, 'more');
+    views.pickerActions.accessibilityLabel = state.selecting ? "所选评论操作" : "评论与主摘录操作";
+    views.scroll.frame = Object.assign({}, views.scroll.frame, { height: Math.max(0, views.picker.frame.height - (state.selecting || available ? 146 : 102)) });
+  }
+  function filterPicker(state, query, keepOffset) {
     const views = state.views;
     if (!views || !views.picker) return;
     views.pickerRows.forEach(detach);
     views.pickerRows = [];
+    const offset = keepOffset && views.scroll.contentOffset;
     const needle = String(query || "").toLowerCase().trim(), width = views.scroll.frame.width;
     let count = 0;
     state.comments.forEach(function (comment, index) {
       if (needle && summary(comment).toLowerCase().indexOf(needle) < 0) return;
       const row = button(views.pickerAddon, { x: 0, y: count * 62, width, height: 60 }, "", summary(comment), "openMoveCommentActions:", input(state, { index }));
-      row.backgroundColor = color(index === state.sourceIndex ? "#eff6ff" : "#f8fafc");
+      const selected = state.selecting ? (state.selectedIndices || []).includes(index) : index === state.sourceIndex;
+      row.backgroundColor = color(selected ? "#eff6ff" : "#f8fafc");
       row.layer.cornerRadius = 8;
-      row.enabled = !comment.capabilities || comment.capabilities.canMove !== false;
+      row.enabled = !state.mutationPending && (state.selecting || !comment.capabilities || comment.capabilities.canMove !== false);
       row.alpha = row.enabled ? 1 : 0.4;
-      thumbnail(state, row, { x: 8, y: 14, width: 32, height: 32 }, comment);
-      const text = label({ x: 48, y: 8, width: width - 60, height: 44 }, summary(comment), 13, INK);
+      const hasIcons = typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined';
+      if (state.selecting && hasIcons) {
+        const mark = new UIImageView({ x: 8, y: 22, width: 18, height: 18 }); mark.image = __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.image(state.addon, selected ? 'multi' : 'empty'); mark.userInteractionEnabled = false; row.addSubview(mark);
+      }
+      thumbnail(state, row, { x: state.selecting && hasIcons ? 34 : 8, y: 14, width: 32, height: 32 }, comment);
+      const text = label({ x: state.selecting && hasIcons ? 76 : 48, y: 8, width: width - (state.selecting && hasIcons ? 88 : 60), height: 44 }, (state.selecting && !hasIcons ? selected ? "☑ " : "☐ " : "") + summary(comment), 13, INK);
+      row.accessibilityValue = state.selecting ? selected ? "已勾选" : "未勾选" : "";
       text.numberOfLines = 2;
       row.addSubview(text);
       views.scroll.addSubview(row);
@@ -478,7 +568,7 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     }
     views.scroll.contentSize = { width, height: count ? count * 62 : 68 };
     views.scroll.showsVerticalScrollIndicator = views.scroll.contentSize.height > views.scroll.frame.height;
-    views.scroll.contentOffset = { x: 0, y: 0 };
+    views.scroll.contentOffset = { x: 0, y: offset ? Math.max(0, Math.min(Number(offset.y) || 0, views.scroll.contentSize.height - views.scroll.frame.height)) : 0 };
   }
   function result(addon, state, text) {
     if (!state.views) return;
@@ -494,5 +584,5 @@ var __MN_COMMENT_MOVE_VIEWS_MNCommentManagerAddon = (function () {
     detach(state.views.rail);
     state.views = null;
   }
-  return { create, render, preview, clearPreview, showPicker, filterPicker, hidePicker, result, dispose };
+  return { create, render, preview, clearPreview, showPicker, filterPicker, hidePicker, result, dispose, summary };
 })();

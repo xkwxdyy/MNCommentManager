@@ -2,8 +2,8 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   const BUTTON_TAG = 9304101;
   const MNPINNER_FOLLOW_BUTTON_TAG = 9205101;
   const MNPINNER_EXTRA_BUTTON_TAG = 9205103;
-  const BUTTON_WIDTH = 54;
-  const BUTTON_HEIGHT = 36;
+  const BUTTON_WIDTH = 124;
+  const BUTTON_HEIGHT = 64;
   const BUTTON_GAP = 10;
   const INITIAL_SHOW_DELAY = 0.02;
   const SELECTION_CLOSE_HIDE_DELAY = 0.18;
@@ -124,7 +124,17 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return "";
   }
 
-  function resolveSelectedNotes(sender) {
+  function selectionSource(sender) {
+    try {
+      const info = sender && sender.userInfo;
+      if (info && info.selViewLst !== undefined) return { available: true, explicit: true, raw: info.selViewLst };
+      const mindmap = typeof MNUtil !== 'undefined' && MNUtil && MNUtil.mindmapView;
+      if (mindmap && mindmap.selViewLst !== undefined) return { available: true, explicit: false, raw: mindmap.selViewLst };
+    } catch (_) {}
+    return { available: false, explicit: false, raw: null };
+  }
+
+  function resolveSelectedNotes(sender, source) {
     const seen = new Set();
     const notes = [];
     const pushNote = (candidate) => {
@@ -145,18 +155,10 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       notes.push(note);
     };
 
-    try {
-      const userInfo = sender && sender.userInfo ? sender.userInfo : {};
-      let selViewLst = toArrayLike(userInfo.selViewLst);
-      if (selViewLst.length <= 0 && typeof MNUtil !== "undefined" && MNUtil && MNUtil.mindmapView) {
-        selViewLst = toArrayLike(MNUtil.mindmapView.selViewLst);
-      }
-      selViewLst.forEach(pushNote);
-    } catch (error) {
-      // fall back below
-    }
+    const selected = source || selectionSource(sender);
+    toArrayLike(selected.raw).forEach(pushNote);
 
-    if (notes.length <= 1) {
+    if (!selected.available) {
       try {
         const focusNotes = MNNote && typeof MNNote.getFocusNotes === "function" ? MNNote.getFocusNotes() : [];
         toArrayLike(focusNotes).forEach(pushNote);
@@ -166,6 +168,12 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     }
 
     return notes;
+  }
+
+  function sameSelection(existing, notes) {
+    if (!existing || !Array.isArray(existing.notes) || existing.notes.length !== notes.length) return false;
+    const ids = new Set(existing.notes.map(note => extractNoteId(note)));
+    return notes.every(note => ids.has(String(note.noteId)));
   }
 
   function getAnchorRect(sender, hostView) {
@@ -258,7 +266,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const frame = __MN_ADDON_FLOATING_LAYOUT__.place(host, {
       priority: 40,
       preferred: preferred || { x: context.anchorRect.x, y: context.anchorRect.y, width: BUTTON_WIDTH, height: BUTTON_HEIGHT },
-      width: BUTTON_WIDTH, height: BUTTON_HEIGHT, ownViews: [addon.batchCommentButton],
+      width: BUTTON_WIDTH, height: BUTTON_HEIGHT, ownViews: batchViews(addon),
       anchor: context.anchorRect, avoid: [context.anchorRect], previous: context._floatingGroupFrame
     });
     context._floatingGroupFrame = frame;
@@ -332,38 +340,48 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   function refreshContextFromSelection(addon, sender, options) {
     const opts = options && typeof options === "object" ? options : {};
     const existing = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
-    const sourceSender = sender || (existing && existing.sender) || null;
-    const notes = resolveSelectedNotes(sourceSender);
-    if (notes.length <= 1 && opts.allowExisting !== false && existing && Array.isArray(existing.notes) && existing.notes.length > 1) {
+    const source = selectionSource(sender);
+    const notes = resolveSelectedNotes(sender, source);
+    if (notes.length <= 1 && opts.allowExisting !== false && existing && Array.isArray(existing.notes) && existing.notes.length > 1 &&
+      !source.explicit && (!source.available || notes.length === 0 && ownsSelection(addon, sender, existing))) {
       return existing;
     }
-    if (notes.length <= 1) return null;
+    if (notes.length <= 1) { invalidateSelection(addon, 'selection.invalid'); return null; }
+    // A cached sender supplies geometry only; it never supplies the selected cards.
+    const sourceSender = source.explicit ? sender : existing && existing.sender || sender || null;
     const hostView = getHostView(addon);
     const context = {
-      token: existing && existing.token ? existing.token : nowToken(),
+      token: sameSelection(existing, notes) && existing.token ? existing.token : nowToken(),
       notes,
       anchorRect: getAnchorRect(sourceSender, hostView),
       sender: sourceSender,
+      nativeToolbarClosed: sameSelection(existing, notes) && existing.nativeToolbarClosed === true,
     };
     if (addon) addon.batchCommentContext = context;
     return context;
   }
 
   function handleMultipleSelectionClosed(addon) {
+    if (addon && addon.mncmWorkflowPanelOwnsEntries === true) return true;
     const context = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
     const token = String(context && context.token || "");
     if (!token) {
       hideButton(addon, "selection.closed.noContext");
       return false;
     }
-    delay(SELECTION_CLOSE_HIDE_DELAY, function () {
-      const latest = addon && addon.batchCommentContext ? addon.batchCommentContext : null;
-      if (!latest || String(latest.token || "") !== token) return;
-      hideButton(addon, "selection.closed");
-    });
+    context.nativeToolbarClosed = true;
+    delay(SELECTION_CLOSE_HIDE_DELAY, () => checkClosedSelection(addon, context));
     return true;
   }
+  function checkClosedSelection(addon, context) {
+    if (addon && addon.mncmWorkflowPanelOwnsEntries === true) return;
+    if (!context || addon.batchCommentContext !== context || !context.nativeToolbarClosed || isTouchHeld(addon)) return;
+    const editor = addon.webController;
+    if (addon.batchCommentMenuPopoverController || editor && editor.panelMode === 'batch' && editor.view && editor.view.hidden === false) return;
+    hideButton(addon, 'selection.closed');
+  }
 
+  function batchViews(addon) { return [addon.batchCommentButton, addon.batchCommentMenuButton, addon.batchCommentScopeLabel].filter(Boolean); }
   function ensureButton(addon) {
     const hostView = getHostView(addon);
     if (!hostView) return null;
@@ -386,7 +404,8 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       try { button.titleLabel.font = UIFont.boldSystemFontOfSize(14); } catch (error) {}
       try { button.accessibilityLabel = "MN Comment Manager 批量处理"; } catch (error) {}
       try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTouchDown:", 1 << 0); } catch (error) {}
-      try { button.addTargetActionForControlEvents(addon, "batchCommentButtonTapped:", 1 << 6); } catch (error) {}
+      try { button.addTargetActionForControlEvents(addon, "openBatchCommentEditor:", 1 << 6); } catch (error) {}
+      try { button.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchEnded:', (1 << 7) | (1 << 8)); } catch (error) {}
       try {
         MNButton.addLongPressGesture(button, addon, "batchCommentButtonLongPressed:", 0.45);
       } catch (error) {
@@ -398,6 +417,32 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     }
     button.hidden = true;
     addon.batchCommentButton = button;
+    if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, 'batch', '多卡评论编辑器');
+    [['batchCommentMenuButton', 'down', '所选卡片操作菜单', 'batchCommentButtonTapped:']].forEach(([key, name, title, selector]) => {
+      if (!addon[key]) {
+        const extra = UIButton.buttonWithType(0); extra.layer.cornerRadius = 9; extra.backgroundColor = MNUtil.hexColorAlpha('#ffffff', 0.96);
+        extra.setTitleForState(name === 'down' ? '⌄' : '✎', 0); extra.setTitleColorForState(MNUtil.hexColorAlpha('#2563eb', 1), 0);
+        extra.accessibilityLabel = title;
+        extra.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchDown:', 1 << 0);
+        extra.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchEnded:', (1 << 7) | (1 << 8));
+        extra.addTargetActionForControlEvents(addon, selector, 1 << 6); hostView.addSubview(extra); addon[key] = extra;
+      }
+      if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, addon[key], name, title);
+      if (addon[key].superview !== hostView) hostView.addSubview(addon[key]);
+      addon[key].hidden = true;
+    });
+    if (!addon.batchCommentScopeLabel && typeof UILabel !== 'undefined') {
+      const label = new UILabel({ x: 0, y: 0, width: BUTTON_WIDTH, height: 20 }); label.font = UIFont.systemFontOfSize(12); label.textColor = MNUtil.hexColorAlpha('#687180', 1); label.userInteractionEnabled = false; label.hidden = true;
+      hostView.addSubview(label); addon.batchCommentScopeLabel = label;
+    }
+    if (addon.batchCommentScopeLabel && addon.batchCommentScopeLabel.superview !== hostView) hostView.addSubview(addon.batchCommentScopeLabel);
+    if (addon.batchCommentScopeLabel && typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') {
+      const p = __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.palette();
+      addon.batchCommentScopeLabel.textColor = MNUtil.hexColorAlpha(p.muted, 1);
+      addon.batchCommentScopeLabel.backgroundColor = MNUtil.hexColorAlpha(p.surface, 1);
+      addon.batchCommentScopeLabel.layer.cornerRadius = 4;
+      addon.batchCommentScopeLabel.layer.masksToBounds = true;
+    }
     return button;
   }
 
@@ -409,7 +454,9 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
   function hideButton(addon, reason, options) {
     try {
-      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release([addon.batchCommentButton]);
+      clearHeldInteraction(addon);
+      if (addon && !(options && options.preserveTouch === true)) addon.batchCommentTouchRevision = Number(addon.batchCommentTouchRevision || 0) + 1;
+      if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.release(batchViews(addon));
       const popover = addon && addon.batchCommentMenuPopoverController;
       addon.batchCommentMenuPopoverController = null;
       if (popover && typeof popover.dismissPopoverAnimated === "function") {
@@ -423,6 +470,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
         try { button.enabled = false; } catch (error) {}
         try { button.userInteractionEnabled = false; } catch (error) {}
       }
+      batchViews(addon).forEach(view => { view.hidden = true; view.userInteractionEnabled = false; });
       if (!(options && options.preserveContext === true)) addon.batchCommentContext = null;
       addon.batchCommentInteractionUntil = 0;
       console.log(`[MN Comment Manager] batch button hidden: ${reason || ""}`);
@@ -436,20 +484,27 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     const button = addon.batchCommentButton;
     hideButton(addon, reason || "dispose");
     try { if (button && button.removeFromSuperview) button.removeFromSuperview(); } catch (_) {}
+    batchViews(addon).forEach(view => { if (view !== button && view.removeFromSuperview) view.removeFromSuperview(); });
+    addon.batchCommentMenuButton = addon.batchCommentScopeLabel = null;
     addon.batchCommentButton = null;
     return !!button;
   }
 
   function showForContext(addon, context) {
-    if (!addon || addon.window !== MNUtil.currentWindow || !__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) return false;
-    if (Number(addon && addon.batchCommentInteractionUntil || 0) > Date.now() || addon && addon.batchCommentMenuPopoverController) return false;
+    if (!addon || addon.mnCommentManagerSceneActive === false || addon.window !== MNUtil.currentWindow || !__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) return false;
+    if (addon.mncmWorkflowPanelOwnsEntries === true) return false;
+    if (isTouchHeld(addon) || Number(addon && addon.batchCommentInteractionUntil || 0) > Date.now() || addon && addon.batchCommentMenuPopoverController) return false;
+    if (addon.webController && addon.webController.panelMode === 'batch' && addon.webController.view && addon.webController.view.hidden === false) return false;
     const latest = addon.batchCommentContext;
-    if (!latest || !context || String(latest.token || "") !== String(context.token || "")) return false;
+    if (!context || latest !== context || String(latest.token || "") !== String(context.token || "")) return false;
     const button = ensureButton(addon);
     if (!button) return false;
     const frame = resolveButtonFrame(addon, context);
-    if (!frame) { button.hidden = true; button.enabled = false; button.userInteractionEnabled = false; return false; }
-    button.frame = frame;
+    if (!frame) { batchViews(addon).forEach(view => { view.hidden = true; view.enabled = false; view.userInteractionEnabled = false; }); return false; }
+    button.frame = { x: frame.x, y: frame.y + 20, width: 44, height: 44 };
+    if (addon.batchCommentMenuButton) addon.batchCommentMenuButton.frame = { x: frame.x + 44, y: frame.y + 20, width: 44, height: 44 };
+    if (addon.batchCommentScopeLabel) { addon.batchCommentScopeLabel.frame = { x: frame.x, y: frame.y, width: BUTTON_WIDTH, height: 20 }; addon.batchCommentScopeLabel.text = '已选择 ' + context.notes.length + ' 张卡片'; }
+    batchViews(addon).forEach(view => { view.hidden = false; view.enabled = true; view.userInteractionEnabled = view !== addon.batchCommentScopeLabel; if (view.superview.bringSubviewToFront) view.superview.bringSubviewToFront(view); });
     button.hidden = false;
     try { button.enabled = true; } catch (error) {}
     try { button.userInteractionEnabled = true; } catch (error) {}
@@ -458,7 +513,8 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   }
 
   function handleMultipleSelection(addon, sender) {
-    if (!addon || addon.window !== MNUtil.currentWindow) return false;
+    if (!addon || addon.mnCommentManagerSceneActive === false || addon.window !== MNUtil.currentWindow) return false;
+    if (addon.mncmWorkflowPanelOwnsEntries === true) return true;
     if (!__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) {
       hideButton(addon, "disabled");
       return false;
@@ -470,19 +526,24 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     }
 
     const hostView = getHostView(addon);
+    const existing = addon.batchCommentContext;
+    const holding = sameSelection(existing, notes) && isTouchHeld(addon);
     const context = {
-      token: nowToken(),
+      token: sameSelection(existing, notes) && existing.token ? existing.token : nowToken(),
       notes,
       anchorRect: getAnchorRect(sender, hostView),
       sender,
     };
     addon.batchCommentContext = context;
 
-    const button = ensureButton(addon);
-    if (button) {
-      try { button.hidden = true; } catch (error) {}
-      try { button.enabled = false; } catch (error) {}
-      try { button.userInteractionEnabled = false; } catch (error) {}
+    if (!holding) {
+      clearHeldInteraction(addon);
+      const button = ensureButton(addon);
+      if (button) {
+        try { button.hidden = true; } catch (error) {}
+        try { button.enabled = false; } catch (error) {}
+        try { button.userInteractionEnabled = false; } catch (error) {}
+      }
     }
 
     delay(INITIAL_SHOW_DELAY, function () {
@@ -507,12 +568,15 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   }
 
   function openMenu(addon, button) {
-    const context = refreshContextFromSelection(addon, button && button.sender ? button.sender : null);
+    if (!entryAvailable(addon)) return false;
+    validateEntryToken(addon, button);
+    const context = refreshContextFromSelection(addon, button && button.sender ? button.sender : button);
     if (!context || !Array.isArray(context.notes) || context.notes.length <= 1) {
       MNUtil.showHUD("未读取到多选卡片，请重新多选后再试");
       hideButton(addon, "menu.noSelection");
       return false;
     }
+    validateEntryToken(addon, button);
     if (typeof __MN_COMMENT_WORKFLOW_MENU__ !== "undefined" &&
       __MN_COMMENT_WORKFLOW_MENU__ &&
       typeof __MN_COMMENT_WORKFLOW_MENU__.openBatchMenu === "function") {
@@ -902,14 +966,156 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
     return result;
   }
 
-  function beginInteraction(addon) {
+  function openEditor(addon, sender) {
+    if (!addon || addon.window !== MNUtil.currentWindow) throw new Error('当前窗口已变化，请重新选择卡片');
+    if (addon.mnCommentManagerSceneActive === false) throw new Error('当前窗口未激活，请返回后重新选择卡片');
+    if (!__MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton) throw new Error('多卡跟随按钮已关闭');
+    if (!entryAvailable(addon)) throw new Error('未读取到多选卡片，请重新多选后再试');
+    validateEntryToken(addon, sender);
+    const context = refreshContextFromSelection(addon, sender);
+    if (!context || context.notes.length <= 1) throw new Error('未读取到多选卡片');
+    validateEntryToken(addon, sender);
+    if (!addon.webController) throw new Error('评论管理器尚未初始化');
+    if (addon.webController.panelMode === 'batch' && addon.webController.view.hidden === false) {
+      __MN_WEB_API_MNCommentManagerAddon.syncBatch(addon.webController, 'batch-editor-refresh');
+      hideButton(addon, 'batch-editor-open', { preserveContext: true, preserveTouch: true });
+      return true;
+    }
+    __MN_WEB_API_MNCommentManagerAddon.showPanel(addon.webController, { mode: 'batch' });
+    addon.layoutViewController();
+    __MN_WEB_API_MNCommentManagerAddon.syncBatch(addon.webController, 'batch-editor-open');
+    hideButton(addon, 'batch-editor-open', { preserveContext: true, preserveTouch: true });
+    return true;
+  }
+  function menuDismissed(addon, controller) {
+    if (!controller || addon.batchCommentMenuPopoverController !== controller) return false;
+    addon.batchCommentMenuPopoverController = null; addon.batchCommentInteractionUntil = 0;
+    if (addon.batchCommentContext) showForContext(addon, addon.batchCommentContext);
+    return true;
+  }
+  function editorClosed(addon) {
+    addon.batchCommentContext = null;
+    return handleMultipleSelection(addon, null);
+  }
+  function relayout(addon) {
+    if (!entryAvailable(addon)) return false;
+    if (!validateLiveSelection(addon, true)) return false;
+    const context = addon.batchCommentContext;
+    context.anchorRect = getAnchorRect(context.sender, getHostView(addon));
+    return showForContext(addon, context);
+  }
+  function refreshForActivation(addon) {
+    if (!addon || addon.mnCommentManagerSceneActive === false || addon.window !== MNUtil.currentWindow) return false;
+    if (addon.mncmWorkflowPanelOwnsEntries === true) return true;
+    if (!selectionSource(null).available) { invalidateSelection(addon, 'activation.selectionUnavailable'); return false; }
+    return handleMultipleSelection(addon, null);
+  }
+  function ownsSelection(addon, sender, context) {
+    const editor = addon && addon.webController;
+    const touching = isTouchHeld(addon) || Number(addon && addon.batchCommentInteractionUntil || 0) > Date.now();
+    const verifiedTouch = [sender, addon && addon.batchCommentButton, addon && addon.batchCommentMenuButton]
+      .some(view => view && view.mncmBatchTouchToken && String(view.mncmBatchTouchToken) === String(context.token));
+    return !!(addon && addon.batchCommentMenuPopoverController || editor && editor.panelMode === 'batch' && editor.view && editor.view.hidden === false ||
+      touching && (context.nativeToolbarClosed || verifiedTouch));
+  }
+  function invalidateSelection(addon, reason) {
+    hideButton(addon, reason);
+    const editor = addon && addon.webController;
+    if (editor && editor.panelMode === 'batch' && editor.view && editor.view.hidden === false && typeof __MN_WEB_API_MNCommentManagerAddon !== 'undefined') {
+      __MN_WEB_API_MNCommentManagerAddon.syncBatch(editor, reason);
+    }
+  }
+  function validateLiveSelection(addon, allowOwnedEmpty) {
+    const source = selectionSource(null);
+    if (!source.available) return true;
+    const notes = resolveSelectedNotes(null, source);
+    const context = addon.batchCommentContext;
+    if (sameSelection(context, notes) || allowOwnedEmpty && notes.length === 0 && ownsSelection(addon, null, context)) return true;
+    invalidateSelection(addon, 'selection.changedWithoutNotification');
+    return false;
+  }
+  function entryAvailable(addon) {
+    const context = addon && addon.batchCommentContext;
+    return !!(addon && addon.mncmWorkflowPanelOwnsEntries !== true && addon.mnCommentManagerSceneActive !== false && addon.window === MNUtil.currentWindow && __MN_COMMENT_ACTION_SETTINGS__.getSettings().showBatchButton &&
+      context && Array.isArray(context.notes) && context.notes.length > 1 && context.notes.every(note => extractNoteId(note)));
+  }
+  function validateEntryToken(addon, sender) {
+    if (sender && sender.mncmBatchTouchRevision !== undefined && sender.mncmBatchTouchRevision !== Number(addon.batchCommentTouchRevision || 0)) {
+      throw new Error('跟随按钮交互已结束，请重新选择卡片');
+    }
+    const token = sender && (sender.mncmBatchTouchToken || sender.param && sender.param.token);
+    if (token && String(token) !== String(addon.batchCommentContext.token)) throw new Error('多选卡片已变化，请重新操作跟随按钮');
+  }
+  function beginInteraction(addon, sender) {
+    if (!entryAvailable(addon)) return false;
+    if (!validateLiveSelection(addon, false)) return false;
+    clearHeldInteraction(addon);
+    const id = buttonIdForSender(addon, sender);
+    if (sender) {
+      sender.mncmBatchTouchToken = addon.batchCommentContext.token;
+      sender.mncmBatchTouchRevision = Number(addon.batchCommentTouchRevision || 0);
+    }
+    if (id) {
+      addon.batchCommentHeldControl = id;
+      addon.batchCommentHeldToken = addon.batchCommentContext.token;
+    }
     addon.batchCommentInteractionUntil = Date.now() + 900;
-    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze([addon.batchCommentButton], 900);
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== "undefined") __MN_ADDON_FLOATING_LAYOUT__.freeze(batchViews(addon), id ? Infinity : 900);
+    return true;
+  }
+  function buttonIdForSender(addon, sender) {
+    if (!addon || !sender) return '';
+    return ['batchCommentButton', 'batchCommentMenuButton'].find(key => {
+      const button = addon[key];
+      try { return button === sender || !!(button && typeof button.isEqual === 'function' && button.isEqual(sender)); } catch (_) { return false; }
+    }) || '';
+  }
+  function isTouchHeld(addon) {
+    return !!(entryAvailable(addon) && addon.batchCommentHeldToken === addon.batchCommentContext.token &&
+      (addon.batchCommentHeldControl || addon.batchCommentHeldGesture));
+  }
+  function clearHeldInteraction(addon) {
+    if (!addon) return;
+    addon.batchCommentHeldControl = addon.batchCommentHeldGesture = addon.batchCommentHeldToken = '';
+    addon.batchCommentInteractionUntil = 0;
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== 'undefined') __MN_ADDON_FLOATING_LAYOUT__.release(batchViews(addon));
+  }
+  function beginLongPress(addon, sender) {
+    const id = buttonIdForSender(addon, sender);
+    if (!id || !entryAvailable(addon)) return false;
+    try { validateEntryToken(addon, sender); } catch (_) { return false; }
+    addon.batchCommentHeldGesture = id;
+    addon.batchCommentHeldToken = addon.batchCommentContext.token;
+    if (!validateLiveSelection(addon, true)) return false;
+    if (typeof __MN_ADDON_FLOATING_LAYOUT__ !== 'undefined') __MN_ADDON_FLOATING_LAYOUT__.freeze(batchViews(addon), Infinity);
+    return true;
+  }
+  function finishHeldInteraction(addon) {
+    if (addon.batchCommentHeldControl || addon.batchCommentHeldGesture) return;
+    const context = addon.batchCommentContext;
+    clearHeldInteraction(addon);
+    // Native gesture Began can arrive after UIControl Cancel in the same run loop.
+    if (context && context.nativeToolbarClosed) delay(0, () => checkClosedSelection(addon, context));
+  }
+  function endInteraction(addon, sender) {
+    const id = buttonIdForSender(addon, sender);
+    if (!id || addon.batchCommentHeldControl !== id || sender.mncmBatchTouchToken !== addon.batchCommentHeldToken) return false;
+    addon.batchCommentHeldControl = '';
+    finishHeldInteraction(addon);
+    return true;
+  }
+  function endLongPress(addon, sender, state) {
+    const id = buttonIdForSender(addon, sender);
+    if (!id || addon.batchCommentHeldGesture !== id || sender.mncmBatchTouchToken !== addon.batchCommentHeldToken) return false;
+    addon.batchCommentHeldGesture = '';
+    if ([3, 4, 5].includes(Number(state))) addon.batchCommentHeldControl = '';
+    finishHeldInteraction(addon);
+    return true;
   }
 
   return {
-    disposeButton,
-    beginInteraction,
+    openEditor, editorClosed, menuDismissed, disposeButton, relayout, refreshForActivation,
+    beginInteraction, beginLongPress, endInteraction, endLongPress,
     handleMultipleSelection,
     hideButton,
     handleMultipleSelectionClosed,

@@ -433,7 +433,12 @@ it('keeps a draft visible instead of removing an unfinished composition on timeo
   expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'closeQuickComment')).toHaveLength(0);
   expect(input().value).toBe('原正文尚未结束的组词'); expect(input().disabled).toBe(false);
   expect(host.querySelector('[role=alert]').textContent).toContain('中文组词尚未结束');
-  await click('关闭输入并保留草稿');
+  await click('添加评论'); await click('关闭输入并保留草稿');
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment' || cmd === 'closeQuickComment')).toHaveLength(0);
+  await act(async () => {
+    input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+  });
   expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ text: '原正文尚未结束的组词' }));
 });
 it('cancels a pending composition close when its page is removed', async () => {
@@ -475,4 +480,79 @@ it('blocks closing while a retry starts before the uncertain phase rerenders', a
   const requests = MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment');
   expect(requests[0][1]).toEqual(requests[1][1]);
   expect(host.querySelector('.quick-success')).not.toBeNull();
+});
+
+it('unlocks editing when Native recovers an initially failed state read', async () => {
+  await act(async () => root.unmount());
+  const send = MNBridge.send.getMockImplementation(); let reads = 0;
+  MNBridge.send.mockImplementation((command, payload) => {
+    if (command === 'getQuickCommentState') return ++reads === 1 ? Promise.reject(new Error('读取暂时失败')) : Promise.resolve({ ...nativeState, draft: '原草稿', markdown: true, draftRevision: 3 });
+    return send(command, payload);
+  });
+  root = createRoot(host); await act(async () => root.render(<QuickComment />));
+  expect(input().disabled).toBe(true);
+  await act(async () => window.__MNQuickCommentRecoverOpen());
+  expect(input().value).toBe('原草稿'); expect(input().disabled).toBe(false);
+  expect(host.querySelector('[role=switch]').getAttribute('aria-checked')).toBe('true');
+  await type('继续编辑'); await click('添加评论');
+  expect(MNBridge.send).toHaveBeenCalledWith('appendQuickComment', expect.objectContaining({ text: '继续编辑', markdown: true, draftRevision: 4 }));
+});
+it('does not treat a composition-confirming Return beforeinput as a submission', async () => {
+  await type('已完成中文');
+  await act(async () => {
+    input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    input().dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true, cancelable: true }));
+    input().dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertParagraph', bubbles: true, cancelable: true }));
+  });
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(0);
+  await key('Enter');
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(1);
+});
+it('ignores an older draft write failure after newer text was retained', async () => {
+  const old = deferred(), send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === 'updateQuickCommentDraft' && payload.draftRevision === 1 ? old.promise : send(command, payload));
+  await type('旧草稿'); await type('当前草稿');
+  await act(async () => old.reject(new Error('旧请求失败')));
+  expect(input().value).toBe('当前草稿');
+  expect(host.querySelector('[role=alert]')).toBeNull();
+});
+
+it('does not replace an active composing value when the newline button is tapped', async () => {
+  await type('原正文');
+  await act(async () => input().dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input(), '原正文组词');
+  input().setSelectionRange(5, 5);
+  await click('插入换行');
+  expect(input().value).toBe('原正文组词');
+  await finishComposition();
+  expect(input().value).toBe('原正文组词');
+  await click('插入换行');
+  expect(input().value).toBe('原正文组词\n');
+});
+it('keeps current draft failures visible and editable', async () => {
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === 'updateQuickCommentDraft' ? Promise.reject(new Error('当前请求失败')) : send(command, payload));
+  await type('保留当前正文');
+  expect(host.querySelector('[role=alert]').textContent).toContain('草稿保留失败：当前请求失败');
+  expect(input().value).toBe('保留当前正文'); expect(input().disabled).toBe(false);
+  await click('关闭输入并保留草稿');
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', expect.objectContaining({ text: '保留当前正文', draftRevision: 1 }));
+});
+it('does not unlock an unresolved hydrated submission during state recovery', async () => {
+  await act(async () => root.unmount());
+  const send = MNBridge.send.getMockImplementation(); let reads = 0;
+  nativeState = stateFor({ submissionId: 'pending-original', text: '原提交', markdown: false, draftRevision: 2 }, 'pending');
+  MNBridge.send.mockImplementation((command, payload) => command === 'getQuickCommentState' ? ++reads === 1 ? Promise.reject(new Error('初次读取失败')) : Promise.resolve(nativeState) : send(command, payload));
+  root = createRoot(host); await act(async () => root.render(<QuickComment />));
+  await act(async () => window.__MNQuickCommentRecoverOpen());
+  expect(input().value).toBe('原提交'); expect(input().disabled).toBe(true);
+  await key('Enter');
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(0);
+});
+it('allows a later mobile Return after the composition-confirming key is released', async () => {
+  await type('中文正文'); await key('Enter', { keyCode: 229 });
+  await act(async () => input().dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true })));
+  await act(async () => input().dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true })));
+  expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(1);
 });

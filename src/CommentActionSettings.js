@@ -1,6 +1,7 @@
 var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
   const BATCH_BUTTON_VISIBLE_KEY = "mncommentmanager_show_batch_button";
   const DYNAMIC_BUTTON_ENABLED_KEY = "mncommentmanager_enable_dynamic_single_card_button";
+  const AUTO_HIDE_NATIVE_DUPLICATES_KEY = "mncommentmanager_auto_hide_native_duplicates";
   const MANAGEMENT_BUTTON_VISIBLE_KEY = "mncommentmanager_show_management_button";
   const MOVE_BUTTON_VISIBLE_KEY = "mncommentmanager_show_move_comment_button";
   const BUTTON_ORDER_KEY = "mncommentmanager_dynamic_button_order";
@@ -43,6 +44,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
     const result = {
       showBatchButton: readBoolean(BATCH_BUTTON_VISIBLE_KEY, true),
       enableDynamicSingleCardButton: readBoolean(DYNAMIC_BUTTON_ENABLED_KEY, true),
+      autoHideNativeDuplicates: readBoolean(AUTO_HIDE_NATIVE_DUPLICATES_KEY, true),
       showManagementButton: readBoolean(MANAGEMENT_BUTTON_VISIBLE_KEY, true),
       showMoveCommentButton: readBoolean(MOVE_BUTTON_VISIBLE_KEY, true),
       dynamicButtonOrder: readButtonOrder(),
@@ -69,6 +71,7 @@ var __MN_COMMENT_ACTION_SETTINGS__ = (function () {
     if (next.dynamicButtonOrder !== undefined && !validButtonOrder(next.dynamicButtonOrder)) throw new Error("浮动按钮顺序无效");
     if (typeof next.showBatchButton === "boolean") writeBoolean(BATCH_BUTTON_VISIBLE_KEY, next.showBatchButton);
     if (typeof next.enableDynamicSingleCardButton === "boolean") writeBoolean(DYNAMIC_BUTTON_ENABLED_KEY, next.enableDynamicSingleCardButton);
+    if (typeof next.autoHideNativeDuplicates === "boolean") writeBoolean(AUTO_HIDE_NATIVE_DUPLICATES_KEY, next.autoHideNativeDuplicates);
     if (typeof next.showManagementButton === "boolean") writeBoolean(MANAGEMENT_BUTTON_VISIBLE_KEY, next.showManagementButton);
     if (typeof next.showMoveCommentButton === "boolean") writeBoolean(MOVE_BUTTON_VISIBLE_KEY, next.showMoveCommentButton);
     if (next.dynamicButtonOrder !== undefined) defaults().setObjectForKey(JSON.stringify(next.dynamicButtonOrder), BUTTON_ORDER_KEY);

@@ -5,7 +5,7 @@ const vm = require("vm");
 
 const timers = [];
 function takePrimaryTimer() {
-  const index = timers.findIndex(timer => ![0.12, 0.3].includes(timer.seconds));
+  const index = timers.findIndex(timer => [0.02, 0.18].includes(timer.seconds));
   assert(index >= 0, 'expected primary lifecycle timer');
   return timers.splice(index, 1)[0];
 }
@@ -82,6 +82,7 @@ const templates = context.__MN_COMMENT_WORKFLOW_STORE__.templates();
 context.__MN_COMMENT_WORKFLOW_STORE__.list = () => templates;
 context.__MN_COMMENT_WORKFLOW_REGISTRY__ = { getCatalog: () => [], getPresets: () => [], getAction: (id) => ({ id }) };
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowMenu.js"), "utf8"), context);
+for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(path.join(__dirname, "..", "src"), module + ".js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "DynamicCommentActions.js"), "utf8"), context);
 
 (async function run() {
@@ -96,6 +97,7 @@ assert.strictEqual(addon.dynamicCommentButton.hidden, false);
 assert.deepStrictEqual(addon.dynamicCommentButton.targetActions, [
   { selector: "dynamicCommentButtonTouchDown:", events: 1 << 0 },
   { selector: "dynamicCommentButtonTapped:", events: 1 << 6 },
+  { selector: "dynamicCommentButtonTouchEnded:", events: (1 << 7) | (1 << 8) },
 ]);
 
 const dynamicFrame = addon.dynamicCommentButton.frame;
@@ -250,7 +252,7 @@ hostView.addSubview(extra);
 const refreshIndex = timers.findIndex(timer => timer.seconds === 0.12);
 timers.splice(refreshIndex, 1)[0].callback();
 assert.strictEqual(area(group(), extra.frame), 0, 'deferred reveal of the Pinner extra button must reposition the entire pair');
-assert.strictEqual(addon.dynamicAddCommentButton.frame.x, addon.dynamicCommentButton.frame.x + 48);
+assert.strictEqual(addon.dynamicAddCommentButton.frame.x, addon.dynamicCommentButton.frame.x + 92);
 actions.hideButton(addon, 'closed-before-refresh');
 timers.forEach(timer => timer.callback()); timers.length = 0;
 assert.strictEqual(addon.dynamicCommentButton.hidden, true, 'late placement refresh must not resurrect closed buttons');
@@ -288,15 +290,18 @@ for (const count of [0, 1, 2]) {
     Object.assign(configured, { enableDynamicSingleCardButton: true, dynamicButtonOrder: order });
     ids.forEach((id, index) => { configured[keys[id]] = !!(mask & (1 << index)); });
     assert(actions.handlePopupMenuOnNote(addon, sender)); takePrimaryTimer().callback();
-    const expected = order.filter(id => configured[keys[id]] && (id !== 'move' || count > 1));
+    const expected = order.filter(id => configured[keys[id]] && (id !== 'move' || count > 0));
     const actual = ids.filter(id => addon[properties[id]] && !addon[properties[id]].hidden)
       .sort((a, b) => addon[properties[a]].frame.x - addon[properties[b]].frame.x);
     assert.deepStrictEqual(actual, expected, `combination ${mask}, comments ${count}, order ${order}`);
+    let cursor = expected.length ? addon[properties[expected[0]]].frame.x : 0;
     expected.forEach((id, index) => {
       const button = addon[properties[id]];
       assert.strictEqual(button.enabled, true);
       assert.strictEqual(button.userInteractionEnabled, true);
-      assert.strictEqual(button.frame.x, addon[properties[expected[0]]].frame.x + index * 48, 'hidden buttons must not leave gaps');
+      assert.strictEqual(button.frame.x, cursor, 'hidden configuration groups must not leave gaps');
+      if (id === 'management') { assert.equal(addon.dynamicCommentMenuButton.frame.x, cursor + 44); assert.equal(addon.dynamicCommentMenuButton.hidden, false); }
+      cursor += id === 'management' ? 92 : 48;
     });
     ids.filter(id => !expected.includes(id)).forEach(id => assert(!addon[properties[id]], 'disabled buttons need no native view'));
     combinations++;
@@ -344,6 +349,140 @@ assert.strictEqual(addon.dynamicCommentContext, null);
 assert.strictEqual(configured.showQuickCommentButton, true, 'master switch must not erase individual choices');
 assert.strictEqual(actions.isButtonEnabled('move'), false);
 actions.disposeButton(addon, 'combinations.done');
+
+// A touch sequence belongs to the button and card that received TouchDown.
+let clock = 20000;
+context.Date = { now: () => clock };
+context.MNUtil.getImage = () => ({});
+context.MNUtil.focusNoteInMindMapById = () => {};
+let removedRails = 0;
+const openedTargets = [];
+context.__MN_COMMENT_MOVE_MNCommentManagerAddon = { remove() { removedRails++; } };
+context.__MN_QUICK_COMMENT_MNCommentManagerAddon = { open(_addon, captured) { openedTargets.push(captured.noteId); return true; } };
+Object.assign(configured, { enableDynamicSingleCardButton: true, showManagementButton: true, showQuickCommentButton: true, showMoveCommentButton: true,
+  managementTapAction: 'none', managementHoldAction: 'none', addTapAction: 'quickInput', addHoldAction: 'none' });
+function reveal(noteId = 'touch-card') {
+  timers.length = 0;
+  actions.handlePopupMenuOnNote(addon, { userInfo: { noteid: noteId, winRect: { x: 100, y: 100, width: 100, height: 40 } } });
+  takePrimaryTimer().callback();
+}
+reveal();
+removedRails = 0;
+assert.equal(actions.dispatchAction(addon, false, false, addon.dynamicCommentButton), false);
+assert.equal(removedRails, 0, 'a configured no-op tap must not close an existing organizing panel');
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+assert.equal(actions.dispatchAction(addon, false, true, addon.dynamicCommentButton), false);
+assert.equal(removedRails, 0, 'a configured no-op hold must not close an existing organizing panel');
+assert.equal(actions.dispatchAction(addon, true, false, addon.dynamicAddCommentButton), true, 'a hold on management cannot consume an add-button tap');
+assert.deepEqual(openedTargets, ['touch-card']);
+
+configured.managementTapAction = 'quickInput';
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+actions.dispatchAction(addon, false, true, addon.dynamicCommentButton);
+clock += 5000;
+assert.equal(actions.dispatchAction(addon, false, false, addon.dynamicCommentButton), false, 'a long hold must suppress its release without a time limit');
+assert.equal(openedTargets.length, 1);
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+assert.equal(actions.dispatchAction(addon, false, false, addon.dynamicCommentButton), true, 'a new TouchDown must clear a cancelled prior hold');
+
+actions.beginInteraction(addon, addon.dynamicAddCommentButton);
+const oldAddButton = addon.dynamicAddCommentButton;
+reveal('new-touch-card');
+assert.equal(actions.dispatchAction(addon, true, false, oldAddButton), false, 'a queued tap cannot retarget a different card');
+assert.equal(actions.dispatchAction(addon, true, true, oldAddButton), false, 'a queued long press cannot retarget a different card');
+actions.beginInteraction(addon, addon.dynamicAddCommentButton);
+assert.equal(actions.dispatchAction(addon, true, false, addon.dynamicAddCommentButton), true, 'a fresh touch may use the new card');
+assert.equal(openedTargets.at(-1), 'new-touch-card');
+const disposedAddButton = addon.dynamicAddCommentButton;
+actions.disposeButton(addon, 'replace-native-buttons');
+reveal('replacement-card');
+assert.notEqual(addon.dynamicAddCommentButton, disposedAddButton);
+assert.equal(actions.dispatchAction(addon, true, false, disposedAddButton), false, 'a disposed native button must retain its original target token');
+
+configured.managementTapAction = 'none'; configured.managementHoldAction = 'menu';
+reveal('settings-touch-card');
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+const settingsToken = addon.dynamicCommentContext.token;
+configured.managementTapAction = 'quickInput';
+actions.refreshButtons(addon);
+assert.equal(addon.dynamicCommentContext.token, settingsToken, 'changing settings must preserve workflow identity');
+assert.equal(actions.dispatchAction(addon, false, false, addon.dynamicCommentButton), false, 'a queued tap cannot run an action assigned after TouchDown');
+assert.equal(actions.dispatchAction(addon, false, true, addon.dynamicCommentButton), false, 'a queued hold cannot run after settings change');
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+assert.equal(actions.dispatchAction(addon, false, false, addon.dynamicCommentButton), true, 'a new touch uses the updated action');
+assert.equal(openedTargets.at(-1), 'settings-touch-card');
+
+reveal('cancelled-touch-card');
+actions.beginInteraction(addon, addon.dynamicCommentButton);
+actions.handlePopupMenuClosed(addon);
+const protectedClose = timers.find(timer => timer.seconds === 0.18);
+protectedClose.callback();
+assert(addon.dynamicCommentContext, 'the close delay must protect an unfinished touch');
+clock += 5000;
+assert(addon.dynamicCommentContext, 'elapsed time cannot end a physical touch');
+actions.endInteraction(addon, addon.dynamicCommentButton);
+const deferredClose = timers.find(timer => timer.seconds === 0);
+assert(deferredClose, 'a completed or cancelled touch must schedule a final popup-close check');
+deferredClose.callback();
+assert.equal(addon.dynamicCommentContext, null, 'a cancelled touch cannot leave a permanent floating entry');
+
+reveal('layout-card');
+timers.length = 0;
+const layoutToken = addon.dynamicCommentContext.token;
+hostView.bounds = { x: 0, y: 0, width: 240, height: 320 };
+actions.relayout(addon);
+assert.equal(addon.dynamicCommentContext.token, layoutToken, 'relayout must preserve the target session');
+for (const key of ['dynamicCommentButton', 'dynamicCommentMenuButton', 'dynamicAddCommentButton', 'dynamicMoveCommentButton']) {
+  const button = addon[key];
+  assert(button.hidden || button.frame.x + button.frame.width <= 240, 'visible controls must remain inside a resized host');
+}
+addon.mnCommentManagerSceneActive = false;
+assert.equal(actions.isCurrentTouch(addon, {}), false, 'an unwrapped sender cannot bypass scene deactivation');
+assert.equal(actions.relayout(addon), false, 'a paused scene cannot reveal or reposition floating controls');
+assert.equal(actions.handlePopupMenuOnNote(addon, sender), false, 'late popup notifications cannot revive a paused scene');
+assert.equal(actions.dispatchAction(addon, true, false, addon.dynamicAddCommentButton), false, 'a paused scene cannot dispatch queued button actions');
+addon.mnCommentManagerSceneActive = true;
+const currentWindow = context.MNUtil.currentWindow;
+context.MNUtil.currentWindow = {};
+assert.equal(actions.isCurrentTouch(addon, {}), false, 'an unwrapped sender cannot target a foreign window');
+context.MNUtil.currentWindow = currentWindow;
+assert.equal(actions.isCurrentTouch(addon, {}), true, 'an active valid session accepts a sender without a TouchDown wrapper');
+actions.disposeButton(addon, 'touch-lifecycle.done');
+assert.equal(actions.isCurrentTouch(addon, {}), false, 'an unwrapped sender cannot recreate a closed target session');
+
+context.__MN_COMMENT_ACTION_UI_MNCommentManagerAddon = {
+  icon(_addon, button, name, label) { button.iconName = name; button.accessibilityLabel = label; },
+};
+hostView.bounds = { x: 0, y: 0, width: 600, height: 400 };
+const actionLabels = { manager: '评论管理器', quickInput: '添加评论', menu: '整卡操作' };
+const actionIcons = { manager: 'manager', quickInput: 'add', menu: 'down' };
+for (const [prefix, property] of [['management', 'dynamicCommentButton'], ['add', 'dynamicAddCommentButton']]) {
+  for (const hold of ['manager', 'quickInput', 'menu']) {
+    configured[prefix + 'TapAction'] = 'none'; configured[prefix + 'HoldAction'] = hold;
+    reveal(prefix + '-hold-only');
+    const button = addon[property];
+    assert.equal(button.accessibilityLabel, actionLabels[hold] + '（长按）', 'a hold-only button must identify its available action');
+    assert.equal(button.iconName, actionIcons[hold]);
+    assert.equal(button.accessibilityValue, '点按：不执行操作；长按：' + actionLabels[hold]);
+    assert.equal(button.enabled, true); assert.equal(button.userInteractionEnabled, true); assert.equal(button.alpha, 1);
+  }
+  configured[prefix + 'HoldAction'] = 'none';
+  actions.refreshButtons(addon);
+  const inactive = addon[property], inactiveFrame = { ...inactive.frame };
+  assert.equal(inactive.hidden, false, 'a fully inactive configured position must remain visible');
+  assert.equal(inactive.enabled, false); assert.equal(inactive.userInteractionEnabled, false); assert.equal(inactive.alpha, 0.35);
+  assert.equal(inactive.accessibilityValue, '点按：不执行操作；长按：不执行操作');
+  actions.relayout(addon);
+  assert.deepEqual(inactive.frame, inactiveFrame);
+  assert.equal(inactive.enabled, false); assert.equal(inactive.alpha, 0.35, 'relayout cannot reactivate a fully inactive button');
+  for (const key of ['dynamicCommentMenuButton', 'dynamicMoveCommentButton']) {
+    assert.equal(addon[key].enabled, true); assert.equal(addon[key].userInteractionEnabled, true); assert.equal(addon[key].alpha, 1);
+  }
+  configured[prefix + 'TapAction'] = 'manager';
+  actions.refreshButtons(addon);
+  assert.equal(inactive.enabled, true); assert.equal(inactive.userInteractionEnabled, true); assert.equal(inactive.alpha, 1, 'enabling an action must remove the inactive appearance');
+}
+actions.disposeButton(addon, 'hold-only-style.done');
 console.log(`dynamic button combinations: ${combinations}; add-only menus, live switches and delayed callbacks passed`);
 console.log("dynamic comment actions tests passed");
 })().catch((error) => {

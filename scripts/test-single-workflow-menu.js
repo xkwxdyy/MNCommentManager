@@ -41,6 +41,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "CommentWorkflowMenu.js"), "utf8"), context);
+for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(path.join(__dirname, "..", "src"), module + ".js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "src", "DynamicCommentActions.js"), "utf8"), context);
 
  (async () => {

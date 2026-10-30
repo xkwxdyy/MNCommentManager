@@ -1,0 +1,12 @@
+{
+  "archive": "Resources/comment-move-integration/manager-overview/mn-comment-manager-v0.1.32.mnaddon",
+  "sha256": "9613b5acf85b5848e0760bd54e0161fb9ad73fe44cbb2f5ccae755e239f77644",
+  "file_count": 106,
+  "addonid": "marginnote.extension.mncommentmanager",
+  "version": "0.1.32",
+  "archive_source_parity": true,
+  "device_acceptance": "pending",
+  "javascript_syntax": "passed",
+  "compressed_native_guard": "passed",
+  "production_bundle_drag_markers": "passed"
+}

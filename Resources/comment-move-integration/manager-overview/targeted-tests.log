@@ -1,0 +1,8 @@
+
+ RUN  v4.1.5 /Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mncommentmanager
+
+
+ Test Files  2 passed (2)
+      Tests  38 passed (38)
+   Start at  12:39:02
+   Duration  2.03s (transform 509ms, setup 0ms, import 730ms, tests 1.83s, environment 1.25s)

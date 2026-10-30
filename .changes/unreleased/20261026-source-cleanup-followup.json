@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "topic": "source-cleanup-followup",
+  "changes": [
+    {
+      "id": "mncommentmanager-source-cleanup-followup-20261026",
+      "type": "changed",
+      "zh": "将网页与安装包暂存改为系统临时目录，成功和失败后均清理生成源码。",
+      "changelog": false,
+      "announce": false
+    }
+  ]
+}

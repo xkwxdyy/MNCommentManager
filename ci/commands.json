@@ -1498,7 +1498,146 @@
         "web/src/components/HtmlSelect.test.jsx",
         "web/src/components/WorkflowParameters.test.jsx",
         "web/src/lib/contentSelection.test.js",
-        "web/src/lib/markdownRenderer.test.js"
+        "web/src/lib/markdownRenderer.test.js",
+        "web/src/App.drag-overview.test.jsx"
+      ]
+    },
+    {
+      "name": "Syntax src/NativeQuickCommentController.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/NativeQuickCommentController.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-native-quick-comment.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-native-quick-comment.js"
+      ]
+    },
+    {
+      "name": "test-native-quick-comment",
+      "argv": [
+        "node",
+        "scripts/test-native-quick-comment.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-comment-quick-actions.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-comment-quick-actions.js"
+      ]
+    },
+    {
+      "name": "test-comment-quick-actions",
+      "argv": [
+        "node",
+        "scripts/test-comment-quick-actions.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentActionUI.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentActionUI.js"
+      ]
+    },
+    {
+      "name": "Comment entry coordination",
+      "argv": [
+        "node",
+        "scripts/test-comment-entry-coordination.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-follow-button-interactions.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-follow-button-interactions.js"
+      ]
+    },
+    {
+      "name": "Follow button interaction matrix",
+      "argv": [
+        "node",
+        "scripts/test-follow-button-interactions.js"
+      ]
+    },
+    {
+      "name": "Native entries native-entry-policy",
+      "argv": [
+        "node",
+        "scripts/test-native-entry-policy.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-menu-visibility",
+      "argv": [
+        "node",
+        "scripts/test-native-menu-visibility.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-scene-entries",
+      "argv": [
+        "node",
+        "scripts/test-native-scene-entries.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-card-menu",
+      "argv": [
+        "node",
+        "scripts/test-native-card-menu.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-card-menu-coverage",
+      "argv": [
+        "node",
+        "scripts/test-native-card-menu-coverage.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-entry-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-native-entry-lifecycle.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-entry-integration",
+      "argv": [
+        "node",
+        "scripts/test-native-entry-integration.cjs"
+      ]
+    },
+    {
+      "name": "Native entries native-entry-settings",
+      "argv": [
+        "node",
+        "scripts/test-native-entry-settings.cjs"
+      ]
+    },
+    {
+      "name": "Comment drag Native guard",
+      "argv": [
+        "node",
+        "scripts/test-comment-drag-guard.js"
+      ]
+    },
+    {
+      "name": "Candidate payload export safety",
+      "argv": [
+        "node",
+        "ci/test-build-payload-export.js"
       ]
     }
   ]

@@ -1,0 +1,21 @@
+# Project-level Codex configuration for this plugin directory.
+#
+# The repo root already has the same mn-docs MCP config. Keeping it here makes
+# Codex sessions started from mncommentmanager load the docs MCP as well.
+
+[mcp_servers.mn-docs]
+command = "node"
+args = [
+  "/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Tooling/marginnote-addon-docs/mcp/cli.mjs",
+  "--root",
+  "/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Infrastructure/upstream/marginnote-addon-docs",
+  "--silent",
+  "--prebuild",
+]
+env = { HF_ENDPOINT = "https://hf-mirror.com" }
+
+[mcp_servers.mn-docs.tools.discover_docs]
+approval_mode = "approve"
+
+[mcp_servers.mn-docs.tools.read_doc]
+approval_mode = "approve"

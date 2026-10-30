@@ -174,6 +174,7 @@ function assertSinglePending(harness) {
   }
   {
     const readTimeouts = {
+      workflowManagerClosed: 1500,
       openHelpVideo: 30000,
       ping: 30000,
       echo: 30000,

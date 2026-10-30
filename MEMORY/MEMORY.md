@@ -1,5 +1,61 @@
 # 项目记忆索引
 
+- 2026-10-29｜用户确认拖动总览并授权接入。正式列表、原生顺序校验与撤销已完成，项目完整检查及浏览器模拟验收通过；0.1.32 测试包 106 文件核验一致，已备份安装并正常重启。真实卡片移动和移动设备触摸仍待验收，见[记录](../Resources/comment-move-integration/manager-overview/validation.md)与 [Issue #102](https://github.com/xkwxdyy/MNCommentManager/issues/102)。
+
+- 2026-10-29｜拖动总览原型的评论／手柄纵向错位已修正为共用中心线；回归及宽屏浏览器中间、首尾对齐通过。原网络故障草稿现已补录至 Issue #102，用户体验已确认；真实触摸待验收。
+
+- 2026-10-29｜完整评论管理器的[拖动总览独立原型](../Resources/comment-move-prototype/manager-overview/validation.md)已完成。已确认右侧手柄与全局轨道＋可读摘要；模拟检查、浏览器实际拖动与撤销、窄屏画面通过。后续已确认并授权接入，以本日上方接入记录为准；本条保留原型阶段证据。
+
+- 2026-10-24｜添加评论原生与网页背景遮罩已移除，面板深浅配色和草稿恢复保留。源码、压缩包及浏览器检查通过；测试版仅替换背景相关资源，已备份安装并正常重启，106 文件一致。原图未提供，移动设备键盘和宿主合成待验收，见[验证记录](../Resources/quick-input/dark-backdrop-review/validation.md)及 [Issue #99](https://github.com/xkwxdyy/MNCommentManager/issues/99)。
+
+- 2026-10-22｜按最新授权将 candidate-11 已验收的原生菜单与动态入口协调合并到正式源码，补充 [新场景模板接入说明](../README.native-card-menu.md)，测试专项已接入 CI。正式实现去除测试文件回执与模板探测。源码 211 条、包内 17 项回放及隔离构建通过，106 文件一致；版本元数据与锁文件未变，仍为 0.1.31。未提交、推送或发布；本轮未操作已交接宿主，安装仍为 candidate-11，去除诊断后的构建尚未重新设备验收。见[合并记录](../Resources/native-card-menu/source-integration-20261022/validation.md)及 [Issue #98](https://github.com/xkwxdyy/MNCommentManager/issues/98#issuecomment-6333722389)。
+
+- 2026-10-22｜全新模板生命周期已在 MN5 Mac 完成：真实导入通用模板及预配置模板，缺省入口设置、场景插件许可、部分与全部接入、菜单手势、自定义空动作冷启动、命令移除、停用恢复、跨场景草稿及空卡均实测。宿主编辑器双编辑标识已在独立 candidate-11 修正，34 条源码和压缩包检查通过；106 个安装文件一致，版本仍为 0.1.31。原偏好及不存在状态、原学习集、模板和界面字段已恢复，测试卡片 JSON 和正式文件 193 项摘要一致。草稿当前运行内恢复，重启后为空。宿主已交接，本轮不再操作；未提交或发布。见[生命周期报告](../Resources/native-card-menu/adaptive-entry-test/fresh-lifecycle-20261022/validation.md)及 [Issue #98](https://github.com/xkwxdyy/MNCommentManager/issues/98#issuecomment-6333555141)。
+
+- 2026-10-22｜原生入口协调独立包 candidate-10 已备份安装并正常重启，106 个文件与包内一致；源码与压缩资源 32 项检查通过。Mac 未接入、部分接入、全部接入、单击双击长按、“更多”、切空卡及跨学习集旧菜单拒绝与新菜单恢复均已实测；自定义空动作长按由 candidate-8 实测，临时偏好已恢复。卡片完整数据与正式文件 193 项摘要一致。原学习集、复习面板及界面状态已核对，坐标差异低于 0.000001；原模板已在宿主再次让出后重新激活并回读确认，Pinner 浮动列表弹窗未恢复。宿主已交接，设备与辅助功能继续待验收，见[验证记录](../Resources/native-card-menu/adaptive-entry-test/validation.md)。
+
+- 2026-10-21｜[原生卡片菜单双入口](../Resources/native-card-menu/two-entry-test/validation.md)已按确认方案制作独立包并安装，最终包 `59d95eb1…` 的 103 个文件核验一致。此前迭代的真实单击、双击、长按和添加草稿恢复通过；最终包的菜单锚点与图标调整仅完成源码、包内及 Bridge 检查，真实手势复验受 `noWindowsAvailable` 阻塞。原学习集、场景及临时启用状态已恢复，原复习面板仍待恢复；测试卡片和树结构一致，Issue #98 保持开放，正式源码未改写。 该历史包已由上方原生入口协调包替代；本轮已完成新包 Mac 手势复验并恢复复习面板。
+
+- 2026-10-21｜[横竖屏、分屏与浮动键盘复查](../Resources/ios-native-quick-input/rotation-split-floating-review/review.md)按最新要求仅执行 HTML 和离线检查，未操作、安装或重启 MarginNote。已修复未相交误避让、侧边空间未利用及迟到隐藏通知误关；203 条检查、324 项前端、43 项原生模型和 HTML 回放通过。`fc3cd8e9…` 布局测试包已生成但未安装，[预览](http://127.0.0.1:8847/)保留；iPad 真机结果仍待确认，Issue #97 开放。
+
+- 2026-10-21｜[iPad 添加评论审查](../Resources/ios-native-quick-input/ipad-lifecycle-review/review.md)已修复低高度键盘遮挡、布局后的键盘坐标过期、紧凑错误提示挤走重试按钮及旧收起抑制。203 条检查、324 项前端与 39 项原生模型通过；`7f476cb1…` 测试包已备份安装到 Mac，102 个文件一致。已提供独立命名的 iPad 测试包和验收表；完整软件键盘、组词光标、分屏、旋转、触摸与 VoiceOver 仍待真机结果，Issue #97 保持开放。
+
+- 2026-10-21｜[跟随按钮完整交互审查](../Resources/follow-button-review/review.md)已完成本轮 Mac 原生验收；最终 0.1.31 测试包 `d3fbaf24…` 已备份安装、正常重启并核对 102 个文件。持续按压、主题、选卡标签、工作流面板接管及关闭后重开已修复并实测；203 条检查和 317 项前端测试通过。主摘录、图片、链接、评论顺序及卡片树核验保留，阅读状态 37 项已恢复；移动设备及 Issue #24 剩余内容验收继续保留。
+
+- 2026-10-21｜[评论入口生命周期审查](../Resources/comment-entry-integration/lifecycle-audit/review.md)：原型已获确认并接入，单卡、评论多选与卡片多选同时保留。已修正重复入口、原生菜单样式、上下文清理和首次打开丢失批量模式，原生单卡菜单、评论全选与清空、多卡预览、长按及关闭后恢复已实测；原生外层关闭的草稿保护已实测，iPad 键盘和无障碍继续按验收记录跟踪。[Issue #98](https://github.com/xkwxdyy/MNCommentManager/issues/98) 开放，原型阶段记录已被替代。
+
+- 2026-10-20｜[独立卡片原生验收](../Resources/comment-quick-actions-native/validation.md)：首组图片摘录的复制、移动、折叠及对应撤销通过；已修复含子卡提取产生顶层副本，修复版真实复制通过，199 条检查及包内专项通过，43 文件核验安装并正常重启。文字样本全局撤销目标不明且自动审批拒绝，完整验收未完成；原阅读状态已恢复，Issue #24 保持开放。
+
+- 2026-10-20｜已按确认原型完成[快捷评论接入、验证和测试安装](../Resources/comment-quick-actions-integration/validation.md)。多选、仅评论提取及原生输入高度调整已接入；源码、前端、包内及 Mac 对照通过，43 个安装文件匹配并正常重启，真实原生菜单可操作。Issue #24 已重新开放跟踪设备验收；未提交、推送或发布。
+
+- 2026-10-20｜原型阶段已完成卡片旁多选、仅评论提取与撤销、输入高度和草稿恢复演示，DOM 与浏览器检查通过。后续已获用户确认并完成接入和测试安装，以上方最新记录为准；原型证据保存在 `Resources/comment-mover-v0.3.50-analysis/prototype-checks.json`。
+
+- 2026-10-20｜MN Comment Mover 0.3.50 定制版已完成[深度分析](../Resources/comment-mover-v0.3.50-analysis/review.md)，并按要求存入 `../extensions/mncommentmover/v0.3.50-native-frame/`，包内文件核对一致。后续已授权按原型吸收部分交互，安装对象为当前项目的集成测试包，未安装独立定制插件。
+
+- 2026-10-20｜[原生输入后续审查](../Resources/ios-native-quick-input/review/review.md)已修正组词结束确认、迟到键盘通知和保存后界面异常的状态恢复。原生 25 场景及 90 轮、Mac 对照与 120 轮、197 条检查命令和真实 UIKit 回调验收通过；最终包已备份安装、43 文件核验并正常重启，Mac 面板正常。移动设备及 Mac 快速输入完整界面验收继续保留，Issue #97 开放。
+
+- 2026-10-20｜[原生快速输入适配](../Resources/ios-native-quick-input/validation.md)已在迁移后的当前开发目录实施：iPhone、iPad 使用 UITextView，Mac 保留网页输入。源码、包内检查及本机备份安装与重启通过；移动设备和 Mac 快速输入完整界面验收待完成，[Issue #97](https://github.com/xkwxdyy/MNCommentManager/issues/97) 保持开放。
+
+- 2026-10-20｜v0.1.31 完整发布完成：PR #96 检查通过并合并，标签 aa3c0d5、main 合并 cb3bf6b；GitHub 附件与本次 Chrome 网页单次选取上传的网盘包完整下载 SHA-256 一致（010185a0…，699505 字节）。主站与兼容站清单、日志逐字节核验及包内更新模块真实 HTTP 的主备用检查通过；服务器旧文件已备份。本次未安装正式包，移动设备等边界仍待验收。见[发布记录](../Resources/releases/v0.1.31.md)。
+
+- 2026-10-20｜自适应横向短栏已完成本机多轮实施、测试安装与真实操作。最终包 `dbafd8c99…` 已安装；Mac 选择、搜索、拖动、撤回、取消及折叠保存通过，已修正内容列表遮挡并记录 [Issue #86](https://github.com/xkwxdyy/MNCommentManager/issues/86)。样本内容顺序、展开状态及原阅读界面已恢复；移动设备待验收。本轮收尾后停止旧目录写入，等待迁移。见[最终验证](../Resources/comment-move-adaptive/validation.md)。
+
+- 2026-10-20｜独立 MN Comment Mover 0.3.9 定制包已完成分析：建议评估自适应短栏与折叠状态提示，保留现有内容预览、顺序校验、撤回和避障。仅分析，未修改插件源码或安装；Issue #78 补充评论被自动审批拒绝，草稿未发送。见[报告与复现](../Resources/comment-mover-adaptive-review/review.md)。
+
+- 2026-10-19｜已使用飞书 CLI 应用身份创建[PDF 非摘录选区菜单扩展反馈与最小接口方案](https://marginnote.feishu.cn/docx/Ct2bdu5QWoaiq3xf75vcSd2Yngc)，当前账号已获 full_access 管理员权限。正文完整回读并经 Markdown 规范化比较一致；包含实测边界、文字／矩形参数、单击／双击派发与失效规则。文档 ID 为 Ct2bdu5QWoaiq3xf75vcSd2Yngc，创建及验证回执位于 Resources/native-card-menu/pdf-existing-excerpt/feishu-delivery.json。
+
+- 2026-10-19｜非摘录文字／矩形菜单的完整公开追加路径仍未核实：云端后续报告定位了菜单项构造、目标绑定及生命周期缺口；依赖宿主视图的原型尚未实施。highlightFromSelection 有创建摘录副作用，不能作为只读快照。详见[后续核查](../Resources/native-card-menu/pdf-existing-excerpt/validation.md#通用菜单接口的后续源码核查)。
+
+- 2026-10-19｜PDF 菜单已完成本机实测：第 32 页已有摘录可追加 A、C，原生单击与附加双击区分，切换摘录后目标正确；实际回调 noteid 为 46DBED2D-A88D-41B6-81BB-35713C421E03 和 F9A6FB80-2867-4A64-B4AF-727F07FF5143，均等于对应原摘录 ID。阅读模式下未摘录文字和普通矩形选区均未生成 A、C，块选择独立操作条也未出现入口；矩形通过 selparams.textMode=false 恢复并观察，未验收鼠标拖框。原有摘录内容一致，自动输入新增的空白源笔记及关联卡片按用户要求保留；阅读模式和当前场景按最新要求保留，没有恢复摘录模式。见[验证记录](../Resources/native-card-menu/pdf-existing-excerpt/validation.md)。
+
+- 2026-10-19｜用户转交云端源码核查报告，注明 revision 7cbc638e59df：PDF／EPub 已有摘录菜单复用卡片命令，文字选区菜单未接入；编辑器保留配置并独立查询标题，实际菜单只消费固定原生命令目录。该报告未由本地独立复核，不能直接等同 build 45063。报告出具时已有摘录尚待实测，后续 PDF 追加与双击已补验通过；EPub、简化菜单及不同 ID 映射仍待验收。本地双击已验证宿主生成的新增插件菜单按钮，未验证复制、高亮等既有按钮。见[补充记录](../Resources/native-card-menu/multi-gesture/validation.md#云端源码核查补充)。
+
+- 2026-10-19｜原生菜单多手势实验已完成 Mac 实际输入验证：C 单击和双击分别触发，最后一次双击后无额外单击；D 四向滑动及 E 拖动状态与位移已记录。用户要求后续只考虑双击，排除 F 连续触发。文档选区通知带有 documentController；配置中的 A 命令在编辑器可见，在实际文字菜单及更多菜单中未出现，文档派发未验证。场景、Bridge state 与卡片树已恢复；临时文献已执行移出，context 仍列未聚焦对象。实验包保留安装，正式源码未加入实验代码。见[验证记录](../Resources/native-card-menu/multi-gesture/validation.md)。
+
+- 2026-10-19｜新增原生菜单项已完成附加长按实验：Mac MarginNote 4.5.0 build 45063 的 B 项单击与 0.5 秒长按可区分，连续长按、长按后单击和切卡均通过，松手未额外触发单击。长按包已备份安装，正式源码与 MNToolbar 未修改；本轮开始时的测试场景和完整界面状态已恢复，卡片树一致。设备及宿主升级边界见[长按验证](../Resources/native-card-menu/long-press/validation.md)。
+
+- 2026-10-19｜原生卡片菜单实验已完成本机实际验收：MarginNote 4.5.0 build 45063 的 A、B 文字命令可点击，切卡后的目标正确；`image: icon.png` 未显示为菜单图标，同包工具栏图标正常。原场景和完整界面状态已恢复，正式源码未加入实验入口，测试包及未激活场景保留。见[实验记录](../Resources/native-card-menu/validation.md)。
+
 - 2026-10-19｜v0.1.30 完整发布已完成，发布提交 `fdc603c`；GitHub 附件与 Arc 上传的网盘包完整下载摘要一致，主、备用清单及双语日志公开响应与候选一致。68 个 Node.js 脚本、295 项前端、49 项模型及包内检查通过；实际安装的 0.1.29 已检测到 0.1.30 并显示对应说明，未安装正式包。真实升级及移动设备待验收，详见 [发布记录](../Resources/releases/v0.1.30.md)。
 
 - 2026-10-19｜按各插件技能完成本地源码提交、Arc 同名覆盖及完整下载摘要核验，主备用清单与双语日志部署后 16 项公开文件一致，Pinner/Literature 生产更新模块 8 项真实 HTTP 主备用检查通过。本地备用元数据已同步，包体未重写，Git 未推送；默认覆盖授权已记入工作区规则。实际更新界面受窗口坐标操作错误阻塞，设备验收边界保留，见[发布记录](../Resources/dynamic-button-publication/submission.md)。

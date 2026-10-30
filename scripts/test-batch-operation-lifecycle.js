@@ -72,6 +72,8 @@ function makeContext(send) {
     action: "copySelectedText",
     destination: "comment",
     state: { token: "BATCH-1" },
+    hasCurrentSelection: true,
+    currentScopeRef: { current: { token: "BATCH-1", active: true } },
     batchOperationRef: { current: null },
     previewRevisionRef: { current: 0 },
     mountedRef: { current: true },
@@ -151,7 +153,8 @@ function makeContext(send) {
 
   assert.ok(previewSource.includes('MNBridge.send("previewBatchWorkflow", { token: state.token, workflow })'));
   assert.ok(executeSource.includes('MNBridge.send("runBatchWorkflow", { token: state.token, workflow })'));
-  assert.ok(executeSource.includes("if (!mountedRef.current || batchOperationRef.current !== operation) return;"));
+  assert.ok(executeSource.includes("!mountedRef.current || batchOperationRef.current !== operation"));
+  assert.ok(executeSource.includes("currentScopeRef.current.token !== operation.token"));
   assert.ok(previewSource.includes("previewRevisionRef.current !== previewRevision"));
   assert.ok(!previewSource.includes("retry"));
   assert.ok(!executeSource.includes("retry"));
@@ -174,7 +177,7 @@ function makeContext(send) {
   assert.ok(batch.includes('{batchOperationKind === "execute" ? "执行中…" : "执行当前操作"}'));
   assert.ok(batch.includes('aria-busy={busy || savingRecording ? "true" : undefined}'));
   assert.ok(batch.includes('role={editorMessageKind === "error" ? "alert" : "status"}'));
-  assert.ok(batch.includes('disabled={busy || savingRecording || !!selectorError}'));
+  assert.ok(batch.includes('disabled={!hasCurrentSelection || busy || savingRecording || !!selectorError}'));
 
   console.log("batch operation and stale-preview lifecycle regression passed");
 })().catch((error) => {

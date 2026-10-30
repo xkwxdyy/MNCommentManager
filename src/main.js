@@ -11,6 +11,7 @@ JSB.require("CommentHtmlConversion");
 JSB.require("CommentMutations");
 JSB.require("CommentBatchEditor");
 JSB.require("CommentWorkflowRunner");
+JSB.require("CommentActionUI");
 JSB.require("CommentWorkflowMenu");
 JSB.require("CommentActionSettings");
 JSB.require("AddonUpdater");
@@ -24,8 +25,13 @@ JSB.require("CommentModuleOperations");
 JSB.require("WebBridgeCommands");
 JSB.require("PanelContentBounds");
 JSB.require("WebPanelController");
+JSB.require("NativeQuickCommentController");
 JSB.require("QuickCommentController");
 JSB.require("ExternalCardEditor");
+JSB.require("NativeEntryPolicy");
+JSB.require("NativeMenuVisibility");
+JSB.require("NativeSceneEntries");
+JSB.require("NativeCardMenuActions");
 JSB.require("MNCommentManagerAddon");
 
 JSB.newAddon = function (mainPath) {

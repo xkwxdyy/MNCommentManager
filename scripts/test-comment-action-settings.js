@@ -23,6 +23,7 @@ const settings = context.__MN_COMMENT_ACTION_SETTINGS__;
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
   showBatchButton: true,
   enableDynamicSingleCardButton: true,
+  autoHideNativeDuplicates: true,
   showManagementButton: true,
   showMoveCommentButton: true,
   dynamicButtonOrder: ["management", "add", "move"],
@@ -35,6 +36,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.getSettings())), {
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showBatchButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: true,
+  autoHideNativeDuplicates: true,
   showManagementButton: true,
   showMoveCommentButton: true,
   dynamicButtonOrder: ["management", "add", "move"],
@@ -47,6 +49,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ showB
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enableDynamicSingleCardButton: false }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
+  autoHideNativeDuplicates: true,
   showManagementButton: true,
   showMoveCommentButton: true,
   dynamicButtonOrder: ["management", "add", "move"],
@@ -59,6 +62,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ enabl
 assert.deepStrictEqual(JSON.parse(JSON.stringify(settings.updateSettings({ mergeToExcerptDefault: true }))), {
   showBatchButton: false,
   enableDynamicSingleCardButton: false,
+  autoHideNativeDuplicates: true,
   showManagementButton: true,
   showMoveCommentButton: true,
   dynamicButtonOrder: ["management", "add", "move"],

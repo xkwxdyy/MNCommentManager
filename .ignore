@@ -1,0 +1,7 @@
+# Resources contains historical acceptance material, not runtime assets.
+/Resources/
+/.tmp/
+/.ci-output/
+/dist/
+/src/web-dist/
+/web/src/generated/

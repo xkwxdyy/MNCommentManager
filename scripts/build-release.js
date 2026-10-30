@@ -1,18 +1,8 @@
 const fs = require("fs");
 const path = require("path");
-const { execFileSync, execSync } = require("child_process");
+const os = require("os");
+const { execFileSync } = require("child_process");
 const CleanCSS = require("clean-css");
-
-function copyRecursiveSync(src, dest) {
-  if (fs.statSync(src).isDirectory()) {
-    if (!fs.existsSync(dest)) fs.mkdirSync(dest);
-    fs.readdirSync(src).forEach((child) => {
-      copyRecursiveSync(path.join(src, child), path.join(dest, child));
-    });
-    return;
-  }
-  fs.copyFileSync(src, dest);
-}
 
 function getAllFiles(dir, files = []) {
   fs.readdirSync(dir).forEach((file) => {
@@ -82,14 +72,15 @@ function minifyFiles(distDir) {
   });
 }
 
-function buildWebAssets(rootDir) {
+function buildWebAssets(rootDir, output) {
   const webBuildScript = path.join(rootDir, "scripts", "web-build.js");
   execFileSync(process.execPath, [webBuildScript], {
     cwd: rootDir,
+    env: { ...process.env, ADDON_WEB_OUTPUT_DIR: output },
     stdio: "inherit",
   });
 
-  const webIndexPath = path.join(rootDir, "src", "web-dist", "index.html");
+  const webIndexPath = path.join(output, "index.html");
   if (!fs.existsSync(webIndexPath)) {
     throw new Error(`Web dist entry missing: ${webIndexPath}`);
   }
@@ -121,29 +112,47 @@ function build() {
     throw new Error("package.json缺少有效name，无法生成发布文件名");
   }
   const addonName = pkg.name.trim().replace(/^@/, "").replace(/\//g, "-");
-  const distDir = path.join(rootDir, "dist");
   const srcDir = path.join(rootDir, "src");
   const outputName = `${addonName}-v${pkg.version}.mnaddon`;
   const outputPath = path.join(rootDir, outputName);
+  const stagedOutput = `${outputPath}.${process.pid}.new`;
 
   assertNoVendoredMNUtils(rootDir);
-  buildWebAssets(rootDir);
-
-  if (fs.existsSync(distDir)) {
-    fs.rmSync(distDir, { recursive: true, force: true });
+  // CI verifies an independent copy of the exact minified archive input.
+  // Ordinary builds keep all generated payload files in the temporary tree.
+  let exportedPayload = null;
+  if (process.argv.includes("--export-payload")) {
+    const exportRoot = path.join(rootDir, ".ci-output");
+    try {
+      if (fs.lstatSync(exportRoot).isSymbolicLink()) {
+        throw new Error("Payload export parent must not be a symbolic link");
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    fs.mkdirSync(exportRoot, { recursive: true });
+    exportedPayload = path.join(exportRoot, "release-payload");
+    // mkdir without recursive rejects existing directories, files and symlinks.
+    fs.mkdirSync(exportedPayload);
   }
-  fs.mkdirSync(distDir, { recursive: true });
-
-  copyRecursiveSync(srcDir, distDir);
-  minifyFiles(distDir);
-
-  if (fs.existsSync(outputPath)) {
-    fs.unlinkSync(outputPath);
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "mn-addon-build-"));
+  const distDir = path.join(temporary, "payload");
+  try {
+    fs.cpSync(srcDir, distDir, { recursive: true,
+      filter: source => source !== path.join(srcDir, "web-dist"),
+    });
+    buildWebAssets(rootDir, path.join(distDir, "web-dist"));
+    minifyFiles(distDir);
+    if (exportedPayload) fs.cpSync(distDir, exportedPayload, { recursive: true });
+    const archive = path.join(temporary, "package.zip");
+    execFileSync("zip", ["-r", "-q", archive, "."], { cwd: distDir });
+    fs.copyFileSync(archive, stagedOutput);
+    fs.renameSync(stagedOutput, outputPath);
+    console.log(`Build successful: ${outputName}`);
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+    fs.rmSync(stagedOutput, { force: true });
   }
-
-  const absOutputPath = path.resolve(outputPath);
-  execSync(`cd "${distDir}" && zip -r -q "${absOutputPath}" .`);
-  console.log(`Build successful: ${outputName}`);
 }
 
 build();
