@@ -1,8 +1,27 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-30T15:09:50+08:00",
+  "updatedAt": "2026-10-30T23:41:52+08:00",
   "entries": [
+    {
+      "version": "0.1.34",
+      "channel": "stable",
+      "date": "2026-10-30",
+      "items": [
+        {
+          "zh": "评论管理器自行处理焦点、选区及父子卡片读取，避免旧版 MNUtils 在读取不完整摘录对象时意外创建空卡。",
+          "en": "Handle focus, selection and card relationships locally to avoid accidental empty cards when older MNUtils versions read incomplete excerpt objects."
+        },
+        {
+          "zh": "手写预览支持更多归档与笔画布局，保留笔色、透明度和笔宽；受限格式显示近似预览说明。",
+          "en": "Support more handwriting archives and stroke layouts, preserving color, opacity and width, with an approximate-preview notice for restricted formats."
+        },
+        {
+          "zh": "改善更新检查的网络兼容性，并通过通知组件提示新版。",
+          "en": "Improve network compatibility for update checks and show new-version notices through the notification component."
+        }
+      ]
+    },
     {
       "version": "0.1.33",
       "channel": "stable",
