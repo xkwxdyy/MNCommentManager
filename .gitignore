@@ -14,3 +14,4 @@ docs/
 images/
 patches/
 reviews/
+.ci-output/

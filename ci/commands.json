@@ -1632,6 +1632,13 @@
         "node",
         "scripts/test-comment-drag-guard.js"
       ]
+    },
+    {
+      "name": "Candidate payload export safety",
+      "argv": [
+        "node",
+        "ci/test-build-payload-export.js"
+      ]
     }
   ]
 }
