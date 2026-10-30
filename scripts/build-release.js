@@ -118,6 +118,23 @@ function build() {
   const stagedOutput = `${outputPath}.${process.pid}.new`;
 
   assertNoVendoredMNUtils(rootDir);
+  // CI verifies an independent copy of the exact minified archive input.
+  // Ordinary builds keep all generated payload files in the temporary tree.
+  let exportedPayload = null;
+  if (process.argv.includes("--export-payload")) {
+    const exportRoot = path.join(rootDir, ".ci-output");
+    try {
+      if (fs.lstatSync(exportRoot).isSymbolicLink()) {
+        throw new Error("Payload export parent must not be a symbolic link");
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    fs.mkdirSync(exportRoot, { recursive: true });
+    exportedPayload = path.join(exportRoot, "release-payload");
+    // mkdir without recursive rejects existing directories, files and symlinks.
+    fs.mkdirSync(exportedPayload);
+  }
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "mn-addon-build-"));
   const distDir = path.join(temporary, "payload");
   try {
@@ -126,6 +143,7 @@ function build() {
     });
     buildWebAssets(rootDir, path.join(distDir, "web-dist"));
     minifyFiles(distDir);
+    if (exportedPayload) fs.cpSync(distDir, exportedPayload, { recursive: true });
     const archive = path.join(temporary, "package.zip");
     execFileSync("zip", ["-r", "-q", archive, "."], { cwd: distDir });
     fs.copyFileSync(archive, stagedOutput);

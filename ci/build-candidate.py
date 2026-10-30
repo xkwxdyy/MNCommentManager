@@ -52,16 +52,18 @@ def main():
             shutil.copy2(path, staging / path.name)
         (staging / 'node_modules').symlink_to(dependencies.resolve(), target_is_directory=True)
         # This existing demo regression needs a generated, ignored HTML preview.
-        # Rebuild and exercise it before the addon builder recreates dist.
+        # Rebuild and exercise it independently of the isolated release payload.
         subprocess.run(['node', 'web/demos/comment-move/build-overview.mjs'], cwd=staging, check=True)
         subprocess.run(['node', 'web/demos/comment-move/test-overview.mjs'], cwd=staging, check=True)
-        subprocess.run(['node', 'scripts/build-release.js'], cwd=staging, check=True)
+        build_command = ['node', 'scripts/build-release.js', '--export-payload']
+        payload = '.ci-output/release-payload'
+        subprocess.run(build_command, cwd=staging, check=True)
         # This existing regression intentionally requires generated WebView
         # files, which are absent from a fresh checkout until the build above.
         subprocess.run(['node', 'scripts/test-web-entry-release-hygiene.js'], cwd=staging, check=True)
         name = package['name'].strip().lstrip('@').replace('/', '-') + '-v' + package['version'] + '.mnaddon'
-        result = validator.validate(staging, name, 'src/mnaddon.json', 'dist')
-        for script in sorted((staging / 'dist').rglob('*.js')):
+        result = validator.validate(staging, name, 'src/mnaddon.json', payload)
+        for script in sorted((staging / payload).rglob('*.js')):
             subprocess.run(['node', '--check', str(script)], check=True, capture_output=True)
         archive = staging / name
         output.mkdir(parents=True, exist_ok=True)
@@ -74,7 +76,7 @@ def main():
             if sha(path) != original[str(path.relative_to(root))]:
                 raise ValueError('The original identity/version/lock inputs changed')
         result.update({'archive': name, 'node': version, 'source_inputs_unchanged': original,
-                       'build_isolated': True, 'build_command': ['node', 'scripts/build-release.js'],
+                       'build_isolated': True, 'build_command': build_command,
                        'published_uploaded_installed_or_versioned': False})
         (output / 'candidate-verification.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(result, ensure_ascii=False, indent=2))

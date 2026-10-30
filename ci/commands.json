@@ -1634,6 +1634,13 @@
       ]
     },
     {
+      "name": "Candidate payload export safety",
+      "argv": [
+        "node",
+        "ci/test-build-payload-export.js"
+      ]
+    },
+    {
       "name": "Read-only note access regression",
       "argv": [
         "node",
