@@ -1,0 +1,30 @@
+{
+  "version": "0.1.34",
+  "releasedAt": "2026-10-30T23:53:46+08:00",
+  "sourceTag": "v0.1.34",
+  "sourceCommit": "b7880c65039ca86219ff341814097843576becde",
+  "releaseUrl": "https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.34",
+  "filename": "mn-comment-manager-v0.1.34.mnaddon",
+  "bytes": 830249,
+  "sha256": "45e4e80559373fbdf3716684e7621a657f211acac3792df7200203c628bdce23",
+  "files": 108,
+  "githubFullDownloadMatches": true,
+  "panUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.34.mnaddon",
+  "panUploader": "user-assisted webpage upload",
+  "panFullDownloadMatches": true,
+  "sourceChecks": 215,
+  "webTestFiles": 22,
+  "webTests": 344,
+  "installedFileParity": true,
+  "normalRestart": true,
+  "MNUtilsUnchanged": true,
+  "deviceAcceptance": "pending",
+  "bundledManifest": "The frozen tagged package contains the pre-build manifest. The source fallback JSON receives the verified final package SHA-256 and size afterwards; the published archive is unchanged.",
+  "publicPrimaryAndFallbackReadbackMatches": true,
+  "liveUpdaterChecks": {
+    "sourceAndInstalledProduction": true,
+    "primaryAndFallback": true,
+    "latestVersion": "0.1.34",
+    "nativeBoundaries": "simulated"
+  }
+}

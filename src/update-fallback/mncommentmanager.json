@@ -210,5 +210,7 @@
       "fileID": 28490444
     }
   ],
-  "changelogUrl": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json"
+  "changelogUrl": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+  "sha256": "45e4e80559373fbdf3716684e7621a657f211acac3792df7200203c628bdce23",
+  "size": 830249
 }
