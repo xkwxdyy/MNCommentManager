@@ -1,12 +1,12 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-29T20:19:15+08:00",
+  "updatedAt": "2026-10-30T15:09:50+08:00",
   "entries": [
     {
       "version": "0.1.33",
       "channel": "stable",
-      "date": "2026-10-29",
+      "date": "2026-10-30",
       "items": [
         {
           "zh": "评论增加拖动排序概览，支持目标预览、键盘操作、取消和撤销。",
@@ -15,6 +15,14 @@
         {
           "zh": "移动前核对评论顺序、内容和版本，移动后验证结果；过期操作保留明确错误。",
           "en": "Check comment order, content and revision before moving, verify the result afterwards, and reject stale operations with a clear error."
+        },
+        {
+          "zh": "发现新版时使用通知组件提示，组件未就绪时仍可在设置查看检查结果。",
+          "en": "Use a notification when a new version is available, and keep check results accessible in settings while notifications are not ready."
+        },
+        {
+          "zh": "改善更新检查的网络兼容性，保留更新资料与安装包校验。",
+          "en": "Improve network compatibility for update checks while retaining update metadata and package validation."
         }
       ]
     },

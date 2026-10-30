@@ -102,7 +102,7 @@ test('startup waits for network capability and checks once across windows', asyn
   h.api.start({ mainPath: main }); h.api.start({ mainPath: main }); assert.equal(h.timers.length, 1);
   h.timers.shift()(); assert.equal(h.timers.length, 1); assert.equal(h.calls.length, 0);
   h.ctx.MNConnection = network; h.timers.shift()(); await h.api.check();
-  assert.equal(h.calls.length, 1); assert.equal(h.hud.length, 1);
+  assert.equal(h.calls.length, 1); assert.equal(h.hud.length, 0);
 });
 test('changelog is returned with source and offline metadata', async () => {
   const h = harness(); assert.equal((await h.api.changelog()).entries[0].version, '0.1.30');
@@ -137,4 +137,31 @@ test('failed move and failed post-install validation both restore the exact prev
 test('install refuses stale selection and unconfirmed requests', async () => {
   const h = harness(); await assert.rejects(h.api.install({ version: '0.1.30' })); await h.api.check();
   await assert.rejects(h.api.install({ version: '0.1.31' })); assert.equal(h.calls.length, 1);
+});
+
+
+test('modern MNUtil Response retains manifest and package validation', async () => {
+  const h = harness(); let modern = 0;
+  h.ctx.MNUtil = { fetch: async (...args) => { modern++; return h.ctx.MNConnection.fetchDev(...args); } };
+  assert.equal((await h.api.check()).result.updateAvailable, true);
+  assert.equal(modern, 1);
+  h.ctx.MNUtil.fetch = async () => ({ ok: false, status: 401, text: async () => '{}' });
+  assert.equal((await h.api.check()).result.offline, true);
+});
+
+test('update feedback uses ready MNUtils notification without a success HUD', async () => {
+  const h = harness(), notices = [];
+  h.ctx.notificationUtils = { config: {}, notifyController: { webviewResponse: {}, isWebViewDidFinishLoad: 1 } };
+  h.ctx.MNNotification = { simple: (...args) => { notices.push(args); return Promise.resolve({ success: true, id: 'update' }); } };
+  h.api.start({ mainPath: main }); h.timers.shift()(); await h.api.check();
+  assert.equal(notices.length, 1); assert.match(notices[0][1], /0.1.30/); assert.equal(h.hud.length, 0);
+});
+
+
+test('cold notification module never initializes a view or falls back to a success HUD', async () => {
+  const h = harness(); let sent = 0;
+  h.ctx.notificationUtils = { config: {}, notifyController: { webviewResponse: null, get view() { throw new Error('cold view'); } } };
+  h.ctx.MNNotification = { simple: () => { sent++; } };
+  h.api.start({ mainPath: main }); h.timers.shift()(); await h.api.check();
+  assert.equal(sent, 0); assert.equal(h.hud.length, 0);
 });
