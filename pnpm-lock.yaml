@@ -52,8 +52,8 @@ importers:
         specifier: 4.1.5
         version: 4.1.5(jsdom@29.0.2)(vite@8.0.16(terser@5.48.0))
       zustand:
-        specifier: ^5.0.12
-        version: 5.0.14(react@19.2.6)
+        specifier: ^5.0.16
+        version: 5.0.16(react@19.2.6)
 
 packages:
 
@@ -798,8 +798,8 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
-  zustand@5.0.14:
-    resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
+  zustand@5.0.16:
+    resolution: {integrity: sha512-Uv7e327ihlCfayfja3hDc0M64Upev1LWBKpRobdK4NyovDDPeeX4imWXc/wzC1yc6fkYPoAY/ncKVPAs2jrtQw==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@types/react': '>=18.0.0'
@@ -1426,6 +1426,6 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
-  zustand@5.0.14(react@19.2.6):
+  zustand@5.0.16(react@19.2.6):
     optionalDependencies:
       react: 19.2.6
