@@ -1,5 +1,15 @@
 # 项目记忆索引
 
+- 2026-10-30｜评论管理器 0.1.34 已提交并正式发布，源码标签 b7880c6、回执 721b637；GitHub 与人工上传的云盘包完整下载一致，主备用更新源及实际更新器联网检测通过。本机 108 文件一致、正常重启，MNUtils 未变。真实摘录与笔迹仍待设备验收，#106 保持开放。见[发布记录](../../../Archive/Releases/2026-10-30-comment-manager/README.md)。
+
+- 2026-10-30｜#106 已采用插件内部只读适配，普通 MNUtils 无需更换。相关回归 43 项、历史依赖与包内联合重放通过；0.1.33 已备份安装并正常重启，108 个文件一致，MNUtils 摘要保持。真实摘录与移动设备继续待验收。见[兼容修复记录](../../../Resources/validation/2026-10-30-empty-excerpt-card/commentmanager-local/README.md)。
+
+- 2026-10-30｜空卡反馈 #106 深入排查已确认 MNUtils 只读笔记访问存在误创建分支；实际快照与真实菜单延迟回调的安装版代码隔离重放可复现，修复后源码及包内为零次创建。评论管理器运行时未改，依赖尚未安装，设备条件仍待核验。见[工作区深入记录](../../../Resources/validation/2026-10-30-empty-excerpt-card/deep-readonly/README.md)。
+
+- 2026-10-30｜按钮左侧灰点已取得截图，Comment Mover 单评论灰点为优先调查方向，尚未通过停用对照确认。已更新 [Issue #103](https://github.com/xkwxdyy/MNCommentManager/issues/103)，业务源码未改动，见[截图调查](../Resources/button-grey-dot/screenshot-followup.md)。
+
+- 2026-10-30｜[v0.1.33 发布复核](../Resources/releases/v0.1.33-review-2026-10-30.json)通过：GitHub、网盘及主备用更新源一致；远端 main 尚未包含发布提交，新增版本范围待确认，设备验收保留。
+
 - 2026-10-29｜用户确认拖动总览并授权接入。正式列表、原生顺序校验与撤销已完成，项目完整检查及浏览器模拟验收通过；0.1.32 测试包 106 文件核验一致，已备份安装并正常重启。真实卡片移动和移动设备触摸仍待验收，见[记录](../Resources/comment-move-integration/manager-overview/validation.md)与 [Issue #102](https://github.com/xkwxdyy/MNCommentManager/issues/102)。
 
 - 2026-10-29｜拖动总览原型的评论／手柄纵向错位已修正为共用中心线；回归及宽屏浏览器中间、首尾对齐通过。原网络故障草稿现已补录至 Issue #102，用户体验已确认；真实触摸待验收。
