@@ -1,8 +1,19 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-01T12:55:16+08:00",
+  "updatedAt": "2026-11-01T13:06:11+08:00",
   "entries": [
+    {
+      "version": "0.1.36",
+      "channel": "stable",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "zh": "修正评论操作按钮的事件兼容性，保留原有点击、长按与键盘操作。",
+          "en": "Correct event compatibility for comment action buttons while preserving click, long-press and keyboard behavior."
+        }
+      ]
+    },
     {
       "version": "0.1.35",
       "channel": "stable",

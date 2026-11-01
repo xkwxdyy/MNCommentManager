@@ -2949,7 +2949,6 @@ function App() {
                             onClick={(event) => event.stopPropagation()}
                             onContextMenu={(event) => event.preventDefault()}
                             onDragStart={(event) => event.preventDefault()}
-                            onSelectStart={(event) => event.preventDefault()}
                             disabled={loading}
                             aria-label={`定位链接卡片：${linkedDisplay.title}`}
                           >
@@ -2985,7 +2984,6 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`上移评论 #${comment.index}`}
                       >
                         ↑
@@ -3004,7 +3002,6 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`下移评论 #${comment.index}`}
                       >
                         ↓
@@ -3023,7 +3020,6 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`删除评论 #${comment.index}`}
                       >
                         ×
@@ -3157,7 +3153,6 @@ function App() {
               onKeyUp={handleMainDeleteKeyboardEvent}
               onContextMenu={(event) => event.preventDefault()}
               onDragStart={(event) => event.preventDefault()}
-              onSelectStart={(event) => event.preventDefault()}
               disabled={loading || !hasSelection}
               title="点按删除所选内容；按住仅对纯卡片链接执行双向删除"
             >
@@ -5296,7 +5291,6 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
                 onClick={(event) => event.stopPropagation()}
                 onContextMenu={(event) => event.preventDefault()}
                 onDragStart={(event) => event.preventDefault()}
-                onSelectStart={(event) => event.preventDefault()}
               >
                 ⌖
               </Button>

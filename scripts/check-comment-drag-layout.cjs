@@ -20,7 +20,9 @@ fs.mkdirSync(output, {recursive:true});
  try {
   for(const width of [320,390,640,708,999,1000,1280]) for(const coarse of [false,true]) {
    const page=await browser.newPage({viewport:{width,height:width===640?300:700},hasTouch:coarse,colorScheme:coarse?'dark':'light',reducedMotion:'reduce'});
-   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+   // Browser-only favicon requests are outside the embedded WebView fixture.
+   await page.route('**/favicon.ico',route=>route.fulfill({status:204,body:''}));
+   const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error')errors.push(message.text()+' '+message.location().url);});
    await page.addInitScript(snapshot=>{
     const original=Node.prototype.appendChild;
     Node.prototype.appendChild=function(node){

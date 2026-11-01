@@ -236,7 +236,6 @@ assert.ok(buttonSource.includes("onKeyDown={handleMainDeleteKeyboardEvent}"), "E
 assert.ok(buttonSource.includes("onKeyUp={handleMainDeleteKeyboardEvent}"), "Space keyup must be wired to the reviewed keyboard path");
 assert.ok(buttonSource.includes("onContextMenu={(event) => event.preventDefault()}"), "long-press context menu suppression must remain");
 assert.ok(buttonSource.includes("onDragStart={(event) => event.preventDefault()}"), "drag suppression must remain");
-assert.ok(buttonSource.includes("onSelectStart={(event) => event.preventDefault()}"), "text selection suppression must remain");
 assert.ok(buttonSource.includes("disabled={loading || !hasSelection}"), "the existing loading and selection gate must remain");
 assert.ok(buttonSource.includes('className={deletePressing ? "danger wide pressing" : "danger wide"}'), "the pointer pressing state must remain visible");
 assert.ok(!buttonSource.includes("onClick="), "the raw button must not add a click handler that duplicates pointer release");
@@ -261,5 +260,7 @@ assert.ok(deleteSelectionSource.includes('document.getElementById("selection-sum
 
 assert.ok(styles.includes("button:focus-visible"), "the main delete button must retain a visible keyboard focus indicator");
 assert.ok(styles.includes("outline: 3px solid var(--focus)"), "the existing focus token must remain in use");
+
+assert.match(styles, /button\s*\{[^}]*user-select:\s*none;[^}]*-webkit-user-select:\s*none;/, "button text selection is disabled by CSS supported by the WebView");
 
 console.log("main delete button keyboard regression passed");
