@@ -20,7 +20,10 @@ var __MN_HANDWRITING_PREVIEW_MNCommentManagerAddon = (function () {
   }
 
   function renderDrawingDataURI(base64, options) {
-    var rendered = __MN_HANDWRITING_DECODER_MNCommentManagerAddon.renderBase64(base64, options && options.purpose || "preview");
+    var purpose = options && options.purpose || "preview";
+    var rendered = purpose === "preview"
+      ? __MN_HANDWRITING_DECODER_MNCommentManagerAddon.renderPreviewBase64(base64)
+      : __MN_HANDWRITING_DECODER_MNCommentManagerAddon.renderBase64(base64, purpose);
     rendered.dataURI = "data:image/svg+xml;base64," + encodeBase64(rendered.svg);
     delete rendered.svg;
     return rendered;

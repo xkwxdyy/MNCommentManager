@@ -122,7 +122,15 @@ var __MN_HANDWRITING_DECODER_MNCommentManagerAddon = (function () {
       need(Number.isFinite(determinant) && Math.abs(determinant) > 0 && first > 0 && second > 0, "invalid-transform", "笔画坐标变换无效");
       if (Math.abs(first - second) > first * 0.0001 || Math.abs(transform[0] * transform[2] + transform[1] * transform[3]) > first * 0.0001) diagnostics.push(diagnostic("nonuniform-transform", "笔画含非等比变换，仅供近似预览"));
       var widthScale = Math.sqrt(Math.abs(determinant));
-      var path = fields(one(stroke, 5)); schema(path, { 1: 2, 2: 1, 3: 0, 4: 0, 5: 0, 6: 2, 7: 2, 9: 0 });
+      var path = fields(one(stroke, 5)); schema(path, { 1: 2, 2: 1, 3: 0, 4: 0, 5: 0, 6: 2, 7: 2, 8: 0, 9: 0 });
+      // Current host drawings can carry field 8 = 1 alongside ordinary point
+      // channels. Preserve it when comparing archive variants. Its semantics
+      // are not established, so this extension is restricted to preview.
+      var pathFlag = one(path, 8, true);
+      if (pathFlag !== null) {
+        need(pathFlag === 1, "unsupported-path-flag", "笔画路径标志尚未支持");
+        diagnostics.push(diagnostic("unverified-path-flag", "笔画含附加路径标记，仅供近似预览"));
+      }
       var count = one(path, 3), flags = one(path, 4), common = one(path, 6), raw = one(path, 7), marker = one(path, 9, true);
       need(count > 0 && count <= 100000 && (totalPoints += count) <= MAX_POINTS && raw.length % count === 0, "invalid-point-count", "笔画点数或数据长度无效");
       var channel = layout(flags, raw.length / count, common.length), stride = raw.length / count;
@@ -133,7 +141,7 @@ var __MN_HANDWRITING_DECODER_MNCommentManagerAddon = (function () {
         need(shape && shape.length === 16 && shapeKind === 6, "unsupported-shape-marker", "笔画图形标记尚未支持");
         diagnostics.push(diagnostic("unverified-shape-marker", "笔画含图形标记，仅供近似预览"));
       }
-      markers.push({ path: marker, shape: shape ? Array.prototype.join.call(shape, ",") : null, kind: shapeKind });
+      markers.push({ path: marker, flag: pathFlag, shape: shape ? Array.prototype.join.call(shape, ",") : null, kind: shapeKind });
       var extra = compatibility ? one(stroke, 15, true) : null;
       if (extra) need(floatTuple(extra, 6).join(",") === "1,0,0,0.25,0,0", "unsupported-archive-transform", "归档的附加变换尚未支持");
       var points = [];
@@ -274,6 +282,51 @@ var __MN_HANDWRITING_DECODER_MNCommentManagerAddon = (function () {
     push('</svg>');
     return { svg: parts.join("\n"), width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), bounds: { x: minX, y: minY, width: width, height: height }, strokeCount: drawing.strokes.length, pointCount: drawing.pointCount, approximate: true, previewOnly: drawing.previewOnly, diagnostics: drawing.diagnostics, archive: drawing.archive || null, format: drawing.format };
   }
+  // The pre-2026-10-30 reader used bounded x/y records independently of the
+  // pressure-channel schema. Keep that route for display only; conversion must
+  // continue using decode/render and reject unverified layouts and markers.
+  function legacyPreview(bytes) {
+    need(header(bytes, "wrd"), "invalid-magic-header", "兼容显示仅支持原始手写数据");
+    var root = fields(bytes.subarray(3));
+    [1, 30].forEach(function (key) { var v = one(root, key, true); need(v === null || v === 0, "unsupported-drawing-version", "绘图版本尚未支持"); });
+    var records = root[5] || [], total = 0, penSize = 3;
+    need(records.length > 0 && records.length <= MAX_STROKES, "invalid-stroke-count", "手写笔画数量无效");
+    if (root[4] && root[4][0] && root[4][0].wire === 2) {
+      var metadata = fields(root[4][0].value), pen = metadata[8];
+      if (pen && pen.length === 1 && pen[0].wire === 1) {
+        var data = pen[0].value, size = new DataView(data.buffer, data.byteOffset, data.byteLength).getFloat64(0, true);
+        if (Number.isFinite(size) && size > 0) penSize = Math.max(1, Math.min(12, size));
+      }
+    }
+    var strokes = records.map(function (record) {
+      need(record.wire === 2, "invalid-drawing-field", "手写笔画字段类型无效");
+      var stroke = fields(record.value), path = fields(one(stroke, 5));
+      var count = one(path, 3), raw = one(path, 7), flags = one(path, 4);
+      need(Number.isSafeInteger(count) && count > 0 && count <= 100000 && (total += count) <= MAX_POINTS && raw instanceof Uint8Array && raw.length % count === 0, "invalid-point-count", "手写点数或数据长度无效");
+      var stride = raw.length / count;
+      need(Number.isSafeInteger(flags) && (flags & 1) && stride >= 12 && stride <= 64, "unsupported-point-layout", "手写坐标布局尚未支持");
+      var transform = floatTuple(one(stroke, 7), 6), view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength), points = [];
+      need(Math.abs(transform[0] * transform[3] - transform[1] * transform[2]) > 0, "invalid-transform", "笔画坐标变换无效");
+      for (var i = 0; i < count; i += 1) {
+        var x = view.getFloat32(i * stride, true), y = view.getFloat32(i * stride + 4, true);
+        var px = transform[0] * x + transform[2] * y + transform[4], py = transform[1] * x + transform[3] * y + transform[5];
+        need(Number.isFinite(px) && Number.isFinite(py) && Math.abs(px) <= 10000000 && Math.abs(py) <= 10000000, "invalid-point", "手写坐标无效");
+        points.push({ x: px, y: py, width: penSize });
+      }
+      return { color: "#1d1d1f", opacity: 1, points: points };
+    });
+    return render({ strokes: strokes, pointCount: total, previewOnly: true, diagnostics: [diagnostic("legacy-preview", "使用旧版兼容显示；笔色和笔触样式可能与原始手写不同")], format: "PencilKit wrd (legacy preview)" }, "preview");
+  }
+  function renderPreviewBase64(base64) {
+    var bytes = base64Bytes(base64), drawing;
+    try { drawing = decode(bytes); }
+    catch (error) {
+      if (!header(bytes, "wrd") || ["unsupported-drawing-field", "unsupported-point-layout"].indexOf(error.code) < 0) throw error;
+      return legacyPreview(bytes);
+    }
+    if (header(bytes, "wrd") && drawing.previewOnly && drawing.diagnostics.some(function (item) { return item.code === "unverified-path-flag"; }) && drawing.diagnostics.every(function (item) { return item.code === "unverified-path-flag" || item.code === "unverified-path-marker"; })) return legacyPreview(bytes);
+    return render(drawing, "preview");
+  }
   function renderBase64(base64, purpose) { return render(decode(base64Bytes(base64)), purpose); }
-  return { decodeBase64: base64Bytes, decode: decode, render: render, renderBase64: renderBase64 };
+  return { decodeBase64: base64Bytes, decode: decode, render: render, renderBase64: renderBase64, renderPreviewBase64: renderPreviewBase64 };
 })();

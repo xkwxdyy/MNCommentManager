@@ -36,6 +36,19 @@ equal(marked.previewOnly, true); equal(marked.diagnostics.map(entry => entry.cod
 assert.match(decoder.render(marked, 'preview').svg, /<svg/); assertions += 1;
 rejects(() => decoder.render(marked, 'ocr'), 'drawing-preview-only');
 rejects(() => decoder.render(marked, 'export'), 'drawing-preview-only');
+// Host-created strokes may carry varint path field 8 = 1. Recreate only the
+// format, never store private handwriting in the regression fixtures.
+const flagged = decode({ flags: 7, commonLength: 18, marker: 321, pathFields: [field(8, 0, 1)] });
+equal(flagged.strokes, basic.strokes);
+equal(flagged.previewOnly, true);
+equal(flagged.markers[0].flag, 1);
+equal(flagged.diagnostics.map(entry => entry.code), ['unverified-path-flag', 'unverified-path-marker']);
+assert.match(decoder.render(flagged, 'preview').svg, /<svg/); assertions += 1;
+rejects(() => decoder.render(flagged, 'ocr'), 'drawing-preview-only');
+rejects(() => decoder.render(flagged, 'export'), 'drawing-preview-only');
+rejects(() => decode({ pathFields: [field(8, 0, 2)] }), 'unsupported-path-flag');
+rejects(() => decode({ pathFields: [field(8, 2, Buffer.from([1]))] }), 'unsupported-drawing-field');
+rejects(() => decode({ pathFields: [field(8, 0, 1), field(8, 0, 1)] }), 'invalid-drawing-field');
 rejects(() => decoder.render(basic, 'unexpected'), 'invalid-render-purpose');
 assert.match(decoder.render(decode({ rgba: [0, 0, 1, 0.001] }), 'preview').svg, /opacity="0\.001/); assertions += 1;
 equal(decode({ transform: [2, 0, 0, 1, 0, 0] }).previewOnly, true);
@@ -71,4 +84,23 @@ rejects(() => decode({ points: [[1, 2, -1]] }), 'invalid-point');
 rejects(() => decode({ rootFields: [field(30, 0, 0)] }), 'invalid-drawing-field');
 const invisible = decode({ rgba: [1, 0, 0, 0] });
 rejects(() => decoder.render(invisible, 'preview'), 'no-visible-strokes');
+// Display compatibility must not weaken conversion validation or drop points.
+const oldLayout = drawing({ flags: 7, commonLength: 19 });
+const oldLayoutPreview = decoder.renderPreviewBase64(oldLayout.toString('base64'));
+equal([oldLayoutPreview.pointCount, oldLayoutPreview.strokeCount, oldLayoutPreview.previewOnly], [2, 1, true]);
+equal(oldLayoutPreview.diagnostics.map(item => item.code), ['legacy-preview']);
+assert.match(oldLayoutPreview.svg, /d="M 11\.00 22\.00 L 13\.00 24\.00"/); assertions += 1;
+rejects(() => decoder.renderBase64(oldLayout.toString('base64'), 'ocr'), 'unsupported-point-layout');
+rejects(() => decoder.renderBase64(oldLayout.toString('base64'), 'export'), 'unsupported-point-layout');
+const legacyFlagged = drawing({ commonLength: 18, marker: 321, pathFields: [field(8, 0, 1)] });
+equal(decoder.renderPreviewBase64(legacyFlagged.toString('base64')).diagnostics.map(item => item.code), ['legacy-preview']);
+rejects(() => decoder.renderBase64(legacyFlagged.toString('base64'), 'ocr'), 'drawing-preview-only');
+rejects(() => decoder.renderPreviewBase64(drawing({ commonLength: 19, declaredPoints: 3 }).toString('base64')), 'invalid-point-count');
+rejects(() => decoder.renderPreviewBase64(drawing({ commonLength: 19, points: [[NaN, 2, 3]] }).toString('base64')), 'invalid-point');
+rejects(() => decoder.renderPreviewBase64(oldLayout.subarray(0, oldLayout.length - 1).toString('base64')), 'truncated-drawing');
+rejects(() => decoder.renderPreviewBase64(drawing({ brush: 'com.apple.ink.pencil' }).toString('base64')), 'unsupported-brush');
+const supportedPreview = decoder.renderPreviewBase64(drawing().toString('base64'));
+equal(supportedPreview.previewOnly, false);
+assert.match(supportedPreview.svg, /stroke="#ff0000"/); assertions += 1;
+
 console.log(`handwriting decoder regression ok (${assertions} checks; synthetic fixtures)`);

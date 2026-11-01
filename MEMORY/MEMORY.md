@@ -1,5 +1,9 @@
 # 项目记忆索引
 
+- 2026-10-31｜经明确授权，两份缺陷记录已同步并回读逐字核对：遮挡新建 [MNCommentManager #107](https://github.com/xkwxdyy/MNCommentManager/issues/107)；手写追加至[内部工具 #22](https://github.com/xkwxdyy/MarginNote-Addon-Internal-Tools/issues/22#issuecomment-6543946054)。两个问题保持开放，iPad 等待验收边界保留。先前外部写入受阻已解除。
+
+- 2026-10-31｜手写显示回归与手柄遮挡已修复并安装本机测试包，版本保持 0.1.34。历史重放确认 20bfaab 严格白名单导致旧版可显示笔迹报字段 8；现保留严格转换并恢复有界阅读兼容。手柄预留间距覆盖已修复，14 组浏览器几何与 Mac 常规面板／重开通过。108 文件与净包一致，未提交／推送／发布；iPad 未验收。GitHub 写入被自动审批拒绝，草稿暂存知识库对应验收目录。
+
 - 2026-10-30｜评论管理器 0.1.34 已提交并正式发布，源码标签 b7880c6、回执 721b637；GitHub 与人工上传的云盘包完整下载一致，主备用更新源及实际更新器联网检测通过。本机 108 文件一致、正常重启，MNUtils 未变。真实摘录与笔迹仍待设备验收，#106 保持开放。见[发布记录](../../../Archive/Releases/2026-10-30-comment-manager/README.md)。
 
 - 2026-10-30｜#106 已采用插件内部只读适配，普通 MNUtils 无需更换。相关回归 43 项、历史依赖与包内联合重放通过；0.1.33 已备份安装并正常重启，108 个文件一致，MNUtils 摘要保持。真实摘录与移动设备继续待验收。见[兼容修复记录](../../../Resources/validation/2026-10-30-empty-excerpt-card/commentmanager-local/README.md)。

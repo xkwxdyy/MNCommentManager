@@ -1,5 +1,6 @@
-.comment-card.has-drag-handle { padding-right: 54px; }
-.comment-drag-handle { position: absolute; top: 0; bottom: 0; right: 0; width: 40px; min-height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-light); border-radius: 0; background: var(--bg-app); color: var(--text-secondary); touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+/* Outrank PanelControls padding shorthand, including compact layouts. */
+.comment-manager .comment-card.has-drag-handle { padding-right: 60px; }
+.comment-drag-handle { position: absolute; top: 0; bottom: 0; right: 0; width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-light); border-radius: 0; background: var(--bg-app); color: var(--text-secondary); touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .comment-drag-handle svg { width: 20px; height: 26px; }
 .comment-drag-handle:hover:not(:disabled) { color: var(--accent-blue); background: var(--accent-blue-soft); transform: none; }
 .comment-pane.comment-drag-active { overflow: hidden; touch-action: none; cursor: grabbing; }

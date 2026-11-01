@@ -3032,7 +3032,7 @@ function App() {
                   </div>
                   <div className="comment-body" id={`comment-${comment.index}-body`}>
                     {comment.drawingPreviewOnly && comment.drawingPreviewDataURI ? (
-                      <p className="media-warning" role="status">绘图格式尚未完全支持，仅供近似预览。</p>
+                      <p className="media-warning" role="status">{comment.drawingPreviewDiagnostics?.some(item => item.code === "legacy-preview") ? "兼容显示；笔色和笔触样式可能与原始手写不同。" : "绘图格式尚未完全支持，仅供近似预览。"}</p>
                     ) : null}
                     {comment.collapsed === true ? (
                       <CollapsedCommentPreview comment={comment} text={commentText(comment)} mediaSources={mediaSources} linkedDisplay={linkedDisplay} />
