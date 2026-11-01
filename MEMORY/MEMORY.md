@@ -1,5 +1,7 @@
 # 项目记忆索引
 
+- 2026-11-01｜当前正式 Release 为 0.1.36，源码标签 ce947e5；已修复收尾浏览器发现的无效 React 事件属性，完整 CI、344 项网页单元测试与 14 组布局／控制台检查通过。108 文件生产包及 GitHub 完整下载摘要一致，SHA-256 为 de92aaa3fd8d8fd3905d81beb125d11ba82c8969675fc27a3f2d6f45446cb216。0.1.35 保留，云盘分发目标改为 0.1.36；本轮没有安装或重启。
+
 - 2026-11-01｜0.1.35 已正式发布，源码标签 6860295；GitHub 完整附件 SHA-256 为 0be93f77e5f7475373b78c5afec01af4c1bacd338645c4ecca4bad87c49b35ad，与冻结生产包一致。完整源码 CI、227 项合成解码断言与 14 组布局检查通过，108 文件一致。123 云盘及更新源待连接；本轮没有安装或重启。见工作区 Archive/Releases/2026-11-01-full/。
 
 - 2026-10-31｜经明确授权，两份缺陷记录已同步并回读逐字核对：遮挡新建 [MNCommentManager #107](https://github.com/xkwxdyy/MNCommentManager/issues/107)；手写追加至[内部工具 #22](https://github.com/xkwxdyy/MarginNote-Addon-Internal-Tools/issues/22#issuecomment-6543946054)。两个问题保持开放，iPad 等待验收边界保留。先前外部写入受阻已解除。
