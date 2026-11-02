@@ -12,6 +12,7 @@ import { createCommentHitTester } from '../../src/lib/commentSelectionGeometry.m
 
 const TYPE_LABELS = { textComment: '文本', markdownComment: 'Markdown', HtmlComment: 'HTML', imageComment: '图片', linkComment: '链接' };
 const FILTERS = [['all', '全部'], ['text', '文本'], ['imageComment', '图片'], ['linkComment', '链接'], ['HtmlComment', 'HTML']];
+const DEMO_READY_HINT = '双指纵向滑动可快速多选；模块复选框选择完整模块。';
 const ICONS = { settings: 'M4 5h12M4 10h12M4 15h12M8 3v4M13 8v4M7 13v4', undo: 'M7 4L3 8l4 4M3 8h8a5 5 0 010 10', reset: 'M4 8a6 6 0 111 7M4 3v5h5', up: 'M5 12l5-5 5 5', down: 'M5 8l5 5 5-5', close: 'M5 5l10 10M15 5L5 15', more: 'M4 10h1M10 10h1M16 10h1', select: 'M4 10l4 4 8-8', extract: 'M4 12v5h12v-5M10 13V3M6 7l4-4 4 4', move: 'M3 10h14M6 6l-4 4 4 4M14 6l4 4-4 4', fold: 'M4 10h12M6 3l4 4 4-4M6 17l4-4 4 4', unfold: 'M4 10h12M6 6l4-4 4 4M6 14l4 4 4-4', help: 'M7 7a3 3 0 116 0c0 2-3 2-3 5M10 16h.01', title: 'M4 5h12M10 5v12M7 17h6' };
 
 const MODULE_ICONS = { shown: 'M2 16V4h6l2 3h7v3M2 16l3-6h13l-3 6H2', hidden: 'M2 16V4h6l2 3h8v9H2M8 11h4M10 9v4' };
@@ -20,7 +21,7 @@ function Action({ name, label, ...props }) { return <button type="button" classN
 function Check({ checked, partial, label, onChange, disabled }) {
   const ref = useRef(null);
   useEffect(() => { if (ref.current) ref.current.indeterminate = !!partial; }, [partial]);
-  return <input ref={ref} type="checkbox" checked={!!checked} disabled={disabled} aria-label={label} onChange={onChange} onClick={e => e.stopPropagation()} />;
+  return <label className="demo-check-target"><input ref={ref} type="checkbox" checked={!!checked} disabled={disabled} aria-label={label} onChange={onChange} onClick={e => e.stopPropagation()} /></label>;
 }
 
 // Preserve DOM identity during touch selection. Reassigning innerHTML removes
@@ -110,7 +111,7 @@ export function App() {
     } catch (error) { setStatus(error.message); return false; }
     finally { requestRef.current = false; setBusy(false); }
   }
-  useEffect(() => { run('getState', {}, '双指纵向滑动可快速多选；模块复选框选择完整模块。'); }, []);
+  useEffect(() => { run('getState', {}, DEMO_READY_HINT); }, []);
   useEffect(() => {
     if (!paneRef.current || !state) return;
     const geometry = createCommentHitTester(paneRef.current, () => viewRef.current.renderedList, {
@@ -239,7 +240,7 @@ export function App() {
         <Action name="help" label="操作说明与验证边界" onClick={() => open({ type: 'help' })} />
       </div>
     </header>
-    <div className="statusbar"><span>{card.comments.length} 条评论</span><span>{tree.flat.length} 个模块</span><span className="status-message" role="status" title={status}>{busy ? '正在保存…' : status}</span></div>
+    <div className={`statusbar${!busy && status === DEMO_READY_HINT ? ' is-idle' : ''}`}><span>{card.comments.length} 条评论</span><span>{tree.flat.length} 个模块</span><span className="status-message" role="status" title={status}>{busy ? '正在保存…' : status}</span></div>
     <nav className="quick-nav" aria-label="模块目录"><span className="quick-nav-label">模块目录</span><div className="quick-nav-track">
       <button className="quick-nav-item" onClick={() => { paneRef.current.scrollTop = 0; }}>顶部</button>
       {tree.flat.filter(n => !hasFilter || countMatches(n)).map(n => <button key={n.id} className="quick-nav-item" title={n.title} onClick={() => locate(n)}><span>{n.depth ? '↳ ' : ''}{n.title}</span><b>{n.end - n.start}</b></button>)}

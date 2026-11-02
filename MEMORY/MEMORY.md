@@ -1,5 +1,9 @@
 # 项目记忆索引
 
+- 2026-11-02｜HTML 界面统一精修已按确认方案完成：共享主题、文字对比度、图标工具栏、快速输入与演示页面已统一；模块窄屏正文和低高度首屏问题已修正。213 项相关前端检查、布局专项、浏览器操作及独立视觉评审完成；未打包或安装，真实宿主与设备待验收。见[验收记录](../Resources/html-ui-polish/validation.md)与 [Issue #109](https://github.com/xkwxdyy/MNCommentManager/issues/109)。
+
+- 2026-11-01｜生命周期修复：评论管理器已取消失效依赖重试，并在等待及 await 返回后校验场景代次；场景与卸载复用清理。依赖隔离、主入口、原生入口及跨插件竞态专项通过；原有更新备用元数据修改未动。未打包、安装、发布或改版本，iPad 待验收，见[修复记录](</Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnpinner/docs/reviews/2026-11-01-cross-addon-lifecycle-fix.md>)。
+
 - 2026-11-01｜评论管理器 0.1.36 已通过 Chrome 上传至 MNCommentManager，云盘及正式 GitHub 附件完整下载均与固定生产包摘要一致。主备用正式清单与双语日志已备份部署，公开字节核验及源码／生产更新模块联网回退检查通过；真实下载清单仅本地维护、不纳入本次提交。实际设备与更新界面仍待验收，本轮没有安装、重启或普通分支推送。
 
 - 2026-11-01｜0.1.35 已正式发布，源码标签 6860295；GitHub 完整附件 SHA-256 为 0be93f77e5f7475373b78c5afec01af4c1bacd338645c4ecca4bad87c49b35ad，与冻结生产包一致。完整源码 CI、227 项合成解码断言与 14 组布局检查通过，108 文件一致。123 云盘及更新源待连接；本轮没有安装或重启。见工作区 Archive/Releases/2026-11-01-full/。

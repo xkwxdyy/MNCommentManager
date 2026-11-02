@@ -115,17 +115,21 @@ try {
   await page.getByRole('button', { name: '撤销：提取子卡片', exact: true }).click();
   await ready(page); record('子卡片查看与刷新恢复');
   await page.getByLabel('选择模块：证明（含标题）', { exact: true }).check();
-  for (const [width, height] of [[1200, 800], [985, 600], [600, 480], [600, 360], [375, 480], [375, 360], [320, 360]]) {
+  for (const [width, height] of [[1200, 800], [985, 600], [600, 480], [640, 320], [600, 360], [375, 480], [375, 360], [320, 360]]) {
     await page.setViewportSize({ width, height });
     const bounds = await page.evaluate(() => {
       const pane = document.querySelector('.demo-pane').getBoundingClientRect();
       const footer = document.querySelector('.demo-footer').getBoundingClientRect();
-      return { width: document.documentElement.scrollWidth, paneWidth: pane.width, paneHeight: pane.height, footerBottom: footer.bottom, viewport: innerHeight };
+      const comment = document.querySelector('.demo-comment-body');
+      const body = comment.getBoundingClientRect();
+      const card = comment.closest('.comment-card').getBoundingClientRect();
+      return { width: document.documentElement.scrollWidth, paneWidth: pane.width, paneHeight: pane.height, footerBottom: footer.bottom, viewport: innerHeight, bodyWidth: body.width, cardWidth: card.width };
     });
     assert.ok(bounds.width <= width + 1, `horizontal overflow ${width}x${height}: ${bounds.width}`);
     assert.ok(bounds.paneHeight >= 70, `pane too short ${width}x${height}: ${bounds.paneHeight}`);
     assert.ok(bounds.paneWidth >= width - (width > 700 ? 201 : 1), `pane too narrow ${width}x${height}: ${bounds.paneWidth}`);
     assert.ok(bounds.footerBottom <= height + 1);
+    assert.ok(bounds.bodyWidth >= bounds.cardWidth - 40, `comment body collapsed into a narrow column ${width}x${height}: ${bounds.bodyWidth}/${bounds.cardWidth}`);
     const foldBounds = await page.getByRole('button', { name: '折叠模块评论：证明', exact: true }).boundingBox();
     assert.ok(foldBounds && foldBounds.width >= 32 && foldBounds.x + foldBounds.width <= width);
     await page.getByRole('button', { name: '模块操作：证明', exact: true }).click();

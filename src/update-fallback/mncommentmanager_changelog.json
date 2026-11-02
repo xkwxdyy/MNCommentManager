@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-01T13:06:11+08:00",
+  "updatedAt": "2026-11-02T14:33:10+08:00",
   "entries": [
+    {
+      "version": "0.1.37",
+      "channel": "stable",
+      "date": "2026-11-02",
+      "items": [
+        {
+          "zh": "改善评论管理器和快速输入的深浅主题、窄屏正文及操作区布局，保留图标提示与键盘焦点。",
+          "en": "Improve light/dark themes, narrow-screen content and controls in the manager and quick input, retaining icon labels and keyboard focus."
+        },
+        {
+          "zh": "窗口断开或插件卸载后取消失效初始化和依赖重试，避免旧回调重新创建界面。",
+          "en": "Cancel stale initialization and dependency retries when a window disconnects or the addon unloads, preventing old callbacks from recreating the interface."
+        }
+      ]
+    },
     {
       "version": "0.1.36",
       "channel": "stable",

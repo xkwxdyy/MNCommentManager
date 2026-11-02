@@ -48,7 +48,7 @@
   transform: translateY(-50%) scale(0.96);
 }
 .help-videos[open] > summary {
-  color: var(--accent-blue);
+  color: var(--text-accent);
 }
 .help-videos[open] > summary::before {
   background: var(--accent-blue-soft);
@@ -95,8 +95,8 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--accent-blue-soft);
-  color: var(--accent-blue);
-  font-size: 10.5px;
+  color: var(--text-accent);
+  font-size: 11px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -111,7 +111,7 @@
   border-left: 3px solid var(--accent-blue);
   border-radius: 6px;
   background: var(--accent-blue-soft);
-  color: var(--accent-blue);
+  color: var(--text-accent);
   font-weight: 600;
 }
 .help-videos-resources p[role="alert"] {
@@ -119,7 +119,7 @@
   border-left: 3px solid var(--accent-red);
   border-radius: 6px;
   background: rgba(255, 59, 48, 0.1);
-  color: var(--accent-red);
+  color: var(--text-danger);
   font-weight: 600;
 }
 .help-videos:not([open]) > .help-videos-resources { display: none; }
@@ -167,9 +167,9 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent-blue-soft);
-  color: var(--accent-blue);
+  color: var(--text-accent);
   flex-shrink: 0;
 }
 .comment-manager .topbar-utility-actions .help-videos-resources .help-video-icon svg,
@@ -203,6 +203,6 @@
 }
 .help-videos-resources button.help-video-button:hover:not(:disabled) .help-video-trailing,
 .help-videos-resources button.help-video-button.is-opening .help-video-trailing {
-  color: var(--accent-blue);
+  color: var(--text-accent);
   transform: translate(1px, -1px);
 }

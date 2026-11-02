@@ -5,7 +5,7 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const cssPath = process.env.MNCM_STYLES_PATH || path.join(root, "web", "src", "styles.css");
 const appPath = process.env.MNCM_APP_PATH || path.join(root, "web", "src", "App.jsx");
-const styles = fs.readFileSync(cssPath, "utf8");
+const styles = fs.readFileSync(cssPath, "utf8").replace('@import "./theme.css";', () => fs.readFileSync(path.join(path.dirname(cssPath), "theme.css"), "utf8"));
 const app = fs.readFileSync(appPath, "utf8");
 
 function matchingBrace(text, openIndex) {

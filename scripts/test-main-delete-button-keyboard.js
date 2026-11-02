@@ -259,7 +259,7 @@ assert.ok(deleteSelectionSource.includes("returnFocusTarget"), "excerpt conversi
 assert.ok(deleteSelectionSource.includes('document.getElementById("selection-summary")'), "the existing stable focus fallback must remain");
 
 assert.ok(styles.includes("button:focus-visible"), "the main delete button must retain a visible keyboard focus indicator");
-assert.ok(styles.includes("outline: 3px solid var(--focus)"), "the existing focus token must remain in use");
+assert.ok(styles.includes("outline: 3px solid var(--text-accent)"), "keyboard focus must use the readable solid accent token");
 
 assert.match(styles, /button\s*\{[^}]*user-select:\s*none;[^}]*-webkit-user-select:\s*none;/, "button text selection is disabled by CSS supported by the WebView");
 

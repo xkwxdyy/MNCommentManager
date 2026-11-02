@@ -8,6 +8,6 @@
 .html-select .html-select-trigger:focus { border-color:var(--accent-blue); box-shadow:0 0 0 3px var(--focus); outline:none; }
 .html-select .html-select-list { display:block; position:absolute; left:0; right:0; z-index:120; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:4px; border:1px solid var(--border-strong); border-radius:var(--radius-sm,6px); box-shadow:var(--shadow-lg); background:var(--bg-panel); color:var(--text-primary); }
 .html-select .html-select-list button { display:flex; justify-content:flex-start; width:100%; min-height:44px; padding:8px; border:0; border-radius:6px; background:transparent; box-shadow:none; transform:none; text-align:left; font-weight:400; white-space:normal; }
-.html-select .html-select-list button[aria-selected="true"] { font-weight:600; color:var(--accent-blue); }
+.html-select .html-select-list button[aria-selected="true"] { font-weight:600; color:var(--text-accent); }
 .html-select .html-select-list button.is-active,.html-select .html-select-list button:hover:not(:disabled) { background:var(--accent-blue-soft); box-shadow:none; transform:none; }
-.html-select-check { flex:0 0 18px; color:var(--accent-blue); font-weight:700; }
+.html-select-check { flex:0 0 18px; color:var(--text-accent); font-weight:700; }
