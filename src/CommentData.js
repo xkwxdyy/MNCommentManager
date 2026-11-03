@@ -57,15 +57,24 @@ var __MN_COMMENT_DATA__ = (function () {
 
   function getRawComments(note) {
     if (!note) return [];
-    if (Array.isArray(note.comments)) return note.comments;
-    if (note.note && Array.isArray(note.note.comments)) return note.note.comments;
-    return [];
+    const direct = note.comments;
+    if (Array.isArray(direct)) return direct.slice();
+    const raw = note.note && note.note.comments;
+    return Array.isArray(raw) ? raw.slice() : [];
   }
 
-  function getDetailedComments(note) {
+  function getDetailedComments(note, rawComments) {
     if (!note) return [];
-    if (Array.isArray(note.MNComments)) return note.MNComments;
-    return [];
+    if (typeof MNComment !== "undefined" && typeof MNComment.new === "function") {
+      return rawComments.map((comment, index) => {
+        try { return MNComment.new(comment, index, note.note || note) || null; }
+        catch (_) { return null; } // The serializer retains the raw comment at this index.
+      });
+    }
+    try {
+      const comments = note.MNComments;
+      return Array.isArray(comments) && comments.length === rawComments.length ? comments.slice() : [];
+    } catch (_) { return []; }
   }
 
   function getMNCommentType(rawComment) {
@@ -506,7 +515,7 @@ var __MN_COMMENT_DATA__ = (function () {
     }
 
     const rawComments = getRawComments(note);
-    const detailedComments = getDetailedComments(note);
+    const detailedComments = getDetailedComments(note, rawComments);
     const comments = rawComments.map((comment, index) => (
       serializeComment(note, comment, detailedComments[index] || null, index)
     ));
