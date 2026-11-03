@@ -6,6 +6,17 @@
 
 ![评论管理器：查看、排序、合并与提取卡片评论](./assets/readme/hero.svg)
 
+## 界面预览
+
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/readme/comment-panel-mobile-dark.png">
+  <source media="(max-width: 600px)" srcset="./assets/readme/comment-panel-mobile-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/readme/comment-panel-dark.png">
+  <img src="./assets/readme/comment-panel-light.png" width="100%" alt="评论管理器当前前端的浏览器演示：搜索和类型筛选、评论列表，以及底部所选评论的操作入口。">
+</picture>
+
+浏览器演示使用当前前端与示例数据，不连接真实 MarginNote 资料库；截图不代表原生宿主或移动设备已完成验收。
+
 ## 常用操作
 
 ### 阅读与定位

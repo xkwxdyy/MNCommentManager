@@ -4,7 +4,7 @@
   "source_head": "4045eaa679ce7ccaa8e7862e7b0a2bc1bb2eb336",
   "proof_capture_report": "Resources/readme-beautify-trial-2026-11-02/qa/proof-capture.json",
   "proof_scope": "Current React frontend, isolated mock Bridge, example data; no MarginNote library access",
-  "storage": "PNG resources and the complete screenshot preview remain local; the committed README references only the maintained SVG. Restore the screenshot section from the local README.candidate.md when image publication is authorized.",
+  "storage": "The maintainer explicitly authorized committing the four production README PNG screenshots on 2026-11-03. Trial screenshots and raw reports remain local; this manifest records the original sources and hashes.",
   "assets": [
     {
       "path": "assets/readme/comment-panel-dark.png",
