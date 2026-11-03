@@ -42,8 +42,10 @@ export function CommentFoldButton({ comment, selectionCount = 1, disabled, onTog
 }
 
 export function CommentFoldStatus({ comment }) {
-  if (typeof comment.collapsed !== "boolean") return null;
-  return <span className={`comment-fold-status ${comment.collapsed ? "is-collapsed" : ""}`}>{comment.collapsed ? "已折叠" : "已展开"}</span>;
+  // Expanded is the default reading state and is already conveyed by the
+  // disclosure button; only the exceptional collapsed state gets a label.
+  if (comment.collapsed !== true) return null;
+  return <span className="comment-fold-status is-collapsed">已折叠</span>;
 }
 
 export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ comment, text, mediaSources, linkedDisplay }) {

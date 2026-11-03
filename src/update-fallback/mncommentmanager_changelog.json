@@ -1,8 +1,19 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-03T18:19:24+08:00",
+  "updatedAt": "2026-11-03T23:53:35+08:00",
   "entries": [
+    {
+      "version": "0.1.39",
+      "channel": "stable",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "zh": "简化重复评论状态，整理窄屏标题栏、选择工具和拖动手柄，改善触摸与键盘焦点显示。",
+          "en": "Reduce repeated comment status labels and refine narrow headers, selection tools, drag handles, touch controls and keyboard focus."
+        }
+      ]
+    },
     {
       "version": "0.1.38",
       "channel": "stable",

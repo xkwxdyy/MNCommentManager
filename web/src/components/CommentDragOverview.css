@@ -1,8 +1,11 @@
 /* Outrank PanelControls padding shorthand, including compact layouts. */
-.comment-manager .comment-card.has-drag-handle { padding-right: 60px; }
-.comment-drag-handle { position: absolute; top: 0; bottom: 0; right: 0; width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-light); border-radius: 0; background: var(--bg-app); color: var(--text-secondary); touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.comment-manager .comment-card.has-drag-handle { padding-right: 56px; }
+.comment-drag-handle { position: absolute; top: 0; bottom: 0; right: 0; width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-light); border-radius: 0; background: transparent; color: var(--text-secondary); box-shadow: none; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; transition: background-color var(--transition), color var(--transition); }
 .comment-drag-handle svg { width: 20px; height: 26px; }
-.comment-drag-handle:hover:not(:disabled) { color: var(--text-accent); background: var(--accent-blue-soft); transform: none; }
+.comment-drag-handle:hover:not(:disabled) { color: var(--text-accent); background: var(--accent-blue-soft); box-shadow: none; transform: none; }
+.comment-drag-handle:active:not(:disabled) { cursor: grabbing; color: var(--text-accent); background: var(--accent-blue-soft); transform: none; }
+.comment-drag-handle:disabled { background: transparent; cursor: default; }
+.comment-card.selected .comment-drag-handle { border-left-color: rgba(0, 113, 227, 0.2); }
 .comment-pane.comment-drag-active { overflow: hidden; touch-action: none; cursor: grabbing; }
 .comment-pane.comment-drag-active > * { visibility: hidden; }
 .cm-drag-undo { position: sticky; top: 0; z-index: 3; margin: 8px 24px 0; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: var(--radius-md); }

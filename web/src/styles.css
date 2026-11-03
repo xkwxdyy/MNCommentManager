@@ -269,7 +269,7 @@ button.pressing {
   white-space: nowrap;
 }
 
-.statusbar span:nth-child(4) {
+.statusbar .status-visible {
   display: none;
 }
 
@@ -893,6 +893,20 @@ button.pressing {
   outline: none;
 }
 
+/* Where supported, show the ring for keyboard focus only; a pointer tap on
+   the checkbox should not leave a heavy focus frame on the card. */
+@supports selector(:focus-visible) {
+  .selection-checkbox:focus-within {
+    outline: none;
+  }
+
+  .selection-checkbox input:focus-visible {
+    outline: 3px solid var(--text-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+}
+
 .comment-index,
 .type-pill,
 .direction-pill,
@@ -1058,10 +1072,18 @@ button.pressing {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: 4px;
+  margin-left: auto;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* Optional metadata (collapsed label, filtered position, excerpt lock)
+   takes the auto margin so the actions stay grouped at the row end. */
+.comment-fold-status ~ .comment-inline-actions,
+.comment-position ~ .comment-inline-actions,
+.excerpt-lock ~ .comment-inline-actions {
+  margin-left: 4px;
 }
 
 .quick-action-btn {
@@ -1953,6 +1975,19 @@ button.pressing {
   margin-bottom: 0;
 }
 
+.workflow-manager-header [data-workflow-close] {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  margin: -8px -10px 0 0;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+
 .workflow-manager-body {
   display: grid;
   align-content: start;
@@ -2590,9 +2625,17 @@ button.pressing {
     margin: 0;
   }
 
-  .comment-inline-actions {
+  .comment-inline-actions,
+  .comment-fold-status ~ .comment-inline-actions,
+  .comment-position ~ .comment-inline-actions {
     flex-basis: 100%;
     justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  /* The excerpt header is short enough to keep its two arrows inline. */
+  .excerpt-card .excerpt-lock ~ .comment-inline-actions {
+    flex-basis: auto;
     margin-left: 0;
   }
 
@@ -2619,7 +2662,7 @@ button.pressing {
   }
 
   .workflow-list {
-    max-height: 140px;
+    max-height: min(300px, 42dvh);
   }
 
   .workflow-actions > .workflow-save-state {

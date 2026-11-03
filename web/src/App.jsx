@@ -2662,10 +2662,10 @@ function App() {
       </header>
 
       <div className="statusbar" aria-live="polite">
-        <span>{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
-        <span>评论 {comments.length} 条</span>
-        <span>已选 {excerptSelected ? "摘录 + " : ""}{selectedIndices.length} 条评论</span>
-        <span>当前显示 {visibleComments.length} 条评论</span>
+        <span className="status-count status-excerpt">{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
+        <span className="status-count status-total">评论 {comments.length} 条</span>
+        <span className="status-count status-selected">已选 {excerptSelected ? "摘录 + " : ""}{selectedIndices.length} 条评论</span>
+        {hasActiveFilter ? <span className="status-count status-visible">当前显示 {visibleComments.length} 条评论</span> : null}
         {moduleResult ? <button type="button" title={moduleResult.title} onClick={() => execute(() => runCommand("focusLinkedNote", { noteId: moduleResult.noteId, mode: "focus" }, { message: "已定位提取结果" }))}>查看提取结果</button> : null}
         {snapshot.moduleSettingsError ? <span role="alert">{snapshot.moduleSettingsError}</span> : null}
         <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
@@ -2933,7 +2933,7 @@ function App() {
                       </span>
                     ) : null}
                     <CommentFoldStatus comment={comment} />
-                    <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
+                    {hasActiveFilter ? <span className="comment-position" title="在筛选结果中的位置">{visiblePosition + 1}/{visibleComments.length}</span> : null}
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
                       {linkedDisplay ? (
                         <>

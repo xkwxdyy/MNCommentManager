@@ -38,7 +38,24 @@
 
 .comment-manager .topbar-selection-actions {
   position: relative;
+  isolation: isolate;
   padding: 0 2px;
+}
+
+/* One shared track reads as a single selection tool instead of four chips. */
+.comment-manager .topbar-selection-actions::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-control);
+  box-shadow: inset 0 0 0 1px var(--border-light);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .comment-manager .topbar-actions button,
@@ -99,13 +116,15 @@
 }
 
 .comment-manager .topbar-selection-actions button::before {
-  background: var(--bg-panel);
-  box-shadow: inset 0 0 0 1px var(--border-light), 0 1px 2px rgba(0, 0, 0, 0.03);
+  left: 1px;
+  right: 1px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .comment-manager .topbar-selection-actions button:disabled::before {
-  background: var(--bg-control);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+  background: transparent;
+  box-shadow: none;
 }
 
 .comment-manager .topbar-utility-actions button::before { background: transparent; }
@@ -123,7 +142,7 @@
 
 .comment-manager .topbar-selection-actions button:hover:not(:disabled)::before {
   background: var(--bg-panel);
-  box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--border-light);
 }
 
 .comment-manager .topbar-actions button.active:hover:not(:disabled)::before,
@@ -320,6 +339,19 @@
   border: 1px solid var(--border-light);
 }
 
+/* Mouse layouts: keep every card action visible, but drop the circular
+   surfaces until the card is hovered, focused or selected. Touch layouts
+   keep the full resting surfaces because they have no hover preview. */
+@media (hover: hover) and (pointer: fine) {
+  .comment-manager .comment-card:not(:hover):not(:focus-within):not(.selected) .quick-action-btn:not(.pressing)::before {
+    background: transparent;
+    box-shadow: none;
+  }
+  .comment-manager .comment-card:not(:hover):not(:focus-within):not(.selected) .quick-action-btn.danger:not(.pressing) {
+    color: var(--text-secondary);
+  }
+}
+
 @media (max-width: 760px) {
   .comment-manager .topbar {
     position: relative;
@@ -396,7 +428,7 @@
     padding: 3px 12px;
     gap: 4px 10px;
   }
-  .comment-manager .statusbar > span:nth-of-type(4) {
+  .comment-manager .statusbar > span.status-count.status-visible {
     display: none;
   }
   .comment-manager .statusbar .status-message {
@@ -411,13 +443,37 @@
   }
   .comment-manager .quick-nav { padding: 0 8px; min-height: 38px; }
   .comment-manager .right-pane { padding-left: 12px; }
+
+  /* Narrow comment cards: controls share the first row and the identity
+     metadata becomes a short caption above the body. This removes the
+     former actions-only row while every card keeps the same structure. */
+  .comment-manager .comment-card:not(.excerpt-card) .comment-head {
+    row-gap: 2px;
+  }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-head::after {
+    content: "";
+    order: 1;
+    flex: 0 0 100%;
+    height: 0;
+  }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-inline-actions {
+    order: 1;
+    flex: 0 0 auto;
+    margin: -7px -4px -7px auto;
+  }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-head > :not(.comment-fold-button):not(.selection-checkbox):not(.comment-inline-actions) {
+    order: 2;
+  }
 }
 
 @media (max-width: 520px) {
-  .comment-manager .statusbar > span:not(.status-message):not([role="alert"]):not(:nth-of-type(2)):not(:nth-of-type(3)) {
+  /* Specificity matches the separator rules above so the phone summary
+     keeps only the comment total and selection count. */
+  .comment-manager .statusbar > span.status-count.status-excerpt,
+  .comment-manager .statusbar > span.status-count.status-visible {
     display: none;
   }
-  .comment-manager .statusbar > span:nth-of-type(2)::before {
+  .comment-manager .statusbar > span:not(.status-message):not([role="alert"]) + span.status-count.status-total::before {
     display: none;
   }
   .comment-manager .left-pane { padding: 2px 8px; }
