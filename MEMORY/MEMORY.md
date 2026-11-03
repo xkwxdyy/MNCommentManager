@@ -1,5 +1,9 @@
 # 项目记忆索引
 
+- 2026-11-03｜全量提交按现行图片保管规则保存首页正文、SVG 与资源摘要；PNG 和完整预览版继续本地保留，提交版移除仅本地截图区。运行代码及真实下载备用清单未纳入本次文档提交。
+
+- 2026-11-02｜README 美化已按明确授权正式应用：获批中文正文与配套 SVG、桌面和窄屏截图已放入正式路径，原版完整保留。900 像素内容宽度、360 像素窄屏、明暗主题及资源检查通过；源码和既有备用元数据保持，未暂存、提交或发布。见[应用验收](../Resources/readme-beautify-trial-2026-11-02/applied/验收记录.md)。
+
 - 2026-11-02｜HTML 界面统一精修已按确认方案完成：共享主题、文字对比度、图标工具栏、快速输入与演示页面已统一；模块窄屏正文和低高度首屏问题已修正。213 项相关前端检查、布局专项、浏览器操作及独立视觉评审完成；未打包或安装，真实宿主与设备待验收。见[验收记录](../Resources/html-ui-polish/validation.md)与 [Issue #109](https://github.com/xkwxdyy/MNCommentManager/issues/109)。
 
 - 2026-11-01｜生命周期修复：评论管理器已取消失效依赖重试，并在等待及 await 返回后校验场景代次；场景与卸载复用清理。依赖隔离、主入口、原生入口及跨插件竞态专项通过；原有更新备用元数据修改未动。未打包、安装、发布或改版本，iPad 待验收，见[修复记录](</Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnpinner/docs/reviews/2026-11-01-cross-addon-lifecycle-fix.md>)。

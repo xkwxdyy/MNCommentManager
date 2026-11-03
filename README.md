@@ -1,181 +1,117 @@
 # MN Comment Manager
 
-MN Comment Manager is a MarginNote 4 addon for inspecting and editing comments on the current note card from a WebView panel.
+在 MarginNote 中集中查看与整理卡片评论，完成搜索、排序、合并、提取和多卡片工作流处理。
 
-## Videos and getting started
+[下载正式版](https://github.com/xkwxdyy/MNCommentManager/releases/latest) · [入门视频](https://www.bilibili.com/video/BV1rpEA6fEau/) · [反馈问题](https://github.com/xkwxdyy/MNCommentManager/issues)
 
-- [AI promo video (about 1 minute)](https://www.bilibili.com/video/BV1vHnE6YEhe/)
-- [MN Comment Manager getting started](https://www.bilibili.com/video/BV1rpEA6fEau/)
+![评论管理器：查看、排序、合并与提取卡片评论](./assets/readme/hero.svg)
 
-Open the question-mark icon in the panel header to select a video. Videos open
-in MNBrowser when enabled, then fall back to MarginNote's research browser when
-a study set is available, or the system browser otherwise.
+## 常用操作
 
-## Features
+### 阅读与定位
 
-- Append a native Text or Markdown comment from a lightweight floating input window.
-  Enter submits, Shift+Enter inserts a line break, and the last Markdown choice is
-  saved in native preferences. Unsubmitted drafts remain in the current window
-  session; uncertain saves retain the original submission for reconciliation.
-- Configure separate tap and long-press actions for the manage and add icons.
-- Reorder comments using a narrow control beside the card: select by content,
-  tap arrows to move one position, hold an arrow for continuous preview, or drag
-  the middle control across several positions. The preview shows the surrounding
-  comments; releasing commits once. Changed lists require a fresh selection.
-  The main panel retains its existing selection and movement behavior.
+评论列表保留类型、位置和链接信息，支持全文搜索与类型筛选。文本、图片、链接、HTML 和音频等内容可以分别查看。支持折叠的宿主可将评论收起为摘要或缩略图，搜索仍会检查完整正文。
 
-- Load the focused card and list its comments with type, index, lifecycle stage, and link metadata.
-- Filter and search comments by text, image, link, HTML, audio, or other comment types.
-- Select single comments, multi-select comments, or pick a continuous range.
-- Read and change Comment-level fold state on hosts exposing `commentState()`
-  and `setCommentsCollapsed()`. Folded comments retain a two-line preview and
-  a small image thumbnail. Search still uses the full content.
-- Move selected comments up, down, or to an insertion point.
-- Delete selected comments, including long-press bidirectional deletion for pure MarginNote card links.
-- Edit supported text comments.
-- Merge selected text-like comments into one Markdown comment.
-- Extract selected comments into a child note.
-- Copy text, copy images, and focus linked notes when supported.
-- Select multiple cards and run a saved comment-processing workflow; each step
-  is applied to each card separately. Workflows use one undo group unless a
-  fold action is included; the host manages fold transactions independently,
-  while other consecutive actions keep their own shared undo group.
-- Build, reorder, and edit workflow steps from the WebView panel. Workflow
-  definitions are stored as native JSON under the MarginNote document folder.
-- Extend the action catalog with independent Patch addons. See
-  [`patches/README.md`](patches/README.md) and the example patch for the
-  versioned registration API.
+### 选择与整理
 
-## Install
+评论支持单选、多选和连续范围选择。所选内容可以上移、下移或移动到指定位置，也可以复制文本或图片、跳转到关联卡片、编辑支持的文本、合并为 Markdown 评论、提取到子卡片或删除。纯卡片链接支持通过长按选择双向删除。
 
-Install and enable MN Utils first, then download or build
-`mn-comment-manager-v0.1.36.mnaddon` and install it in MarginNote 4.
+卡片旁的快捷控件适合调整顺序：按内容选择评论后，点按箭头逐项移动，长按箭头连续预览，拖动中间控件跨位置调整。预览会展示相邻评论，松开后提交；评论列表发生变化时需要重新选择。
 
-MN Utils is a required runtime dependency. MN Comment Manager intentionally does
-not bundle copies of `MNUtil` or `MNNote`.
+### 快速追加评论
 
-## MN5 native card menus and scene templates
+轻量输入窗口支持原生文本与 Markdown 评论。Enter 提交，Shift+Enter 换行；最近使用的 Markdown 模式会保留。未提交草稿仅保存在当前窗口会话中，重启应用后不保留；保存结果尚未确认时，原提交内容会保留以便核对。
 
-Native card-menu integration is optional on MN5 beta hosts. A scene can add
-Comment management, Add comment, or both; floating controls keep custom actions
-and remain available when native coverage cannot be confirmed. MN Utils and
-Comment Manager must be enabled globally and allowed in the scene. A prepared
-scene template can carry those permissions and commands without a toolbar button.
+评论管理和添加评论按钮可分别配置点按与长按动作。
 
-See the [new scene template setup guide](README.native-card-menu.md) for import,
-partial integration, gestures, duplicate controls, switching scenes and restart
-behavior. Mac card menus have been tested; older hosts, mobile devices, document
-excerpt menus, keyboard and VoiceOver acceptance remain pending.
+### 重复处理多张卡片
 
-## Comment Folding
+评论工作流可以保存操作步骤、调整顺序，并应用到多张卡片。每张卡片分别执行步骤，评论不会因批处理自动合并到另一张卡片。工作流定义以 JSON 保存在 MarginNote 文档目录中。
 
-The disclosure button is at the left of each comment, before its selection
-checkbox. The existing header keeps its selection and global commands. Fold
-and unfold buttons stay in a separate bottom row while comments scroll.
-Hidden selected comments participate, and successful writes preserve selection.
-Clicking a selected comment's disclosure applies the inverse of that comment's
-current state to the entire selection, including hidden comments. Clicking an
-unselected comment's disclosure changes only that comment.
-Native excerpts are excluded. Disclosure toggles keep the clicked comment header
-visible. The bottom bar's More actions menu reuses existing move, processing
-and delete controls, and offers Select all comments including hidden comments.
+## 安装与快速上手
 
-In the multi-card editor or workflow manager, use `foldSelectedComments` or
-`unfoldSelectedComments` with the existing comment selector. Each card uses a
-fresh projection revision. Each host call accepts at most 200 comments; larger
-selections are rejected without splitting them into partially committed writes.
+最低宿主版本为 **MarginNote 4.2.3**，运行依赖为 **MN Utils**。
 
-The plugin detects host capabilities at runtime. Older hosts remain usable but
-show an unavailable message for folding. The plugin converts its zero-based
-indices to the host's one-based indices, checks the expected revision, and
-delegates persistence, rollback, refresh and undo to the host. Failed writes
-trigger a readback; stale selections are cleared before another write.
+1. 安装并启用 MN Utils。
+2. 从[正式发布页](https://github.com/xkwxdyy/MNCommentManager/releases/latest)下载 `.mnaddon` 安装包，并导入 MarginNote。2026-11-02 核实的正式版本为 [v0.1.37](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.37)，安装包为 `mn-comment-manager-v0.1.37.mnaddon`。
+3. 启用评论管理器，选择一张卡片，再通过评论管理入口打开面板。
+4. 先尝试搜索和查看评论，再按需要选择评论并进行整理。
 
-Minimum MarginNote version:
+MN Utils 是必需依赖；评论管理器不内置 `MNUtil` 或 `MNNote` 的副本。
 
-```text
-4.2.3
-```
+[入门视频](https://www.bilibili.com/video/BV1rpEA6fEau/)介绍基本使用方式。[项目介绍视频](https://www.bilibili.com/video/BV1vHnE6YEhe/)提供功能概览。面板顶栏的问号图标也可以打开视频选择：优先使用已启用的 MNBrowser，其次使用可用学习集的研究浏览器，最后使用系统浏览器。
 
-Addon id:
+## 兼容性与使用边界
 
-```text
-marginnote.extension.mncommentmanager
-```
+- **评论折叠**按宿主能力启用。缺少相关接口时，折叠功能会提示不可用，其余功能仍可使用。
+- **MN5 原生卡片菜单**属于内测宿主的可选接入方式。MN Utils 和评论管理器需要全局启用，并获得当前场景的运行许可；场景模板可保存许可和命令，无需额外放置工具栏按钮。
+- **已有动态入口**保留自定义动作；原生菜单覆盖范围无法确认时，动态入口继续保留。接入步骤与重复入口规则见[场景模板说明](https://github.com/xkwxdyy/MNCommentManager/blob/main/README.native-card-menu.md)。
+- **MN5 验收范围**目前为 Mac 卡片菜单。旧宿主、iPad、iPhone、文档摘录菜单、键盘与 VoiceOver 的完整验收仍待完成。当前源码中的功能不一定包含在既有同版本安装包中。
+- **删除、提取与批量处理**会改变卡片内容。首次使用前，建议先在测试卡片中确认选择范围与处理结果。
 
-## Development
+<details>
+<summary>评论折叠与撤销规则</summary>
 
-The project pins pnpm 10.34.7 for compatibility with the existing Corepack launcher.
+### 折叠后的选择行为
 
-Install dependencies:
+折叠按钮位于每条评论复选框左侧。顶栏继续负责选择与全局命令，底部折叠和展开操作独立于滚动列表。点击已选评论的折叠按钮，会将该条评论的目标状态应用到全部所选评论，包括当前隐藏的所选评论；点击未选评论时，仅处理该条评论。写入成功后保留选择，原生摘录不参与评论折叠。
+
+折叠切换会保持被点击评论的标题可见。底部“更多”菜单提供移动、处理、删除及包含隐藏评论的全选操作。
+
+### 批量折叠与一致性
+
+多卡片编辑器或工作流可以使用 `foldSelectedComments` 和 `unfoldSelectedComments`。每张卡片重新读取列表版本；每次宿主调用最多处理 200 条评论，超过上限会拒绝执行，避免拆分为部分提交。
+
+插件转换从零开始的评论下标，核对预期版本，再由宿主负责保存、回滚、刷新与撤销。写入失败后重新读取列表，过期选择会在再次写入前清除。
+
+### 工作流的撤销分组
+
+不含折叠动作的工作流使用同一撤销组。包含折叠动作时，折叠事务由宿主独立管理，其余连续动作使用各自共享的撤销组。
+
+</details>
+
+<details>
+<summary>开发、扩展与发布配置</summary>
+
+### 本地开发
+
+项目固定使用 pnpm 10.34.7。安装依赖后可启动开发模式或构建安装包。
 
 ```bash
 pnpm install
-```
-
-Run development mode:
-
-```bash
 pnpm dev
-```
-
-Build a release package:
-
-```bash
 pnpm build
 ```
 
-The release build generates WebView assets and packages the addon as:
+`pnpm dev` 同时启动网页开发服务和插件实时部署监听，运行前需要确认本地 MarginNote 开发环境。正式构建生成网页资源与 `.mnaddon` 安装包，文件名中的版本取自项目清单。
 
-```text
-mn-comment-manager-v0.1.36.mnaddon
-```
+### 代码位置
 
-Generate a stable update manifest after uploading the package into the 123pan
-MN Comment Manager directory:
+- `src/main.js` 与 `src/MNCommentManagerAddon.js`：JavaScriptCore 入口、生命周期与工具栏命令。
+- `src/WebPanelController.js` 与 `src/WebBridgeCommands.js`：浮动面板及原生通信。
+- `src/CommentData.js` 与 `src/CommentMutations.js`：评论读取、能力检测与内容修改。
+- `src/CommentWorkflowStore.js`、`src/CommentWorkflowRegistry.js`、`src/CommentWorkflowRunner.js` 与 `src/CommentWorkflowMenu.js`：工作流存储、动作注册、逐卡执行及菜单。
+- `web/`：React 与 Vite 前端源码。
+- `src/update-fallback/`：更新清单和结构化更新日志的备用数据。
+
+独立 Patch 插件可以扩展动作目录；版本化注册接口与示例位于 `patches/README.md`。
+
+### 更新元数据
+
+安装包上传至正式分发目录后，使用对应文件的下载地址和标识生成清单。以下参数需要替换为当前上传结果。
 
 ```bash
 pnpm manifest -- \
-  --download-url "https://1826456163.v.123pan.cn/1826456163/28490444" \
-  --file-id "28490444"
+  --download-url "<当前安装包的下载地址>" \
+  --file-id "<当前安装包的文件标识>"
 ```
 
-The manifest schema matches the MN Literature / MN Pinner updater manifests and
-is written to `debug/123pan/mncommentmanager.json`. The bundled fallback lives in
-`src/update-fallback/mncommentmanager.json`. The manifest also includes
-`changelogUrl`, which points to the structured changelog JSON used by MNUtils:
+清单写入 `debug/123pan/mncommentmanager.json`，备用清单位于 `src/update-fallback/mncommentmanager.json`。`changelogUrl` 指向 MNUtils 使用的[结构化更新日志](https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json)。发布前需要同步 `src/update-fallback/mncommentmanager_changelog.json` 与对应版本的实际变化。
 
-```text
-https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json
-```
+插件标识：`marginnote.extension.mncommentmanager`。
 
-Before publishing a package, keep
-`src/update-fallback/mncommentmanager_changelog.json` in sync with the user-facing
-changes for the released version.
+</details>
 
-## Project Layout
+## 反馈与问题跟踪
 
-- `src/`: MarginNote JavaScriptCore addon code.
-- `src/main.js`: addon entry and `JSB.require(...)` imports.
-- `src/MNCommentManagerAddon.js`: lifecycle hooks and toolbar command.
-- `src/WebPanelController.js`: floating WebView panel and bridge URL handling.
-- `src/WebBridgeCommands.js`: native bridge command handlers.
-- `src/CommentData.js`: current-note comment serialization and capability detection.
-- `src/CommentMutations.js`: comment move/delete/edit/merge/extract operations.
-- `src/CommentWorkflowStore.js`: native JSON persistence for saved workflows.
-- `src/CommentWorkflowRegistry.js`: versioned built-in and Patch action registry.
-- `src/CommentWorkflowRunner.js`: sequential batch runner and undo grouping.
-- `src/CommentWorkflowMenu.js`: nested batch menu for saved workflows and presets.
-- `patches/`: independent Patch API documentation and example addon.
-- `src/update-fallback/`: stable update manifest and changelog fallback JSON.
-- `web/`: React and Vite source for the panel UI.
-
-## GitHub Issues
-
-This repository contains one plugin, so issue titles do not use plugin prefixes.
-
-The default issue repository is:
-
-```text
-xkwxdyy/MNCommentManager
-```
+请在 [GitHub Issues](https://github.com/xkwxdyy/MNCommentManager/issues) 中说明 MarginNote 版本、设备、插件版本、复现步骤及预期结果，截图应避开私有笔记内容。仓库仅维护评论管理器，问题标题无需添加插件前缀。
