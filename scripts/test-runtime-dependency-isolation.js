@@ -252,6 +252,47 @@ function loadAddon({
 }
 
 (async function testAddonWithRuntime() {
+  // Deliver document close notifications through the production observer registration.
+  process.env.MNCM_QUICK_ACTION_FIXTURE_ONLY = "1";
+  const { setup } = require("./test-comment-move-integration");
+  delete process.env.MNCM_QUICK_ACTION_FIXTURE_ONLY;
+  const document = setup();
+  const observers = new Map();
+  document.context.MNUtil.addObserver = (_addon, selector, notification) => observers.set(notification, selector.slice(0, -1));
+  document.context.MNUtil.removeObserver = (_addon, notification) => observers.delete(notification);
+  document.context.__MN_WEB_API_MNCommentManagerAddon = { createController: () => ({ view: { hidden: true } }) };
+  document.context.__MN_BATCH_COMMENT_ACTIONS__ = { disposeButton() {} };
+  await document.addon.sceneWillConnect();
+  function closeDocumentMenu(noteId) {
+    const selector = observers.get("ClosePopupMenuOnSelection");
+    assert(selector, "document selection menu closes must reach the addon");
+    document.addon[selector]({ userInfo: noteId ? { noteid: noteId } : {} });
+  }
+  closeDocumentMenu();
+  document.advance(200);
+  for (const key of ["dynamicCommentButton", "dynamicCommentMenuButton", "dynamicAddCommentButton", "dynamicMoveCommentButton"]) {
+    assert.strictEqual(document.addon[key].hidden, true, key + " must hide after a document menu closes");
+  }
+  assert.strictEqual(document.addon.dynamicCommentContext, null);
+  document.selectCard("two");
+  closeDocumentMenu("one"); document.advance(200);
+  assert.strictEqual(document.addon.dynamicCommentContext.noteId, "two", "an old card close cannot hide the new target");
+  closeDocumentMenu(); document.selectCard("one"); document.advance(200);
+  assert.strictEqual(document.addon.dynamicCommentContext.noteId, "one", "reopening cancels the pending document close");
+  const heldButton = document.addon.dynamicCommentButton;
+  document.addon.dynamicCommentButtonTouchDown(heldButton);
+  closeDocumentMenu(); document.advance(1500);
+  assert.strictEqual(heldButton.hidden, false, "document menu closing must protect a held button");
+  document.addon.dynamicCommentButtonTouchEnded(heldButton); document.advance(0);
+  assert.strictEqual(heldButton.hidden, true, "release must finish the deferred document close");
+  document.selectCard("two");
+  document.context.MNUtil.currentWindow = {};
+  closeDocumentMenu(); document.advance(200);
+  assert.strictEqual(document.addon.dynamicCommentContext.noteId, "two", "foreign windows cannot close document entries");
+  document.context.MNUtil.currentWindow = document.addon.window;
+  document.addon.sceneDidDisconnect();
+  assert.strictEqual(observers.size, 0, "disconnect must remove every document menu observer");
+
   {
     const result = loadAddon({ provideMNUtilsRuntime: false, mnutilsInstalled: false });
     await result.members.sceneWillConnect();
@@ -283,7 +324,7 @@ function loadAddon({
     assert.strictEqual(result.timerCalls.length, 2);
     assert.strictEqual(result.hudMessages.length, 0, "delayed shared runtime loading must stay silent");
     assert.strictEqual(result.controllerCalls.length, 1);
-    assert.strictEqual(result.observerCalls.filter((item) => item.type === "add").length, 4);
+    assert.strictEqual(result.observerCalls.filter((item) => item.type === "add").length, 5);
   }
 
   {
@@ -302,7 +343,7 @@ function loadAddon({
     await result.members.notebookWillOpen();
     assert.strictEqual(result.context.self.mnCommentManagerInitialized, true);
     assert.strictEqual(result.controllerCalls.length, 1);
-    assert.strictEqual(result.observerCalls.filter((item) => item.type === "add").length, 4);
+    assert.strictEqual(result.observerCalls.filter((item) => item.type === "add").length, 5);
   }
 
   const result = loadAddon({ provideMNUtilsRuntime: true });
@@ -320,6 +361,7 @@ function loadAddon({
       { selector: "onMindmapViewBottomToolbarClosed:", notification: "mindmapViewBottomToolbarClosed" },
       { selector: "onPopupMenuOnNote:", notification: "PopupMenuOnNote" },
       { selector: "onClosePopupMenuOnNote:", notification: "ClosePopupMenuOnNote" },
+      { selector: "onClosePopupMenuOnNote:", notification: "ClosePopupMenuOnSelection" },
     ],
   );
 

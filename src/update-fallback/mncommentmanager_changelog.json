@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-03T23:53:35+08:00",
+  "updatedAt": "2026-11-08T10:33:20+08:00",
   "entries": [
+    {
+      "version": "0.1.40",
+      "channel": "stable",
+      "date": "2026-11-08",
+      "items": [
+        {
+          "zh": "修复文档视图关闭摘录菜单后，评论管理器浮动按钮未自动隐藏的问题。",
+          "en": "Fix floating comment controls remaining visible after the excerpt menu closes in document view."
+        },
+        {
+          "zh": "修复连续切换摘录时，新出现的评论管理器按钮被错误清理的问题。",
+          "en": "Keep newly displayed comment controls visible when switching directly between excerpts."
+        }
+      ]
+    },
     {
       "version": "0.1.39",
       "channel": "stable",

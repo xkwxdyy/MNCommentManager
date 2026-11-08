@@ -106,6 +106,7 @@ function createMNCommentManagerAddon(mainPath) {
     MNUtil.addObserver(addon, "onMindmapViewBottomToolbarClosed:", "mindmapViewBottomToolbarClosed");
     MNUtil.addObserver(addon, "onPopupMenuOnNote:", "PopupMenuOnNote");
     MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnNote");
+    MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnSelection");
     addon.mnCommentManagerInitialized = true;
     if (typeof __MN_UPDATER_MNCommentManagerAddon !== "undefined") {
       try { __MN_UPDATER_MNCommentManagerAddon.start(addon); }
@@ -295,6 +296,7 @@ function createMNCommentManagerAddon(mainPath) {
       MNUtil.removeObserver(addon, "mindmapViewBottomToolbarClosed");
       MNUtil.removeObserver(addon, "PopupMenuOnNote");
       MNUtil.removeObserver(addon, "ClosePopupMenuOnNote");
+      MNUtil.removeObserver(addon, "ClosePopupMenuOnSelection");
     }
     if (typeof __MN_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(addon);
     __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(addon, "scene.disconnect");

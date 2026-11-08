@@ -137,6 +137,24 @@ test("fresh primary evidence covers only directly accessible quick and input act
   assert.equal(f.read().menu, false, "bound hold is insufficient proof of keyboard or assistive access");
 });
 
+test("ordinary document menus cannot invalidate floating entries through an unrelated map selection", () => {
+  const f = fixture(), hidden = [];
+  f.context.__MN_DYNAMIC_COMMENT_ACTIONS__.hideButton = (_addon, reason) => hidden.push(reason);
+  f.addon.dynamicCommentContext = { noteId: "A", token: "document-A" };
+  f.open("A");
+  f.menu.items = [{ title: "", actionString: "noteHighlight:" }];
+  f.context.__MN_NOTE_ACCESS_MNCommentManagerAddon.selected = () => [f.notes.B];
+  assert.deepEqual(f.read(), empty);
+  for (let index = 0; index < 4; index++) f.tick(.25);
+  assert.deepEqual(hidden, [], "native integration must leave ordinary document entries to their own close lifecycle");
+  assert.equal(f.addon.dynamicCommentContext.token, "document-A");
+  assert.equal(f.addon.mncmNativeCardMenuState.bindings.length, 0);
+
+  f.rebuild([0, 1]);
+  f.read();
+  assert.deepEqual(hidden, ["native-menu.context-changed"], "integrated native commands still reject an actual target mismatch");
+});
+
 test("zero, manager-only, add-only and both entries cover only their matching primary strips", () => {
   for (const [configured, actual, expected] of [
     [[], [], empty], [[0], [0], { ...empty, quick: true }],
