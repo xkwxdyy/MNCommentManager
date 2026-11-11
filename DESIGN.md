@@ -1,6 +1,6 @@
 # 评论管理器网页界面规范
 
-更新日期：2026-11-02。
+更新日期：2026-11-11。
 
 ## 方向与范围
 
@@ -17,16 +17,16 @@
 
 ## 公共变量
 
-公共变量位于 `web/src/theme.css`；管理器通过 `styles.css` 引入，快速输入通过 `QuickComment.css` 引入。取值以源码为准。
+公共变量位于 `web/src/theme.css`；管理器通过 `web/src/styles.css` 引入，快速输入通过 `web/src/QuickComment.css` 引入。取值以源码为准。
 
-- `--bg-app`、`--bg-sidebar`、`--bg-panel`：分别用于外围、筛选侧栏及内容或浮层表面。（Agent 推断）
+- `--bg-app`、`--bg-sidebar`、`--bg-panel`、`--bg-elevated`：分别用于外围、筛选侧栏、内容卡片与浮层表面；`--bg-media` 用于评论图片与透明手写 PNG 的自适应浅底衬托，避免深色主题纯白刺眼。（Agent 推断）
 - `--text-primary`、`--text-secondary`、`--text-tertiary`：分别用于正文、必要辅助信息与较弱辅助信息；必要文字不通过整体透明度降低对比度。（Agent 推断）
-- `--text-accent`、`--text-positive`、`--text-warning`、`--text-danger`、`--text-purple`：用于有语义的文字；明亮的 `--accent-*` 继续用于指示线、边界和图形。（Agent 推断）
-- `--action-primary` 与 `--action-danger`：用于带白色文字或图标的实色操作表面，避免直接采用深色主题中的高亮指示色。（Agent 推断）
-- `--font-ui`：使用系统字体及中文系统字体回退；标题、正文和计数主要通过字号与字重分层。（Agent 推断）
+- `--text-accent`、`--text-positive`、`--text-warning`、`--text-danger`、`--text-purple`：用于有语义的文字；明亮的 `--accent-*` 继续用于指示线、边界和图形；状态横幅搭配 `--status-*-bg` 与 `--status-*-border` 保持深浅主题可读性。（Agent 推断）
+- `--action-primary`、`--action-primary-hover` 与 `--action-danger`：用于带白色文字或图标的实色操作表面，深浅主题均保持 ≥4.5∶1 对比度，避免直接采用深色主题中的高亮指示色。（Agent 推断）
+- `--font-ui`：使用系统字体及中文系统字体回退；标题、正文和计数主要通过字号与字重分层，动态计数与版本号启用 `tabular-nums` 等宽数字。（Agent 推断）
 - `--radius-sm`、`--radius-md`、`--radius-lg`：用于控件、分组及内容卡片；`--radius-dialog` 与 `--radius-overlay` 用于独立浮层。（Agent 推断）
 - `--control-hit-size`：触屏控件的有效区域至少为 44×44 像素，可见背景可以更小。（用户确认）
-- `--transition`、`--focus`、`--shadow-*`：沿用安静的过渡与浮层层级；键盘焦点使用清晰的实色轮廓。（Agent 推断）
+- `--transition`、`--focus`、`--focus-ring`、`--shadow-*`：沿用安静的过渡与浮层层级；输入框聚焦采用单层边框与 `--focus` 柔光，按钮与卡片键盘焦点使用 `--focus-ring` 单层实色轮廓，避免双层轮廓叠加。（Agent 推断）
 
 “Agent 推断”表示已确认方向下的具体实现选择，后续调整应以实际画面和交互证据为依据。
 
@@ -37,18 +37,19 @@
 - 管理器底栏右侧保留 48 像素，避让原生缩放手柄；新增操作不得覆盖该区域。（用户确认）
 - 图标按钮提供操作名称、悬停提示及适用的选中或忙碌状态。用途不清晰的操作继续使用文字。（用户确认）
 - 下拉框使用现有 `HtmlSelect`，表单、工作流和模块复用现有组件；保存与失败状态沿用原有 Bridge 协议。（用户确认）
+- 顶栏帮助面板与下拉列表紧贴触发控件实时边界定位并在滚动或缩放时同步更新，确保浮层在视口内完整可达；长内容弹窗（如行内链接合并）底部操作栏保持粘性常驻，并为触屏提供固定高度的单点插入按钮。（Agent 推断）
 - 取消、失焦和关闭继续沿用既有草稿及拖动恢复规则；本轮不添加新的动效。（用户确认）
 
 ## 样板与使用位置
 
-- 正式管理器：`web/src/App.jsx`、`styles.css`、`components/PanelControls.css`。
-- 快速输入：`web/src/QuickComment.jsx`、`QuickComment.css`。
-- 模块与拖动总览：`web/src/components/CommentModules.css`、`CommentDragOverview.css`。
-- 演示入口：`web/demos/comment-modules/` 和 `web/demos/comment-move/`。
+- 正式管理器：`web/src/App.jsx`、`web/src/styles.css`、`web/src/components/PanelControls.css`。（Agent 推断）
+- 快速输入：`web/src/QuickComment.jsx`、`web/src/QuickComment.css`。（Agent 推断）
+- 模块与拖动总览：`web/src/components/CommentModules.css`、`web/src/components/CommentDragOverview.css`。（Agent 推断）
+- 演示入口：`web/demos/comment-modules/` 和 `web/demos/comment-move/`。（Agent 推断）
 
 ## 验收
 
-- 比较 1440×900 与 390×844 的同数据画面，并补充深色和低高度窗口。
-- 正文及必要辅助文字以 4.5∶1 为对比度目标；检查实际表面与透明度叠加，禁用状态另行辨认。
-- 检查控件命中区域、正文宽度、弹窗边界、焦点返回、筛选选区与拖动取消。
-- 浏览器模拟结果与 MarginNote、移动设备、系统键盘的实际验收分别记录。
+- 比较 1440×900 与 390×844 的同数据画面，并补充深色和低高度窗口。（Agent 推断）
+- 正文及必要辅助文字以 4.5∶1 为对比度目标；检查实际表面与透明度叠加，禁用状态另行辨认。（Agent 推断）
+- 检查控件命中区域、正文宽度、弹窗边界、焦点返回、筛选选区与拖动取消。（Agent 推断）
+- 浏览器模拟结果与 MarginNote、移动设备、系统键盘的实际验收分别记录。（Agent 推断）

@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-08T10:33:20+08:00",
+  "updatedAt": "2026-11-11T16:56:18+08:00",
   "entries": [
+    {
+      "version": "0.1.41",
+      "channel": "stable",
+      "date": "2026-11-11",
+      "items": [
+        {
+          "zh": "改善评论、模块与快速输入的深浅主题、触屏操作和焦点显示。",
+          "en": "Improve light and dark themes, touch controls and focus feedback across comments, modules and quick input."
+        },
+        {
+          "zh": "帮助和下拉菜单随页面滚动调整位置，行内合并支持单次插入。",
+          "en": "Keep help and select menus positioned while scrolling, and add single-tap insertion to inline merging."
+        }
+      ]
+    },
     {
       "version": "0.1.40",
       "channel": "stable",

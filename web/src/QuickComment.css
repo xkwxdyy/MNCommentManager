@@ -24,16 +24,19 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .quick-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--quick-line); }
 .quick-hint { font-size: 12px; color: var(--quick-muted); }
 .quick-actions { display: flex; gap: 6px; }
-.quick-icon, .quick-submit { border: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border-radius: var(--radius-lg); }
+.quick-icon, .quick-submit { border: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border-radius: var(--radius-lg); transition: background-color 140ms ease, color 140ms ease, transform 120ms ease, box-shadow 140ms ease; }
 .quick-icon { background: transparent; color: var(--quick-muted); box-shadow: none; }
-.quick-card .quick-icon:hover:not(:disabled) { background: var(--bg-control); border-color: transparent; box-shadow: none; transform: none; }
-.quick-markdown[aria-checked="true"], .quick-card .quick-markdown[aria-checked="true"]:hover:not(:disabled) { color: var(--text-accent); background: var(--accent-blue-soft); border-color: transparent; box-shadow: none; transform: none; }
+.quick-card .quick-icon:hover:not(:disabled) { color: var(--quick-text); background: var(--bg-control-strong); border-color: transparent; box-shadow: none; transform: none; }
+.quick-card .quick-icon:active:not(:disabled), .quick-card .quick-submit:active:not(:disabled) { transform: scale(0.95); }
+.quick-markdown[aria-checked="true"], .quick-card .quick-markdown[aria-checked="true"]:hover:not(:disabled) { color: var(--text-accent); background: var(--accent-blue-soft); border-color: transparent; box-shadow: inset 0 0 0 1px var(--status-info-border); transform: none; }
+.quick-card .quick-markdown[aria-checked="true"]:active:not(:disabled) { transform: scale(0.95); }
 .quick-submit { color: white; background: var(--action-primary); box-shadow: 0 4px 12px rgba(52,120,237,.18); }
 .quick-card .quick-submit:hover:not(:disabled) { color: white; background: var(--accent-blue-hover); border-color: transparent; box-shadow: 0 6px 16px rgba(52,120,237,.26); transform: translateY(-1px); }
 .quick-submit:disabled { background: var(--bg-control-strong); color: var(--text-tertiary); box-shadow: none; cursor: default; }
 .quick-icon:disabled { opacity: .35; cursor: default; }
-.quick-card button:focus-visible { outline: 3px solid var(--text-accent); outline-offset: 2px; }
-.quick-error { color: var(--text-danger); font-size: 12px; padding: 8px 0; max-height: 80px; overflow: auto; }
+.quick-card button:focus:not(:focus-visible) { outline: none; }
+.quick-card button:focus-visible { outline: 2.5px solid var(--focus-ring, var(--text-accent)); outline-offset: 2px; }
+.quick-error { color: var(--text-danger); background: var(--status-danger-bg); border: 1px solid var(--status-danger-border); border-radius: var(--radius-sm); font-size: 12px; padding: 8px 10px; margin-bottom: 8px; max-height: 84px; overflow: auto; overscroll-behavior: contain; }
 .quick-error button, .quick-card .quick-error button:hover:not(:disabled) { margin-left: 8px; border: 0; background: transparent; box-shadow: none; color: var(--text-accent); min-width: 44px; min-height: 44px; text-decoration: underline; transform: none; }
 .quick-success .quick-backdrop { animation: quick-backdrop-out var(--quick-exit-duration, 420ms) ease-in-out both; }
 .quick-success .quick-card { will-change: transform, opacity; animation: quick-fade 420ms ease-in-out both; }

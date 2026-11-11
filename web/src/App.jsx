@@ -909,6 +909,7 @@ function App() {
   const singleDeleteLongPressFired = useRef(false);
   const didInitialLoad = useRef(false);
   const quickMoveTimers = useRef({});
+  const [quickMovePressing, setQuickMovePressing] = useState(null);
   const linkFocusTimers = useRef({});
   const linkFocusLongPressFired = useRef({});
   const [inlineLinkPressing, setInlineLinkPressing] = useState(null);
@@ -1963,8 +1964,10 @@ function App() {
     suppressPressDefaults(event);
     if (loading) return;
     clearTimeout(quickMoveTimers.current[commentIndex]);
+    setQuickMovePressing(`${commentIndex}:${direction}`);
     quickMoveTimers.current[commentIndex] = setTimeout(() => {
       quickMoveTimers.current[commentIndex] = null;
+      setQuickMovePressing(null);
       execute(() => moveSingleComment(commentIndex, direction, true));
     }, 520);
   };
@@ -1972,6 +1975,7 @@ function App() {
   const finishQuickMovePress = (event, commentIndex, direction) => {
     releasePressCapture(event);
     const timer = quickMoveTimers.current[commentIndex];
+    setQuickMovePressing(null);
     if (!timer) return;
     clearTimeout(timer);
     quickMoveTimers.current[commentIndex] = null;
@@ -1982,6 +1986,7 @@ function App() {
     releasePressCapture(event);
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = null;
+    setQuickMovePressing(null);
   };
 
   const locateLinkedNote = async (noteId, mode = "mindmap") => {
@@ -2619,7 +2624,12 @@ function App() {
   };
 
   return (
-    <div className="comment-manager" onKeyDownCapture={handleSelectionModeKeyDown}>
+    <div
+      className="comment-manager"
+      data-range-picking={rangePicking ? "true" : undefined}
+      data-insert-mode={insertMode ? "true" : undefined}
+      onKeyDownCapture={handleSelectionModeKeyDown}
+    >
       {retainedBatchEditorRef.current ? (
         <BatchCommentEditor state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
       ) : null}
@@ -2972,7 +2982,7 @@ function App() {
                       ) : null}
                       <button
                         type="button"
-                        className="quick-action-btn"
+                        className={quickMovePressing === `${comment.index}:up` ? "quick-action-btn pressing" : "quick-action-btn"}
                         disabled={loading || isFirstComment}
                         title="点按上移，按住移到最上方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}
@@ -2990,7 +3000,7 @@ function App() {
                       </button>
                       <button
                         type="button"
-                        className="quick-action-btn"
+                        className={quickMovePressing === `${comment.index}:down` ? "quick-action-btn pressing" : "quick-action-btn"}
                         disabled={loading || isLastComment}
                         title="点按下移，按住移到最下方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "down")}
@@ -3141,7 +3151,7 @@ function App() {
           ) : null}
 
           <section className="pane-section danger-zone delete-section">
-            <h2>删除</h2>
+            <h2 className="sr-only">删除</h2>
             <button
               type="button"
               className={deletePressing ? "danger wide pressing" : "danger wide"}
@@ -3936,7 +3946,7 @@ function ActionButtonSettingsDialog({
               {busy ? "保存中…" : "即时生效"}
             </span>
           </div>
-          <p id="action-button-settings-description">这些设置会立即保存，并在下次打开笔记本时继续生效。</p>
+          <p id="action-button-settings-description">修改后在下次打开笔记本时继续保持。</p>
           {feedback ? (
             <p
               id="action-button-settings-status"
@@ -4207,7 +4217,7 @@ function ActionButtonSettingsDialog({
         </div>
 
         <div className="dialog-actions action-button-settings-footer">
-          <span className="action-button-settings-footer-hint">按 Esc 或点击遮罩也可关闭 · 排序支持 Alt+↑/↓</span>
+          <span className="action-button-settings-footer-hint">按 Esc 或点击遮罩也可关闭</span>
           <Button className="primary" onClick={requestClose}>完成</Button>
         </div>
       </section>
@@ -4872,7 +4882,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, initialTempla
         </details>
         <div className="workflow-manager-body">
           <aside className="workflow-list" aria-label="已保存工作流">
-            <Button data-workflow-create className="primary wide" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
+            <Button data-workflow-create className="secondary wide workflow-create-btn" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
             <label className="workflow-name-field"><span>正在排列的菜单</span>
               <HtmlSelect aria-label="菜单排序范围" value={menuMode} disabled={busy} onChange={(event) => setMenuMode(event.target.value)}>
                 <option value="single">单选卡片</option><option value="batch">多选卡片</option>
@@ -5478,6 +5488,7 @@ function TextDialog({ dialog, loading, onClose }) {
           <p className="dialog-error" role="alert">保存失败：{submissionError}</p>
         ) : null}
         <div className="dialog-actions">
+          {dialog.inputLabel ? <span className="dialog-shortcut-hint" aria-hidden="true">⌘/Ctrl + Enter 提交</span> : null}
           {dialog.hideCancel !== true ? <Button className="secondary" disabled={busy} onClick={requestClose}>取消</Button> : null}
           <Button
             className={dialog.danger ? "danger" : "primary"}
@@ -5778,24 +5789,37 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
         <p>{dialog.body}</p>
 
         <section className="merge-section">
-          <h3>已选内容</h3>
+          <div className="merge-section-head">
+            <h3>已选内容</h3>
+            <small>点按填入组合框，或点右侧直接插入</small>
+          </div>
           <div className="merge-material-list">
             {materials.map((material) => (
-              <button
-                key={`${material.index}-${material.order}`}
-                type="button"
-                className="merge-material"
-                disabled={busy}
-                title="点按填入下方输入框，双击直接加入最终内容"
-                onClick={() => applyMaterial(material)}
-                onDoubleClick={() => appendMaterial(material)}
-              >
-                <span className="merge-material-meta">#{material.index} · {material.label}</span>
-                {material.title ? <span className="merge-material-title">{material.title}</span> : null}
-                {material.content && material.content !== material.title ? (
-                  <span className="merge-material-content">{material.content}</span>
-                ) : null}
-              </button>
+              <div key={`${material.index}-${material.order}`} className="merge-material-row">
+                <button
+                  type="button"
+                  className="merge-material"
+                  disabled={busy}
+                  title="点按填入下方输入框，双击直接加入最终内容"
+                  onClick={() => applyMaterial(material)}
+                  onDoubleClick={() => appendMaterial(material)}
+                >
+                  <span className="merge-material-meta">#{material.index} · {material.label}</span>
+                  {material.title ? <span className="merge-material-title">{material.title}</span> : null}
+                  {material.content && material.content !== material.title ? (
+                    <span className="merge-material-content">{material.content}</span>
+                  ) : null}
+                </button>
+                <Button
+                  className="secondary compact merge-material-insert"
+                  disabled={busy}
+                  aria-label={`直接插入 #${material.index}`}
+                  title="直接插入到最终内容"
+                  onClick={() => appendMaterial(material)}
+                >
+                  插入
+                </Button>
+              </div>
             ))}
           </div>
         </section>
@@ -5839,6 +5863,7 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
           <p className="dialog-error" role="alert">合并失败：{submissionError}</p>
         ) : null}
         <div className="dialog-actions">
+          <span className="dialog-shortcut-hint" aria-hidden="true">⌘/Ctrl + Enter 合并</span>
           <Button className="secondary" disabled={busy} onClick={closeDialog}>取消</Button>
           <Button className="primary" disabled={!canConfirm} onClick={handleConfirm}>
             {busy ? (dialog.pendingText || "合并中…") : (dialog.confirmText || "合并")}

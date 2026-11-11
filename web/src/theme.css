@@ -29,6 +29,7 @@
   --text-danger: #bb241c;
   --action-danger: #bb241c;
   --action-primary: #0071e3;
+  --action-primary-hover: #0063c7;
   --text-purple: #79379b;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -37,7 +38,18 @@
   --radius-overlay: 20px;
   --control-hit-size: 44px;
   --transition: 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  --focus: rgba(0, 113, 227, 0.28);
+  --focus: rgba(0, 113, 227, 0.24);
+  --focus-ring: #005bb8;
+  --bg-elevated: #ffffff;
+  --bg-media: #fcfcfd;
+  --status-info-bg: rgba(0, 113, 227, 0.06);
+  --status-info-border: rgba(0, 113, 227, 0.2);
+  --status-success-bg: rgba(22, 112, 56, 0.07);
+  --status-success-border: rgba(22, 112, 56, 0.22);
+  --status-warning-bg: rgba(255, 149, 0, 0.09);
+  --status-warning-border: rgba(138, 75, 0, 0.22);
+  --status-danger-bg: rgba(255, 59, 48, 0.08);
+  --status-danger-border: rgba(187, 36, 28, 0.24);
   --quick-action-hit-size: 44px;
   --quick-action-visual-size: 29px;
 }
@@ -48,6 +60,8 @@
     --bg-app: #151517;
     --bg-sidebar: #202023;
     --bg-panel: #2a2a2d;
+    --bg-elevated: #313135;
+    --bg-media: rgba(244, 245, 248, 0.94);
     --bg-panel-soft: rgba(255, 255, 255, 0.06);
     --bg-chrome: rgba(21, 21, 23, 0.9);
     --bg-control: rgba(255, 255, 255, 0.07);
@@ -57,13 +71,16 @@
     --text-positive: #74dc93;
     --text-warning: #ffc16b;
     --text-danger: #ff938c;
+    --action-danger: #c92a2a;
+    --action-primary: #0969da;
+    --action-primary-hover: #0550ae;
     --text-purple: #d9a0f5;
     --text-secondary: #b8b8c0;
     --text-tertiary: #a1a1aa;
     --border-light: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.18);
     --accent-blue: #0a84ff;
-    --accent-blue-hover: #0071e3;
+    --accent-blue-hover: #2992ff;
     --accent-purple: #bf5af2;
     --accent-green: #30d158;
     --accent-orange: #ff9f0a;
@@ -72,6 +89,15 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
     --shadow-md: 0 10px 22px rgba(0, 0, 0, 0.36);
     --shadow-lg: 0 24px 54px rgba(0, 0, 0, 0.64);
-    --focus: rgba(10, 132, 255, 0.42);
+    --focus: rgba(10, 132, 255, 0.34);
+    --focus-ring: #78b8ff;
+    --status-info-bg: rgba(10, 132, 255, 0.14);
+    --status-info-border: rgba(120, 184, 255, 0.28);
+    --status-success-bg: rgba(48, 209, 88, 0.12);
+    --status-success-border: rgba(116, 220, 147, 0.28);
+    --status-warning-bg: rgba(255, 159, 10, 0.13);
+    --status-warning-border: rgba(255, 193, 107, 0.28);
+    --status-danger-bg: rgba(255, 69, 58, 0.14);
+    --status-danger-border: rgba(255, 147, 140, 0.3);
   }
 }

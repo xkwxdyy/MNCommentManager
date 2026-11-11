@@ -9,7 +9,9 @@ function IconButton({ label, children, ...props }) {
 function ModuleCheckbox({ label, checked, partial, ...props }) {
   const ref = useRef(null);
   useEffect(() => { if (ref.current) ref.current.indeterminate = partial; }, [partial]);
-  return <input ref={ref} type="checkbox" aria-label={label} checked={checked} {...props} />;
+  return <span className="module-check-hit" onClick={e => {
+    if (e.target === e.currentTarget && !props.disabled) ref.current?.click();
+  }}><input ref={ref} type="checkbox" aria-label={label} checked={checked} {...props} /></span>;
 }
 function Modal({ title, busy, onClose, children }) {
   const ref = useRef(null);
@@ -93,10 +95,12 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
       activeMenu?.querySelector('summary')?.focus();
     };
     document.addEventListener('pointerdown', closeMenusOutside);
+    document.addEventListener('touchstart', closeMenusOutside, { passive: true });
     document.addEventListener('click', closeMenusOutside);
     document.addEventListener('keydown', closeMenusOnEscape, true);
     return () => {
       document.removeEventListener('pointerdown', closeMenusOutside);
+      document.removeEventListener('touchstart', closeMenusOutside);
       document.removeEventListener('click', closeMenusOutside);
       document.removeEventListener('keydown', closeMenusOnEscape, true);
     };
