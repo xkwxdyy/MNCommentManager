@@ -52,6 +52,12 @@
   --status-danger-border: rgba(187, 36, 28, 0.24);
   --quick-action-hit-size: 44px;
   --quick-action-visual-size: 29px;
+  --sidebar-width: 204px;
+  --sidebar-rail-width: 48px;
+  --surface-module-head: rgba(0, 0, 0, 0.028);
+  --surface-title-anchor: rgba(0, 113, 227, 0.032);
+  --border-title-anchor: rgba(0, 113, 227, 0.18);
+  --border-selected-strong: rgba(0, 113, 227, 0.52);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -99,5 +105,9 @@
     --status-warning-border: rgba(255, 193, 107, 0.28);
     --status-danger-bg: rgba(255, 69, 58, 0.14);
     --status-danger-border: rgba(255, 147, 140, 0.3);
+    --surface-module-head: rgba(255, 255, 255, 0.045);
+    --surface-title-anchor: rgba(10, 132, 255, 0.08);
+    --border-title-anchor: rgba(120, 184, 255, 0.24);
+    --border-selected-strong: rgba(10, 132, 255, 0.58);
   }
 }

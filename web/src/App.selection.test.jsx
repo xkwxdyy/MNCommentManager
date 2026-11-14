@@ -176,4 +176,47 @@ describe("range and insertion selection modes", () => {
     expect(host.querySelector(".selection-mode-banner")).toBeNull();
     expect(host.querySelector(".range-anchor")).toBeNull();
   });
+
+  it("preserves filter-hidden selections on select-all and invert, hides invalid non-contiguous insert targets, and manages the actions drawer cleanly", async () => {
+    await click(checkbox(1));
+    await click([...host.querySelectorAll(".segmented button")].find((node) => node.querySelector("span").textContent === "文本"));
+    await click(button("全选"));
+    await click(button("重置筛选"));
+    expect(selectedIds()).toEqual(["native-excerpt", "comment-0", "comment-1", "comment-2", "comment-3"]);
+
+    await click([...host.querySelectorAll(".segmented button")].find((node) => node.querySelector("span").textContent === "文本"));
+    await click(button("反选"));
+    await click(button("重置筛选"));
+    expect(selectedIds()).toEqual(["comment-1"]);
+
+    await click(button("清空"));
+    await click(host.querySelector("#native-excerpt input"));
+    expect(host.querySelector(".status-selected").textContent).toBe("已选 摘录");
+
+    await click(button("清空"));
+    await click(checkbox(0));
+    await click(checkbox(2));
+    await click(button("选择插入位置"));
+    const insertLabels = [...host.querySelectorAll(".insert-target")].map((node) => node.textContent.trim());
+    expect(insertLabels).not.toContain("移动到 #1 前");
+    expect(insertLabels).toContain("移动到 #3 前");
+
+    await click(host.querySelector("#selection-actions-toggle"));
+    expect(host.querySelector("#selection-actions-panel").getAttribute("aria-modal")).toBe("true");
+    await key(document.body, "Escape");
+    expect(host.querySelector("#selection-actions-panel").getAttribute("aria-modal")).toBeNull();
+    expect(button("选择插入位置").getAttribute("aria-pressed")).toBe("true");
+
+    MNBridge.send.mockImplementationOnce(async () => ({
+      ...snapshot,
+      comments: snapshot.comments.filter((item) => item.index !== 0 && item.index !== 2).map((item, idx) => ({ ...item, index: idx })),
+    }));
+    await click(host.querySelector("#selection-actions-toggle"));
+    const deleteBtn = host.querySelector(".delete-section button");
+    await act(async () => {
+      deleteBtn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerId: 1 }));
+      deleteBtn.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerId: 1 }));
+    });
+    expect(host.querySelector("#selection-actions-panel").getAttribute("aria-modal")).toBeNull();
+  });
 });

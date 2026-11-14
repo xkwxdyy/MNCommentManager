@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-11T16:56:18+08:00",
+  "updatedAt": "2026-11-15T00:34:10+08:00",
   "entries": [
+    {
+      "version": "0.1.42",
+      "channel": "stable",
+      "date": "2026-11-15",
+      "items": [
+        {
+          "zh": "完善评论选择、插入、快捷移动和长按操作，保留模式与焦点。",
+          "en": "Improve comment selection, insertion, quick movement and long presses while preserving mode and focus."
+        },
+        {
+          "zh": "优化模块、帮助、下拉菜单与快速输入的窄屏、深浅主题及键盘操作。",
+          "en": "Refine narrow layouts, light and dark themes, and keyboard interaction across modules, help, selects and quick input."
+        }
+      ]
+    },
     {
       "version": "0.1.41",
       "channel": "stable",

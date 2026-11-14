@@ -12,7 +12,7 @@ import WorkflowParameters from "./components/WorkflowParameters";
 import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
 import SelectionActionsPanel from "./components/SelectionActionsPanel";
 import { ModuleCommentList, ModuleSettingsDialog } from "./components/CommentModules";
-import { buildModules, effectiveSettings, structureSignature, validateSettings } from "./lib/commentModules.mjs";
+import { buildModules, effectiveSettings, plainText, structureSignature, validateSettings } from "./lib/commentModules.mjs";
 import {
   getMoveState,
   getVirtualPositionForComment,
@@ -497,17 +497,14 @@ function sortedSetValues(set) {
   return Array.from(set).sort((a, b) => a - b);
 }
 
+function formatSelectionCount(excerptSelected, commentCount) {
+  if (excerptSelected && commentCount === 0) return "已选 摘录";
+  return `已选 ${excerptSelected ? "摘录 + " : ""}${commentCount} 条评论`;
+}
+
 function suppressPressDefaults(event) {
   event.preventDefault();
   event.stopPropagation();
-  const target = event.currentTarget;
-  if (target?.setPointerCapture && event.pointerId !== undefined) {
-    try {
-      target.setPointerCapture(event.pointerId);
-    } catch (_) {
-      // Some WebViews throw if capture is already released.
-    }
-  }
   window.getSelection?.()?.removeAllRanges?.();
 }
 
@@ -523,6 +520,17 @@ function releasePressCapture(event) {
     }
   }
   window.getSelection?.()?.removeAllRanges?.();
+}
+
+function isPointerOutsideTarget(event) {
+  const rect = event?.currentTarget?.getBoundingClientRect?.();
+  if (!rect || (rect.width === 0 && rect.height === 0)) return false;
+  return Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (
+    event.clientX < rect.left ||
+    event.clientX > rect.right ||
+    event.clientY < rect.top ||
+    event.clientY > rect.bottom
+  );
 }
 
 function handleQuickActionKeyboardEvent(event, action) {
@@ -736,7 +744,7 @@ function buildFieldGroups(comments) {
 
   comments.forEach((comment) => {
     if (comment.type === "HtmlComment") {
-      if (current && current.comments.length > 0) {
+      if (current && (current.comments.length > 0 || current.id !== "field-default")) {
         groups.push(current);
       }
       current = {
@@ -750,7 +758,7 @@ function buildFieldGroups(comments) {
     ensureCurrent().comments.push(comment);
   });
 
-  if (current && current.comments.length > 0) {
+  if (current && (current.comments.length > 0 || current.id !== "field-default")) {
     groups.push(current);
   }
   if (groups.length === 0 && comments.length > 0) {
@@ -762,6 +770,80 @@ function buildFieldGroups(comments) {
     });
   }
   return groups;
+}
+
+function renderFilterRailIcon(filterKey) {
+  switch (filterKey) {
+    case "all":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="4.2" height="4.2" rx="1" />
+          <rect x="9.3" y="2.5" width="4.2" height="4.2" rx="1" />
+          <rect x="2.5" y="9.3" width="4.2" height="4.2" rx="1" />
+          <rect x="9.3" y="9.3" width="4.2" height="4.2" rx="1" />
+        </svg>
+      );
+    case "text":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 4h10M3 8h10M3 12h6.5" />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2.5" y="3" width="11" height="10" rx="1.8" />
+          <circle cx="5.8" cy="6.2" r="1" />
+          <path d="M3.5 11.5l3.2-3 2.2 2 1.8-1.6 2.1 2.6" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6.4 9.6l3.2-3.2M5.5 11.2l-1 1a2.1 2.1 0 1 1-3-3l1.4-1.4a2.1 2.1 0 0 1 3 0M10.5 4.8l1-1a2.1 2.1 0 1 1 3 3l-1.4 1.4a2.1 2.1 0 0 1-3 0" />
+        </svg>
+      );
+    case "html":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5.5 4.5L2.5 8l3 3.5M10.5 4.5l3 3.5-3 3.5" />
+        </svg>
+      );
+    case "audio":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 6.5v3M6.3 4v8M9.7 5.2v5.6M13 6.5v3" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="5" />
+          <path d="M8 5.5v3M8 10.8h.01" />
+        </svg>
+      );
+  }
+}
+
+function normalizeTitleAnchorText(raw) {
+  const firstLine = String(raw || "").trim();
+  if (!firstLine) return "";
+  return plainText(
+    firstLine
+      .replace(/^-\s+/, "")
+      .replace(/^(#{1,6})\s+(.+?)\s*#*$/, "$2"),
+  ).replace(/\s+/g, " ").trim();
+}
+
+function isLosslessModuleTitleAnchor(comment, presentation, expectedTitle) {
+  if (expectedTitle === undefined || comment?.collapsed === true) return false;
+  if (!presentation || presentation.mediaSources.length > 0 || presentation.linkedDisplay || presentation.markdownLinks.length > 0) return false;
+  if (comment?.drawingPreviewPending || comment?.drawingPreviewError || comment?.capabilities?.hasImage || comment?.capabilities?.hasAudio) return false;
+  const raw = String(commentText(comment) || "").trim();
+  if (!raw || /[\r\n]/.test(raw)) return false;
+  const normalizedExpected = String(expectedTitle || "").replace(/\s+/g, " ").trim();
+  if (!normalizedExpected) return false;
+  return normalizeTitleAnchorText(raw) === normalizedExpected;
 }
 
 function makeEmptySnapshot() {
@@ -880,6 +962,7 @@ function App() {
   const [excerptSelected, setExcerptSelected] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const searchInputRef = useRef(null);
   const commentPaneRef = useRef(null);
   const dragSessionRef = useRef(null);
@@ -917,6 +1000,8 @@ function App() {
   const actionButtonSettingsSessionRef = useRef(0);
   const [workflowManager, setWorkflowManager] = useState(null);
   const [moduleSettingsOpen, setModuleSettingsOpen] = useState(false);
+  const [moduleActionModalOpen, setModuleActionModalOpen] = useState(false);
+  const [moduleResetSeq, setModuleResetSeq] = useState(0);
   const [hiddenModules, setHiddenModules] = useState(() => new Set());
   const [moduleResult, setModuleResult] = useState(null);
   const [batchEditor, setBatchEditor] = useState(null);
@@ -946,15 +1031,28 @@ function App() {
     setWorkflowManager(null);
     setActionButtonSettings(null);
     setModuleSettingsOpen(false);
+    if (typeof setModuleActionModalOpen === "function") setModuleActionModalOpen(false);
+    if (typeof setModuleResetSeq === "function") setModuleResetSeq((value) => value + 1);
     setModuleResult(null);
     setDialog(null);
     setInvalidLinkCleanup(null);
     setSelectionActionsOpen(false);
+    if (typeof clearAllPressTimers === "function") clearAllPressTimers();
+    if (typeof document !== "undefined") {
+      document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
+    }
   };
   useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
   useEffect(() => {
-    if (dialog || moduleSettingsOpen || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) setSelectionActionsOpen(false);
-  }, [dialog, moduleSettingsOpen, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+    if (dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
+      setSelectionActionsOpen(false);
+    }
+  }, [dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  useEffect(() => {
+    if (dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
+      document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
+    }
+  }, [dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
   const closeSelectionActions = () => {
     setSelectionActionsOpen(false);
     document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
@@ -966,10 +1064,18 @@ function App() {
   const moduleSettings = snapshot.moduleSettings || null;
   const moduleEffective = useMemo(() => moduleSettings ? effectiveSettings(moduleSettings, snapshot.noteId) : null, [moduleSettings, snapshot.noteId]);
   const moduleTree = useMemo(() => moduleEffective ? buildModules(comments, moduleEffective.profile) : null, [comments, moduleEffective]);
+  const moduleTitleByCommentIndex = useMemo(() => {
+    const map = new Map();
+    if (!moduleTree?.flat) return map;
+    moduleTree.flat.forEach((node) => {
+      if (Number.isInteger(node.titleId)) map.set(node.titleId, node.title || "");
+    });
+    return map;
+  }, [moduleTree]);
   const moduleStructure = useMemo(() => structureSignature(comments), [comments]);
   const moduleViewKey = `${snapshot.noteId}:${moduleStructure}:${JSON.stringify(moduleEffective)}`;
   useEffect(() => { setHiddenModules(new Set()); }, [moduleViewKey]);
-  useEffect(() => { setModuleSettingsOpen(false); setModuleResult(null); }, [snapshot.noteId]);
+  useEffect(() => { setModuleSettingsOpen(false); setModuleActionModalOpen(false); setModuleResult(null); }, [snapshot.noteId]);
   const excerpt = snapshot.excerpt || makeEmptySnapshot().excerpt;
   const excerptPresent = excerpt.present === true;
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -989,11 +1095,30 @@ function App() {
   );
   currentViewRef.current = { snapshot, selection: contentSelection };
   const externalCardSwitchStateRef = useRef(null);
-  externalCardSwitchStateRef.current = { dialog, workflowManager, actionButtonSettings, moduleSettingsOpen, moduleResult, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, loading };
+  const gestureActiveRef = useRef(() => false);
+  externalCardSwitchStateRef.current = {
+    dialog,
+    workflowManager,
+    actionButtonSettings,
+    moduleSettingsOpen,
+    moduleActionModalOpen,
+    selectionActionsOpen,
+    rangePicking,
+    insertMode,
+    deletePressing,
+    singleDeletePressing: singleDeletePressing !== null,
+    quickMovePressing: quickMovePressing !== null,
+    inlineLinkPressing: inlineLinkPressing !== null,
+    batchEditor,
+    invalidLinkCleanup,
+    openingOverlay,
+    closingPanel,
+    loading,
+  };
   useEffect(() => {
     window.__MNCommentManagerCanSwitchCard = () => {
       const state = externalCardSwitchStateRef.current;
-      return !!state && !Object.values(state).some(Boolean) && !commandInFlightRef.current && !overlayOpeningRef.current && !panelCloseRef.current && !mergeDefaultPersistenceRef.current.busy && Object.keys(window.__MNBridgePending || {}).length === 0;
+      return !!state && !Object.values(state).some(Boolean) && !gestureActiveRef.current() && !commandInFlightRef.current && !overlayOpeningRef.current && !panelCloseRef.current && !mergeDefaultPersistenceRef.current.busy && Object.keys(window.__MNBridgePending || {}).length === 0;
     };
     return () => { delete window.__MNCommentManagerCanSwitchCard; };
   }, []);
@@ -1022,6 +1147,9 @@ function App() {
       return String(commentSearchIndex.get(comment.index) || "").includes(query);
     })
   ), [commentSearchIndex, comments, filter, search]);
+  useEffect(() => {
+    if (matchingComments.length === 0) setModuleActionModalOpen(false);
+  }, [matchingComments.length]);
   const visibleComments = useMemo(() => {
     if (!moduleTree || hiddenModules.size === 0) return matchingComments;
     const hiddenPositions = new Set();
@@ -1057,10 +1185,16 @@ function App() {
   const selectedCommentsCanMergeToExcerpt = selectedComments.length >= (excerptSelected ? 1 : 2)
     && allSelectedCan(selectedComments, "canMergeText")
     && allSelectedCan(selectedComments, "canCopyText");
-  const selectedCanMergeAction = selectedCanMergeText
-    || (selectedCommentsCanMergeToExcerpt && (!excerptSelected || excerpt.type === "image"));
   const mergeToExcerptBlockedByMedia = excerptPresent && (excerpt.type === "audio" || excerpt.type === "video");
-  const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt && !mergeToExcerptBlockedByMedia;
+  const mergeToExcerptBlockedByConversion = excerptPresent && excerpt.type !== "text" && excerpt?.conversion?.eligible !== true;
+  const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt && !mergeToExcerptBlockedByMedia && !mergeToExcerptBlockedByConversion;
+  const canSkipImageExcerptMerge = excerptSelected
+    && excerpt.type === "image"
+    && selectedComments.length >= 2
+    && allSelectedCan(selectedComments, "canMergeText")
+    && allSelectedCan(selectedComments, "canCopyText");
+  const selectedCanMergeNormal = selectedCanMergeText || canSkipImageExcerptMerge;
+  const selectedCanMergeAction = selectedCanMergeNormal || canMergeToExcerpt;
   const selectedCanBidirectionalDelete = hasSelection && !excerptSelected && allSelectedCan(selectedComments, "canBidirectionalDelete");
   const selectedHtmlComments = useMemo(
     () => selectedComments.filter((comment) => comment?.capabilities?.isHtml),
@@ -1077,11 +1211,12 @@ function App() {
     && excerptCanMergeText
     && selectedComments.every(canInlineMergeComment)
     && selectedComments.some((comment) => getInlineMergeLinkUrl(comment));
-  const canMoveSelectionToTop = moveState.canMoveToTop;
-  const canMoveSelectionUp = moveState.canMoveUp;
-  const canMoveSelectionDown = moveState.canMoveDown;
-  const canMoveSelectionToBottom = moveState.canMoveToBottom;
-  const canPickInsertPosition = moveState.canPickInsertPosition;
+  const selectedExcerptCanMove = !excerptSelected || excerpt?.conversion?.eligible === true;
+  const canMoveSelectionToTop = selectedExcerptCanMove && moveState.canMoveToTop;
+  const canMoveSelectionUp = selectedExcerptCanMove && moveState.canMoveUp;
+  const canMoveSelectionDown = selectedExcerptCanMove && moveState.canMoveDown;
+  const canMoveSelectionToBottom = selectedExcerptCanMove && moveState.canMoveToBottom;
+  const canPickInsertPosition = selectedExcerptCanMove && moveState.canPickInsertPosition;
   const canInsertAtEnd = !(moveState.continuous && moveState.positions[moveState.positions.length - 1] + 1 === moveState.totalCount);
 
   const notifyStatus = (message) => {
@@ -1095,13 +1230,13 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
+    disabled: loading || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
-  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleResult || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
   const dragOverview = useCommentDragOverview({
     paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
     contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
@@ -1109,6 +1244,7 @@ function App() {
     onCommit: (base, from, to) => commitOverviewMove(base, from, to),
   });
   dragSessionRef.current = dragOverview;
+  gestureActiveRef.current = () => !!dragSessionRef.current?.isActive() || twoFingerSelection.isActive();
   const dragSnapshotKey = (value) => `${value.noteId}:${structureSignature(value.comments || [])}:${value.commentFold?.revision || ''}`;
   const lastDrag = dragHistory[dragHistory.length - 1];
   const canUndoDrag = !!lastDrag && lastDrag.after === dragSnapshotKey(snapshot);
@@ -1119,6 +1255,7 @@ function App() {
   });
 
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
+    clearAllPressTimers();
     dragSessionRef.current?.cancel();
     twoFingerSelection.cancel(undefined, { restore: false });
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
@@ -1381,6 +1518,9 @@ function App() {
       clearSingleDeleteTimer();
       Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
       Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
+      quickMoveTimers.current = {};
+      linkFocusTimers.current = {};
+      linkFocusLongPressFired.current = {};
     };
   }, []);
 
@@ -1691,7 +1831,7 @@ function App() {
         noteId: snapshot.noteId,
         indices: [commentIndex],
         targetIndex,
-      }, { message: toEdge ? "已移到最上方" : "已上移一位" });
+      }, { message: toEdge ? "已移到最上方" : "已上移一位", expectedNoteId: snapshot.noteId });
       return;
     }
 
@@ -1705,7 +1845,7 @@ function App() {
       noteId: snapshot.noteId,
       indices: [commentIndex],
       targetIndex,
-    }, { message: toEdge ? "已移到最下方" : "已下移一位" });
+    }, { message: toEdge ? "已移到最下方" : "已下移一位", expectedNoteId: snapshot.noteId });
   };
 
   const commitOverviewMove = async (base, from, to, undoing = false) => {
@@ -1746,7 +1886,7 @@ function App() {
     await runCommand("deleteComments", {
       noteId: snapshot.noteId,
       indices: [commentIndex],
-    }, { message: "评论已删除" });
+    }, { message: "评论已删除", expectedNoteId: snapshot.noteId });
   };
 
   const moveByStep = async (direction, returnFocusTarget = null) => {
@@ -1774,10 +1914,16 @@ function App() {
 
   const executeDeleteSelection = async () => {
     if (!requireSelection()) return;
+    const noteId = snapshot.noteId;
+    const wasActionsOpen = selectionActionsOpen;
     await runCommand("deleteContentSelection", {
-      noteId: snapshot.noteId,
+      noteId,
       selection: contentSelection,
-    }, { message: "所选内容已删除" });
+    }, { message: "所选内容已删除", expectedNoteId: noteId });
+    if (wasActionsOpen && appMountedRef.current && currentNoteIdRef.current === noteId) {
+      setSelectionActionsOpen(false);
+      restoreFocusAfterDialogClose(document.getElementById("selection-actions-toggle"), document.getElementById("comment-list"));
+    }
   };
 
   const deleteSelection = async (returnFocusTarget = null) => {
@@ -1811,26 +1957,29 @@ function App() {
       notifyStatus("双向删除只适用于纯卡片链接评论");
       return;
     }
+    const noteId = snapshot.noteId;
+    const indices = selectedIndices;
     try {
       const result = await runCommand("countReverseLinks", {
-        noteId: snapshot.noteId,
-        indices: selectedIndices,
-      }, { keepSelection: true });
+        noteId,
+        indices,
+      }, { keepSelection: true, expectedNoteId: noteId });
+      if (!appMountedRef.current || currentNoteIdRef.current !== noteId) return;
       const reverseCount = result?.reverseCount || 0;
       setDialog({
         focusManaged: true,
         closeBeforeConfirm: true,
         title: "删除双向链接",
-        body: `将删除当前卡片中的 ${selectedIndices.length} 条链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
+        body: `将删除当前卡片中的 ${indices.length} 条链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
         confirmText: "确认双向删除",
         danger: true,
         returnFocusTarget,
         returnFocusFallback: document.getElementById("selection-summary"),
         onConfirm: async () => {
           await runCommand("deleteBidirectionalLinks", {
-            noteId: snapshot.noteId,
-            indices: selectedIndices,
-          }, { message: "双向链接已删除" });
+            noteId,
+            indices,
+          }, { message: "双向链接已删除", expectedNoteId: noteId });
         },
       });
     } catch (_) {
@@ -1844,11 +1993,13 @@ function App() {
       notifyStatus("双向删除只适用于纯卡片链接评论");
       return;
     }
+    const noteId = snapshot.noteId;
     try {
       const result = await runCommand("countReverseLinks", {
-        noteId: snapshot.noteId,
+        noteId,
         indices: [commentIndex],
-      }, { keepSelection: true });
+      }, { keepSelection: true, expectedNoteId: noteId });
+      if (!appMountedRef.current || currentNoteIdRef.current !== noteId) return;
       const reverseCount = result?.reverseCount || 0;
       setDialog({
         focusManaged: true,
@@ -1861,9 +2012,9 @@ function App() {
         returnFocusFallback: document.getElementById("comment-list"),
         onConfirm: async () => {
           await runCommand("deleteBidirectionalLinks", {
-            noteId: snapshot.noteId,
+            noteId,
             indices: [commentIndex],
-          }, { message: "双向链接已删除" });
+          }, { message: "双向链接已删除", expectedNoteId: noteId });
         },
       });
     } catch (_) {
@@ -1895,6 +2046,18 @@ function App() {
     setSingleDeletePressing(null);
   }
 
+  function clearAllPressTimers() {
+    clearDeletePress();
+    clearSingleDeletePress();
+    Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
+    Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
+    quickMoveTimers.current = {};
+    linkFocusTimers.current = {};
+    linkFocusLongPressFired.current = {};
+    setQuickMovePressing(null);
+    setInlineLinkPressing(null);
+  }
+
   const handleMainDeleteKeyboardEvent = (event) => {
     const returnFocusTarget = event.currentTarget;
     handleQuickActionKeyboardEvent(event, () => {
@@ -1920,6 +2083,10 @@ function App() {
   };
 
   const endDeletePress = (event) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelDeletePress(event);
+      return;
+    }
     const returnFocusTarget = event.currentTarget;
     releasePressCapture(event);
     const fired = deleteLongPressFired.current;
@@ -1931,6 +2098,10 @@ function App() {
     releasePressCapture(event);
     deleteLongPressFired.current = true;
     clearDeletePress();
+  };
+
+  const moveDeletePress = (event) => {
+    if (deletePressing && isPointerOutsideTarget(event)) cancelDeletePress(event);
   };
 
   const startSingleDeletePress = (event, commentIndex) => {
@@ -1948,6 +2119,10 @@ function App() {
   };
 
   const endSingleDeletePress = (event, commentIndex) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelSingleDeletePress(event);
+      return;
+    }
     releasePressCapture(event);
     const fired = singleDeleteLongPressFired.current;
     clearSingleDeletePress();
@@ -1958,6 +2133,10 @@ function App() {
     releasePressCapture(event);
     singleDeleteLongPressFired.current = true;
     clearSingleDeletePress();
+  };
+
+  const moveSingleDeletePress = (event) => {
+    if (singleDeletePressing !== null && isPointerOutsideTarget(event)) cancelSingleDeletePress(event);
   };
 
   const startQuickMovePress = (event, commentIndex, direction) => {
@@ -1973,6 +2152,10 @@ function App() {
   };
 
   const finishQuickMovePress = (event, commentIndex, direction) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelQuickMovePress(event, commentIndex);
+      return;
+    }
     releasePressCapture(event);
     const timer = quickMoveTimers.current[commentIndex];
     setQuickMovePressing(null);
@@ -1987,6 +2170,10 @@ function App() {
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = null;
     setQuickMovePressing(null);
+  };
+
+  const moveQuickMovePress = (event, commentIndex) => {
+    if (quickMoveTimers.current[commentIndex] && isPointerOutsideTarget(event)) cancelQuickMovePress(event, commentIndex);
   };
 
   const locateLinkedNote = async (noteId, mode = "mindmap") => {
@@ -2031,6 +2218,10 @@ function App() {
   };
 
   const finishInlineLinkFocusPress = (event, comment) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelInlineLinkFocusPress(event, comment.index);
+      return;
+    }
     releasePressCapture(event);
     const key = comment.index;
     const timer = linkFocusTimers.current[key];
@@ -2047,6 +2238,10 @@ function App() {
   };
 
   const finishMarkdownLinkFocusPress = (event, comment, link, linkIndex) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelMarkdownLinkFocusPress(event, comment, link, linkIndex);
+      return;
+    }
     releasePressCapture(event);
     const key = getMarkdownLinkPressKey(comment, link, linkIndex);
     const timer = linkFocusTimers.current[key];
@@ -2079,6 +2274,10 @@ function App() {
     setInlineLinkPressing(null);
   };
 
+  const moveInlineLinkFocusPress = (event, commentIndex) => {
+    if (linkFocusTimers.current[commentIndex] && isPointerOutsideTarget(event)) cancelInlineLinkFocusPress(event, commentIndex);
+  };
+
   const cancelSelectionMode = () => {
     if (loading || commandInFlightRef.current) return;
     const trigger = selectionModeTriggerRef.current;
@@ -2099,7 +2298,7 @@ function App() {
       return;
     }
     if ((!rangePicking && !insertMode) || loading || commandInFlightRef.current) return;
-    if (dialog || moduleSettingsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
+    if (dialog || moduleSettingsOpen || moduleActionModalOpen || selectionActionsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
     if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     const target = event.target;
     if (target.closest?.('textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
@@ -2147,24 +2346,28 @@ function App() {
       notifyStatus("至少选择 2 条可合并的文本评论");
       return;
     }
-    const mergeExcerptText = excerptPresent && excerpt.type === "text" && excerptCanCopyText
+    const forceMergeToExcerpt = !selectedCanMergeNormal && canMergeToExcerpt;
+    const defaultMergeToExcerpt = canMergeToExcerpt && (forceMergeToExcerpt || mergeToExcerptDefault);
+    const mergeExcerptText = excerptPresent && excerpt.type === "text" && excerpt?.capabilities?.canCopyText === true
       ? String(excerpt.text || "").trim()
       : "";
     const text = [
-      (excerptSelected || (canMergeToExcerpt && mergeToExcerptDefault)) && excerpt?.capabilities?.canCopyText
+      (excerptSelected || defaultMergeToExcerpt) && excerpt?.capabilities?.canCopyText
         ? excerpt.text
         : "",
       ...selectedComments.map(commentText),
     ].filter(Boolean).join("\n\n");
     const autoExcerptPrefix = mergeExcerptText ? `${mergeExcerptText}\n\n` : "";
-    let autoExcerptPrefixApplied = canMergeToExcerpt && mergeToExcerptDefault && !excerptSelected && !!autoExcerptPrefix;
+    let autoExcerptPrefixApplied = defaultMergeToExcerpt && !excerptSelected && !!autoExcerptPrefix;
     setDialog({
       focusManaged: true,
       closeBeforeConfirm: true,
       title: "合并为一条评论",
       body: `${excerptSelected
         ? (excerpt.type === "image"
-          ? "已选中的图片摘录会跳过；所选文本评论可继续合并，图片摘录只会在选择“合并到摘录”时转为普通合并摘录评论。"
+          ? (forceMergeToExcerpt
+            ? "当前仅选中图片摘录与 1 条文本评论，将先转换图片摘录并把结果设为新的文本摘录。"
+            : "已选中的图片摘录会跳过；所选文本评论可继续合并，图片摘录只会在选择“合并到摘录”时转为普通合并摘录评论。")
           : "原生文本摘录已包含在当前选区中；你也可以改为把结果写回文本摘录。")
         : "所选文本会合并成一条新的 Markdown 评论，原评论会被移除。"}${mergeDefaultLoadError ? `\n\n默认合并设置读取失败：${mergeDefaultLoadError}。本次先按未启用处理；手动切换后会重新核对保存结果。` : ""}`,
       inputLabel: "合并后的内容",
@@ -2172,11 +2375,13 @@ function App() {
       checkboxLabel: "合并到摘录",
       checkboxDescription: mergeToExcerptBlockedByMedia
         ? "音频/视频摘录暂不支持；请使用普通合并。"
-        : (excerpt.type === "image"
-          ? "先将图片摘录转为合并摘录评论，再把编辑后的文本设为新的文本摘录。"
-          : (mergeExcerptText ? "把现有文本摘录放在前面，并将编辑后的结果写回文本摘录。" : "把编辑后的结果设为新的文本摘录。")),
-      checkboxDisabled: !canMergeToExcerpt,
-      checkboxDefault: canMergeToExcerpt && mergeToExcerptDefault,
+        : mergeToExcerptBlockedByConversion
+          ? getExcerptConversionError(excerpt)
+          : (excerpt.type === "image"
+            ? "先将图片摘录转为合并摘录评论，再把编辑后的文本设为新的文本摘录。"
+            : (mergeExcerptText ? "把现有文本摘录放在前面，并将编辑后的结果写回文本摘录。" : "把编辑后的结果设为新的文本摘录。")),
+      checkboxDisabled: !canMergeToExcerpt || forceMergeToExcerpt,
+      checkboxDefault: defaultMergeToExcerpt,
       onCheckChange: (checked, currentValue) => {
         persistMergeToExcerptDefault(checked);
         if (!mergeExcerptText) return currentValue;
@@ -2194,7 +2399,7 @@ function App() {
       returnFocusTarget: event?.currentTarget || null,
       returnFocusFallback: document.getElementById("selection-summary"),
       onConfirm: async (value, options) => {
-        if (options?.checked && canMergeToExcerpt) {
+        if ((options?.checked || forceMergeToExcerpt) && canMergeToExcerpt) {
           await runCommand("mergeCommentsToExcerpt", {
             noteId: snapshot.noteId,
             selection: contentSelection,
@@ -2203,13 +2408,13 @@ function App() {
           }, { message: "已合并到文本摘录" });
           return;
         }
-        if (!selectedCanMergeText) {
+        if (!selectedCanMergeNormal) {
           notifyStatus("当前选区只能使用“合并到摘录”");
           return;
         }
         await runCommand("mergeContentSelection", {
           noteId: snapshot.noteId,
-          selection: contentSelection,
+          selection: canSkipImageExcerptMerge ? makeContentSelection(false, selectedIndices) : contentSelection,
           text: value,
           markdown: true,
           mode: "text",
@@ -2282,7 +2487,7 @@ function App() {
     const returnFocusTarget = event?.currentTarget && typeof event.currentTarget.focus === "function"
       ? event.currentTarget
       : null;
-    const returnFocusFallback = document.getElementById(`comment-${index}`);
+    const returnFocusFallback = document.getElementById(`comment-${index}`) || document.getElementById("selection-summary");
     setDialog({
       kind: "editCommentText",
       title: `编辑评论 #${index}`,
@@ -2469,6 +2674,18 @@ function App() {
     return true;
   };
 
+  const scrollToBottom = () => {
+    if (visibleComments.length > 0 && hiddenModules.size === 0) {
+      return scrollToComment(visibleComments[visibleComments.length - 1]?.index);
+    }
+    const pane = document.getElementById("comment-pane");
+    if (!pane) return false;
+    const top = Math.max(0, (pane.scrollHeight || 0) - (pane.clientHeight || 0));
+    if (typeof pane.scrollTo === "function") pane.scrollTo({ top: pane.scrollHeight || top, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    else pane.scrollTop = pane.scrollHeight || top;
+    return true;
+  };
+
   const rangeHint = rangePicking
     ? (rangeAnchor === null
       ? "先点范围的第一项内容"
@@ -2582,7 +2799,7 @@ function App() {
       if (window.__MNCommentManagerRequestedView !== "workflow") return;
       if (workflowManager) { window.__MNCommentManagerRequestedView = ""; return; }
       if (loading || openingOverlay || closingPanel) return;
-      if (dialog || moduleSettingsOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
+      if (dialog || moduleSettingsOpen || moduleActionModalOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
         notifyStatus("请先完成或关闭当前编辑窗口，随后会打开工作流设置");
         return;
       }
@@ -2592,7 +2809,7 @@ function App() {
     window.__MNCommentManagerOpenWorkflow = openRequestedWorkflow;
     openRequestedWorkflow();
     return () => { delete window.__MNCommentManagerOpenWorkflow; };
-  }, [workflowManager, loading, dialog, moduleSettingsOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  }, [workflowManager, loading, dialog, moduleSettingsOpen, moduleActionModalOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
 
   const closePanel = async () => {
     if (panelCloseRef.current) return;
@@ -2628,6 +2845,9 @@ function App() {
       className="comment-manager"
       data-range-picking={rangePicking ? "true" : undefined}
       data-insert-mode={insertMode ? "true" : undefined}
+      data-actions-open={selectionActionsOpen ? "true" : undefined}
+      data-sidebar-collapsed={sidebarCollapsed ? "true" : undefined}
+      data-has-selection={hasSelection ? "true" : undefined}
       onKeyDownCapture={handleSelectionModeKeyDown}
     >
       {retainedBatchEditorRef.current ? (
@@ -2642,18 +2862,31 @@ function App() {
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
-              disabled={!excerptPresent && visibleComments.length === 0}
-              onClick={() => setContentSelection(makeContentSelection(excerptPresent, visibleComments.map((comment) => comment.index)))}
+              disabled={!excerptPresent && matchingComments.length === 0}
+              onClick={() => {
+                const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
+                const next = new Set(selectedIndices);
+                targetComments.forEach((comment) => next.add(comment.index));
+                setContentSelection(makeContentSelection(excerptPresent, sortedSetValues(next)));
+              }}
             >
               全选
             </Button>
             <Button
               className="secondary"
-              disabled={!excerptPresent && visibleComments.length === 0}
-              onClick={() => setContentSelection(makeContentSelection(
-                excerptPresent && !excerptSelected,
-                visibleComments.map((comment) => comment.index).filter((index) => !selected.has(index)),
-              ))}
+              disabled={!excerptPresent && matchingComments.length === 0}
+              onClick={() => {
+                const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
+                const targetSet = new Set(targetComments.map((comment) => comment.index));
+                const next = new Set(selectedIndices.filter((index) => !targetSet.has(index)));
+                targetComments.forEach((comment) => {
+                  if (!selected.has(comment.index)) next.add(comment.index);
+                });
+                setContentSelection(makeContentSelection(
+                  excerptPresent && !excerptSelected,
+                  sortedSetValues(next),
+                ));
+              }}
             >
               反选
             </Button>
@@ -2662,7 +2895,7 @@ function App() {
           </div>
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
             <HelpVideos />
-            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
+            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
             <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" /></svg><span className="sr-only">刷新</span></Button>
             <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM7 10v7h7M10 7h7v7" /></svg><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
             <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6" /></svg><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
@@ -2671,11 +2904,17 @@ function App() {
         </div>
       </header>
 
-      <div className="statusbar" aria-live="polite">
+      <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined}>
         <span className="status-count status-excerpt">{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
         <span className="status-count status-total">评论 {comments.length} 条</span>
-        <span className="status-count status-selected">已选 {excerptSelected ? "摘录 + " : ""}{selectedIndices.length} 条评论</span>
-        {hasActiveFilter ? <span className="status-count status-visible">当前显示 {visibleComments.length} 条评论</span> : null}
+        <span className="status-count status-selected">{formatSelectionCount(excerptSelected, selectedIndices.length)}</span>
+        {hasActiveFilter ? (
+          <span className="status-count status-visible">
+            {hiddenModules.size > 0 && visibleComments.length !== matchingComments.length
+              ? `匹配 ${matchingComments.length} 条（显示 ${visibleComments.length} 条）`
+              : `当前显示 ${visibleComments.length} 条评论`}
+          </span>
+        ) : null}
         {moduleResult ? <button type="button" title={moduleResult.title} onClick={() => execute(() => runCommand("focusLinkedNote", { noteId: moduleResult.noteId, mode: "focus" }, { message: "已定位提取结果" }))}>查看提取结果</button> : null}
         {snapshot.moduleSettingsError ? <span role="alert">{snapshot.moduleSettingsError}</span> : null}
         <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
@@ -2686,12 +2925,12 @@ function App() {
         <div className="quick-nav-track">
           <Button
             className="quick-nav-item"
-            disabled={!excerptPresent && visibleComments.length === 0}
+            disabled={!excerptPresent && matchingComments.length === 0}
             onClick={scrollToTop}
           >
             顶部
           </Button>
-          {moduleTree ? moduleTree.flat.map(node => <Button key={node.id} className="quick-nav-item" onClick={() => locateModule(node)} title={`定位模块：${node.title}`}><span>{node.title}</span><b>{node.end-node.start}</b></Button>) : fieldGroups.map((field) => (
+          {moduleTree ? moduleTree.flat.map(node => <Button key={node.id} className="quick-nav-item" disabled={matchingComments.length === 0} onClick={() => locateModule(node)} title={`定位模块：${node.title}`}><span>{node.title}</span><b>{node.end-node.start}</b></Button>) : fieldGroups.map((field) => (
             <Button
               key={field.id}
               className="quick-nav-item"
@@ -2701,14 +2940,44 @@ function App() {
               <b>{field.comments.length}</b>
             </Button>
           ))}
-          <Button className="quick-nav-item" disabled={!excerptPresent && visibleComments.length === 0} onClick={() => excerptPresent && visibleComments.length === 0 ? scrollToTop() : scrollToComment(visibleComments[visibleComments.length - 1]?.index)}>底部</Button>
+          <Button className="quick-nav-item" disabled={!excerptPresent && matchingComments.length === 0} onClick={scrollToBottom}>底部</Button>
         </div>
       </nav>
 
       <main className="workspace">
         <aside className="left-pane">
+          <div className="left-pane-bar">
+            <span className="left-pane-title">筛选与大纲</span>
+            <Button
+              className="sidebar-collapse-btn ghost"
+              aria-label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              title={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-expanded={sidebarCollapsed ? "false" : "true"}
+              onClick={() => setSidebarCollapsed((current) => !current)}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2.2" y="2.8" width="13.6" height="12.4" rx="2.2" />
+                <path d="M6.8 3v12" />
+                {sidebarCollapsed ? <path d="m9.6 7 2.2 2-2.2 2" /> : <path d="m11.6 7-2.2 2 2.2 2" />}
+              </svg>
+            </Button>
+          </div>
           <section className="pane-section">
             <h2>查找</h2>
+            <Button
+              className={search ? "sidebar-search-wake ghost is-active" : "sidebar-search-wake ghost"}
+              aria-label="展开并搜索评论"
+              title={search ? `搜索中：${search}（点击展开）` : "展开并搜索评论"}
+              onClick={() => {
+                setSidebarCollapsed(false);
+                requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+              }}
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" />
+                <path d="m13 13 4 4" strokeLinecap="round" />
+              </svg>
+            </Button>
             <div className="search-box" role="search" aria-label="查找评论">
               <label htmlFor="comment-search">搜索评论</label>
               <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -2749,8 +3018,10 @@ function App() {
                   key={item.key}
                   className={filter === item.key ? "active" : ""}
                   aria-pressed={filter === item.key ? "true" : "false"}
+                  title={`${item.label}（${filterCounts[item.key] || 0}）`}
                   onClick={() => setFilter(item.key)}
                 >
+                  {renderFilterRailIcon(item.key)}
                   <span>{item.label}</span>
                   <b>{filterCounts[item.key] || 0}</b>
                 </Button>
@@ -2761,6 +3032,53 @@ function App() {
                 清除失效链接
               </Button>
             ) : null}
+          </section>
+          <section className="left-outline-section" aria-label="大纲定位">
+            <div className="left-outline-head">
+              <h2>大纲定位</h2>
+              <div className="left-outline-edges" role="group" aria-label="列表首尾跳转">
+                <Button
+                  className="outline-edge-btn ghost"
+                  disabled={!excerptPresent && matchingComments.length === 0}
+                  title="滚动到列表顶部"
+                  onClick={scrollToTop}
+                >
+                  顶部
+                </Button>
+                <Button
+                  className="outline-edge-btn ghost"
+                  disabled={!excerptPresent && matchingComments.length === 0}
+                  title="滚动到列表底部"
+                  onClick={scrollToBottom}
+                >
+                  底部
+                </Button>
+              </div>
+            </div>
+            <div className="left-outline-list">
+              {moduleTree ? moduleTree.flat.map((node) => (
+                <Button
+                  key={node.id}
+                  className={`left-outline-item depth-${Math.min(node.depth || 0, 3)}`}
+                  disabled={matchingComments.length === 0}
+                  title={`定位模块：${node.title}`}
+                  onClick={() => locateModule(node)}
+                >
+                  <span className="left-outline-name">{node.title}</span>
+                  <b className="left-outline-count">{node.end - node.start}</b>
+                </Button>
+              )) : fieldGroups.map((field) => (
+                <Button
+                  key={field.id}
+                  className="left-outline-item"
+                  title={`定位分组：${field.name}`}
+                  onClick={() => scrollToComment(field.anchorIndex)}
+                >
+                  <span className="left-outline-name">{field.name}</span>
+                  <b className="left-outline-count">{field.comments.length}</b>
+                </Button>
+              ))}
+            </div>
           </section>
         </aside>
 
@@ -2781,7 +3099,7 @@ function App() {
               ) : null}
               {hasActiveFilter ? <div className="list-context-main">
                 <div className="list-context-summary" role="status" aria-live="polite" aria-atomic="true">
-                  <strong>{visibleComments.length}<span> / {comments.length} 条评论</span></strong>
+                  <strong>{matchingComments.length}<span> / {comments.length} 条评论</span></strong>
                   <p title={filterDescription}>{filterDescription}</p>
                 </div>
                 <Button className="secondary filter-reset" onClick={clearSearchAndFilter}>重置筛选</Button>
@@ -2849,7 +3167,7 @@ function App() {
               <div className="comment-body excerpt-body">
                 {normalizeImageSource(excerpt) ? <img src={normalizeImageSource(excerpt)} alt="当前卡片的原生摘录" /> : null}
                 {excerpt.type === "image" && !showImageExcerptText ? null : excerpt.text && excerpt.textMarkdown ? (
-                  <MarkdownCommentBody source={excerpt.text} />
+                  <MarkdownCommentBody source={excerpt.text} onLocateLink={locateMarkdownHref} />
                 ) : excerpt.text ? (
                   <PlainTextPreview
                     text={excerpt.text}
@@ -2879,18 +3197,28 @@ function App() {
             ) : (
               <EmptyState title="没有匹配的评论" body="当前类型或搜索条件没有结果。" actionText="清除筛选" onAction={clearSearchAndFilter} />
             )
-          ) : <ModuleCommentList key={moduleViewKey} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
+          ) : <ModuleCommentList key={`${moduleViewKey}:${moduleResetSeq}`} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
             onHide={id => setHiddenModules(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })}
             onSelect={(next, hiddenCount) => { setContentSelection(makeContentSelection(excerptSelected, [...next])); notifyStatus(hiddenCount ? `模块选择包含 ${hiddenCount} 条筛选隐藏评论` : "模块选择已更新"); }}
-            loading={loading} foldSupported={snapshot.commentFold?.supported} onFold={(indices,collapsed) => execute(() => setCommentsCollapsed(indices,collapsed))} onAction={runModuleAction} onModalOpen={() => twoFingerSelection.cancel()}
+            loading={loading} foldSupported={snapshot.commentFold?.supported} onFold={(indices,collapsed) => execute(() => setCommentsCollapsed(indices,collapsed))} onAction={runModuleAction} onModalOpen={() => twoFingerSelection.cancel()} onModalChange={setModuleActionModalOpen}
           >{visibleComments.map((comment, visiblePosition) => {
             const selectedNow = selected.has(comment.index);
-            const { meta, mediaSources, linkedDisplay, markdownLinks } = commentPresentation.get(comment.index);
+            const presentation = commentPresentation.get(comment.index);
+            const { meta, mediaSources, linkedDisplay, markdownLinks } = presentation;
+            const isModuleTitleAnchor = isLosslessModuleTitleAnchor(
+              comment,
+              presentation,
+              moduleTitleByCommentIndex.get(comment.index),
+            );
             const commentPosition = getCommentPosition(comment.index);
             const isFirstComment = commentPosition === 0;
             const isLastComment = commentPosition >= comments.length - 1;
             const insertVirtualTarget = getVirtualPositionForComment(comment.index, excerptPresent);
-            const insertTargetIsNoop = moveState.continuous && insertVirtualTarget === moveState.positions[moveState.positions.length - 1] + 1;
+            const insertTargetInSelectedSpan = moveState.positions.length > 0
+              && insertVirtualTarget >= moveState.positions[0]
+              && insertVirtualTarget <= moveState.positions[moveState.positions.length - 1];
+            const insertTargetIsNoop = insertTargetInSelectedSpan
+              || (moveState.continuous && insertVirtualTarget === moveState.positions[moveState.positions.length - 1] + 1);
             return (
               <div className="comment-row" key={comment.index}>
                 {insertMode && !selectedNow && !insertTargetIsNoop ? (
@@ -2905,7 +3233,7 @@ function App() {
                 <article
                   id={`comment-${comment.index}`}
                   data-comment-index={comment.index}
-                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
+                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${isModuleTitleAnchor ? "comment-is-module-title-anchor" : ""} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
                   }}
@@ -2936,6 +3264,7 @@ function App() {
                     />
                     <span className="comment-index">#{comment.index}</span>
                     <span className={`type-pill type-${meta.filter}`}>{meta.label}</span>
+                    {isModuleTitleAnchor ? <span className="title-anchor-badge" title="该评论作为当前模块的标题源">标题源</span> : null}
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
                       <span className={`direction-pill direction-${comment.linkDirection}`}>
@@ -2951,6 +3280,7 @@ function App() {
                             className={inlineLinkPressing === comment.index ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
                             title="点按定位，按住在浮窗定位"
                             onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
+                            onPointerMove={(event) => moveInlineLinkFocusPress(event, comment.index)}
                             onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
                             onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
                             onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
@@ -2986,6 +3316,7 @@ function App() {
                         disabled={loading || isFirstComment}
                         title="点按上移，按住移到最上方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}
+                        onPointerMove={(event) => moveQuickMovePress(event, comment.index)}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "up")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
@@ -3004,6 +3335,7 @@ function App() {
                         disabled={loading || isLastComment}
                         title="点按下移，按住移到最下方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "down")}
+                        onPointerMove={(event) => moveQuickMovePress(event, comment.index)}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "down")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
@@ -3022,6 +3354,7 @@ function App() {
                         disabled={loading}
                         title="点按删除这条评论；按住可同时清理反向链接"
                         onPointerDown={(event) => startSingleDeletePress(event, comment.index)}
+                        onPointerMove={moveSingleDeletePress}
                         onPointerUp={(event) => endSingleDeletePress(event, comment.index)}
                         onPointerLeave={cancelSingleDeletePress}
                         onPointerCancel={cancelSingleDeletePress}
@@ -3058,7 +3391,7 @@ function App() {
                     {linkedDisplay ? (
                       <div className="link-summary">
                         <p className="link-summary-title">{linkedDisplay.title}</p>
-                        {linkedDisplay.url ? <p className="link-summary-url">{linkedDisplay.url}</p> : null}
+                        {linkedDisplay.url ? <p className="link-summary-url" title={linkedDisplay.url}>{linkedDisplay.url}</p> : null}
                       </div>
                     ) : commentText(comment) && comment.capabilities?.isMarkdown ? (
                       <MarkdownCommentBody
@@ -3115,10 +3448,77 @@ function App() {
         <CommentDragOverview frame={dragOverview.frame} describe={describeDragComment} />
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
-            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? `已选 ${excerptSelected ? "摘录 + " : ""}${selectedIndices.length} 条评论` : "尚未选择"}</p>
+            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? formatSelectionCount(excerptSelected, selectedIndices.length) : "尚未选择"}</p>
             {hiddenSelectedCount > 0 ? <small title="被筛选隐藏的已选评论仍会参与操作">含隐藏 {hiddenSelectedCount} 条评论</small> : null}
           </section>
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
+          {hasSelection ? (
+            <div className="right-pane-quick-actions" role="group" aria-label="快捷批量操作">
+              <Button
+                className="secondary quick-batch-btn quick-batch-step"
+                disabled={loading || !canMoveSelectionUp}
+                title="将连续选区上移一位"
+                onClick={(event) => moveByStep("up", event.currentTarget)}
+              >
+                ↑ 上移
+              </Button>
+              <Button
+                className="secondary quick-batch-btn quick-batch-step"
+                disabled={loading || !canMoveSelectionDown}
+                title="将连续选区下移一位"
+                onClick={(event) => moveByStep("down", event.currentTarget)}
+              >
+                ↓ 下移
+              </Button>
+              <Button
+                className={insertMode ? "active quick-batch-btn quick-batch-desktop" : "secondary quick-batch-btn quick-batch-desktop"}
+                aria-pressed={insertMode ? "true" : "false"}
+                disabled={loading || !canPickInsertPosition}
+                title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}
+                onClick={toggleInsertMode}
+              >
+                插入位置
+              </Button>
+              {selectedCanInlineMerge ? (
+                <Button key="quick-inline-merge" className="primary quick-batch-btn" disabled={loading} title="将连续文本与链接合并为行内链接" onClick={openInlineMergeDialog}>
+                  合成链接
+                </Button>
+              ) : selectedCanMergeAction ? (
+                <Button key="quick-merge" className="primary quick-batch-btn" disabled={loading} title="合并所选文本评论" onClick={openMergeDialog}>
+                  合并所选
+                </Button>
+              ) : selectedCanEditText ? (
+                <Button key="quick-edit" className="secondary quick-batch-btn" disabled={loading} title="编辑所选评论文本" onClick={openEditDialog}>
+                  编辑所选
+                </Button>
+              ) : null}
+              <Button
+                className="secondary quick-batch-btn quick-batch-desktop"
+                disabled={loading}
+                title="将所选内容提取为子卡片"
+                onClick={openExtractDialog}
+              >
+                提取子卡
+              </Button>
+              <button
+                type="button"
+                className={deletePressing ? "danger quick-batch-btn quick-batch-delete pressing" : "danger quick-batch-btn quick-batch-delete"}
+                onPointerDown={startDeletePress}
+                onPointerMove={moveDeletePress}
+                onPointerUp={endDeletePress}
+                onPointerLeave={cancelDeletePress}
+                onPointerCancel={cancelDeletePress}
+                onKeyDown={handleMainDeleteKeyboardEvent}
+                onKeyUp={handleMainDeleteKeyboardEvent}
+                onContextMenu={(event) => event.preventDefault()}
+                onDragStart={(event) => event.preventDefault()}
+                disabled={loading || !hasSelection}
+                title="删除所选内容；按住可对纯卡片链接双向删除"
+              >
+                删除所选
+              </button>
+            </div>
+          ) : null}
           <Button id="selection-actions-toggle" className="selection-actions-toggle ghost" aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
           <SelectionActionsPanel open={selectionActionsOpen} onClose={closeSelectionActions}>
           <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选评论</Button></section>
@@ -3156,6 +3556,7 @@ function App() {
               type="button"
               className={deletePressing ? "danger wide pressing" : "danger wide"}
               onPointerDown={startDeletePress}
+              onPointerMove={moveDeletePress}
               onPointerUp={endDeletePress}
               onPointerLeave={cancelDeletePress}
               onPointerCancel={cancelDeletePress}
@@ -3414,6 +3815,24 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
     };
   }, [active]);
 
+  useEffect(() => {
+    if (!active || closeConfirmation) return undefined;
+    const handleDocumentKeyDown = (event) => {
+      if (isComposingKeyEvent(event) || closeConfirmationRef.current || event.defaultPrevented) return;
+      if (batchEditorRef.current?.contains(event.target)) return;
+      if (event.key === "Tab") {
+        keepFocusWithinDialog(event, batchEditorRef.current);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        nativeCloseRequestRef.current(batchEditorRef.current?.querySelector("[data-batch-editor-close]"));
+      }
+    };
+    document.addEventListener("keydown", handleDocumentKeyDown);
+    return () => document.removeEventListener("keydown", handleDocumentKeyDown);
+  }, [active, closeConfirmation]);
+
   const cancelEditorClose = () => {
     const current = closeConfirmationRef.current;
     if (!current) return;
@@ -3587,6 +4006,11 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
           if (isComposingKeyEvent(event)) return;
           if (closeConfirmationRef.current) return;
           keepFocusWithinDialog(event, batchEditorRef.current);
+          if (event.key === "Escape" && !busy) {
+            event.preventDefault();
+            event.stopPropagation();
+            requestEditorClose(event.target);
+          }
         }}
       >
         <header className="batch-editor-header">
@@ -5293,6 +5717,7 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
                 title={noteId ? "点按定位这条行内链接的卡片，按住在浮窗定位" : "非 MarginNote 卡片链接不能定位"}
                 aria-label={`定位行内链接：${link.displayText || link.url}`}
                 onPointerDown={(event) => onLocateStart(event, comment, link, linkIndex)}
+                onPointerMove={(event) => { if (pressingKey === pressKey && isPointerOutsideTarget(event)) onLocateCancel(event, comment, link, linkIndex); }}
                 onPointerUp={(event) => onLocateFinish(event, comment, link, linkIndex)}
                 onPointerLeave={(event) => onLocateCancel(event, comment, link, linkIndex)}
                 onPointerCancel={(event) => onLocateCancel(event, comment, link, linkIndex)}

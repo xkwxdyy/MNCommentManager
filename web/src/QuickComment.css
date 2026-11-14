@@ -9,10 +9,10 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .quick-backdrop { position: absolute; inset: 0; pointer-events: none; background: transparent; }
 .quick-ready .quick-backdrop { animation: quick-backdrop-in 300ms ease-in-out both; }
 .quick-positioner { position: absolute; display: flex; justify-content: center; align-items: center; padding: 16px; pointer-events: none; }
-.quick-card { pointer-events: auto; display: flex; flex-direction: column; width: 100%; max-width: 560px; max-height: 100%; border: 1px solid var(--quick-line); border-radius: var(--radius-overlay); padding: 20px; background: var(--quick-surface); box-shadow: var(--shadow-lg); transform-origin: center; }
+.quick-card { pointer-events: auto; display: flex; flex-direction: column; width: 100%; max-width: 560px; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--quick-line); border-radius: var(--radius-overlay); padding: 20px; background: var(--quick-surface); box-shadow: var(--shadow-lg); transform-origin: center; }
 .quick-ready .quick-card { animation: quick-card-in 300ms cubic-bezier(.2,.8,.2,1) both; }
 .quick-overlay:not(.quick-ready) .quick-backdrop, .quick-overlay:not(.quick-ready) .quick-card { opacity: 0; }
-.quick-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -4px -4px 14px 0; }
+.quick-card header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; margin: -4px -4px 14px 0; }
 .quick-context { display: flex; gap: 10px; align-items: center; min-width: 0; color: var(--quick-muted); }
 .quick-context > svg { flex: none; color: var(--text-accent); }
 .quick-context > div { min-width: 0; }
@@ -21,7 +21,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .quick-card textarea { display: block; flex: 1 1 auto; width: 100%; min-height: 90px; height: 152px; max-height: 260px; resize: none; border: 0; outline: 0; padding: 0 2px 12px; background: transparent; color: var(--quick-text); font-size: 18px; line-height: 1.6; caret-color: var(--text-accent); }
 .quick-card textarea::placeholder { color: var(--text-tertiary); }
 .quick-card textarea:disabled { opacity: 1; -webkit-text-fill-color: var(--quick-text); }
-.quick-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--quick-line); }
+.quick-card footer { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--quick-line); }
 .quick-hint { font-size: 12px; color: var(--quick-muted); }
 .quick-actions { display: flex; gap: 6px; }
 .quick-icon, .quick-submit { border: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border-radius: var(--radius-lg); transition: background-color 140ms ease, color 140ms ease, transform 120ms ease, box-shadow 140ms ease; }
@@ -31,13 +31,15 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .quick-markdown[aria-checked="true"], .quick-card .quick-markdown[aria-checked="true"]:hover:not(:disabled) { color: var(--text-accent); background: var(--accent-blue-soft); border-color: transparent; box-shadow: inset 0 0 0 1px var(--status-info-border); transform: none; }
 .quick-card .quick-markdown[aria-checked="true"]:active:not(:disabled) { transform: scale(0.95); }
 .quick-submit { color: white; background: var(--action-primary); box-shadow: 0 4px 12px rgba(52,120,237,.18); }
-.quick-card .quick-submit:hover:not(:disabled) { color: white; background: var(--accent-blue-hover); border-color: transparent; box-shadow: 0 6px 16px rgba(52,120,237,.26); transform: translateY(-1px); }
+.quick-card .quick-submit:hover:not(:disabled) { color: white; background: var(--action-primary-hover); border-color: transparent; box-shadow: 0 6px 16px rgba(52,120,237,.26); transform: translateY(-1px); }
 .quick-submit:disabled { background: var(--bg-control-strong); color: var(--text-tertiary); box-shadow: none; cursor: default; }
 .quick-icon:disabled { opacity: .35; cursor: default; }
 .quick-card button:focus:not(:focus-visible) { outline: none; }
 .quick-card button:focus-visible { outline: 2.5px solid var(--focus-ring, var(--text-accent)); outline-offset: 2px; }
-.quick-error { color: var(--text-danger); background: var(--status-danger-bg); border: 1px solid var(--status-danger-border); border-radius: var(--radius-sm); font-size: 12px; padding: 8px 10px; margin-bottom: 8px; max-height: 84px; overflow: auto; overscroll-behavior: contain; }
-.quick-error button, .quick-card .quick-error button:hover:not(:disabled) { margin-left: 8px; border: 0; background: transparent; box-shadow: none; color: var(--text-accent); min-width: 44px; min-height: 44px; text-decoration: underline; transform: none; }
+.quick-error { flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--text-danger); background: var(--status-danger-bg); border: 1px solid var(--status-danger-border); border-radius: var(--radius-sm); font-size: 12px; padding: 8px 10px; margin-bottom: 8px; max-height: 92px; overflow: auto; overscroll-behavior: contain; }
+.quick-error button { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 30px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-panel); box-shadow: none; color: var(--text-accent); font-size: 12px; font-weight: 600; text-decoration: none; transform: none; }
+.quick-card .quick-error button:hover:not(:disabled) { border-color: var(--status-info-border); background: var(--accent-blue-soft); box-shadow: none; color: var(--text-accent); transform: none; }
+@media (pointer: coarse) { .quick-error button { min-height: var(--control-hit-size, 44px); padding: 6px 12px; } }
 .quick-success .quick-backdrop { animation: quick-backdrop-out var(--quick-exit-duration, 420ms) ease-in-out both; }
 .quick-success .quick-card { will-change: transform, opacity; animation: quick-fade 420ms ease-in-out both; }
 .quick-success textarea { --quick-start-opacity: 1; animation: quick-text-out 240ms ease-in-out both; }

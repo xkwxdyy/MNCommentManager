@@ -88,3 +88,27 @@ it("closes help with Escape while preserving the main panel range-selection mode
   expect(host.querySelector(".help-videos").open).toBe(false);
   expect(host.querySelector('[title="退出范围选择（Esc）"]')).toBeTruthy();
 });
+
+it("handles Escape from outside the popover, ignores IME composition Escape, and closes when a dialog opens", async () => {
+  MNBridge.send.mockImplementation(async command => command === "getCurrentNoteComments" ? {
+    noteId: "video-test-2", noteTitle: "视频入口测试", excerpt: { present: false },
+    comments: [{ index: 0, type: "textComment", text: "测试评论", capabilities: {} }],
+  } : {});
+  await act(async () => root.render(<App />));
+  await act(async () => host.querySelector('[title="选择连续范围"]').click());
+  const details = host.querySelector(".help-videos");
+  details.open = true;
+
+  await act(async () => details.querySelector("summary").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", isComposing: true, bubbles: true, cancelable: true })));
+  expect(details.open).toBe(true);
+
+  const checkbox = host.querySelector('#comment-0 input[type="checkbox"]');
+  checkbox.focus();
+  await act(async () => checkbox.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+  expect(details.open).toBe(false);
+  expect(host.querySelector('[title="退出范围选择（Esc）"]')).toBeTruthy();
+
+  details.open = true;
+  await act(async () => host.querySelector('[aria-label="设置"]').click());
+  expect(details.open).toBe(false);
+});

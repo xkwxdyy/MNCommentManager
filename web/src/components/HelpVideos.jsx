@@ -39,16 +39,27 @@ export default function HelpVideos() {
       if (!details?.open) return;
       if (!details.contains(event.target)) details.open = false;
     };
+    const closeOnEscape = (event) => {
+      const details = detailsRef.current;
+      if (!details?.open) return;
+      if (event.isComposing || event.keyCode === 229 || event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      details.open = false;
+      summaryRef.current?.focus({ preventScroll: true });
+    };
     const handleViewportChange = () => {
       if (detailsRef.current?.open) syncPopoverPosition();
     };
     document.addEventListener("pointerdown", close);
     document.addEventListener("touchstart", close, { passive: true });
+    document.addEventListener("keydown", closeOnEscape, true);
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("scroll", handleViewportChange, true);
     return () => {
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("touchstart", close);
+      document.removeEventListener("keydown", closeOnEscape, true);
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
@@ -85,8 +96,8 @@ export default function HelpVideos() {
         }
       }}
       onKeyDown={(event) => {
-        if (event.isComposing) return;
-        if (event.key === "Escape") {
+        if (event.isComposing || event.nativeEvent?.isComposing || event.keyCode === 229 || event.nativeEvent?.keyCode === 229) return;
+        if (event.key === "Escape" && detailsRef.current?.open) {
           event.preventDefault();
           event.stopPropagation();
           detailsRef.current.open = false;

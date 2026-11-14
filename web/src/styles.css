@@ -95,9 +95,14 @@ input[type="radio"]:focus-visible,
 .workflow-confirm-dialog:focus-visible,
 .batch-editor:focus-visible,
 .batch-recording-close-dialog:focus-visible,
+.dialog:focus-visible,
 .quick-action-btn:focus-visible {
   outline: 2.5px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+.dialog:focus:not(:focus-visible) {
+  outline: none;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):focus-visible,
@@ -207,6 +212,8 @@ button.pressing {
 }
 
 .topbar {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -217,9 +224,17 @@ button.pressing {
   padding: 8px 18px;
   background: var(--bg-chrome);
   border-bottom: 1px solid var(--border-light);
+  z-index: 12;
+}
+
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  z-index: 12;
 }
 
 .topbar-title {
@@ -767,7 +782,7 @@ button.pressing {
 
 .comment-row {
   margin-bottom: 12px;
-  animation: slideUp 0.22s var(--transition) both;
+  animation: slideUp 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .excerpt-card {
@@ -1640,7 +1655,11 @@ button.pressing {
   padding: 8px 48px 8px 12px;
   background: var(--bg-panel);
   border-top: 1px solid var(--border-light);
-  z-index: 20;
+  z-index: 11;
+}
+
+.comment-manager[data-actions-open="true"] .right-pane {
+  z-index: 25;
 }
 
 .right-pane .selection-summary {
@@ -1666,6 +1685,7 @@ button.pressing {
   right: 12px;
   bottom: 68px;
   width: min(320px, calc(100vw - 16px));
+  max-height: min(540px, calc(100vh - 80px));
   max-height: min(540px, calc(100dvh - 80px));
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1684,6 +1704,9 @@ button.pressing {
 .right-pane .selection-actions-panel button:not(.selection-actions-close) { min-height: 38px; }
 .right-pane .selection-actions-panel .wide { margin-top: 6px; }
 .right-pane .selection-actions-panel .button-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+/* Short processing labels share rows like the move grid, so the popover needs less scrolling. */
+.right-pane .selection-actions-panel .process-section .stack { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.right-pane .selection-actions-panel .process-section .stack button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 .stack {
   display: grid;
@@ -1714,7 +1737,7 @@ button.pressing {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.38);
+  background: rgba(0, 0, 0, 0.48);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 100;
@@ -1723,7 +1746,8 @@ button.pressing {
 
 .dialog {
   width: min(560px, 100%);
-  max-height: min(720px, calc(100dvh - 36px));
+  max-height: min(720px, calc(100vh - 40px));
+  max-height: min(720px, calc(100dvh - 40px));
   overflow: auto;
   overscroll-behavior: contain;
   padding: 22px;
@@ -1731,7 +1755,7 @@ button.pressing {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-dialog);
   box-shadow: var(--shadow-lg);
-  animation: slideUp 0.24s var(--transition);
+  animation: slideUp 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .dialog h2 {
@@ -1793,6 +1817,13 @@ button.pressing {
   min-height: 132px;
   max-height: 48vh;
   resize: vertical;
+}
+
+/* Field labels are semibold; the values typed or chosen inside them stay regular weight. */
+.dialog label textarea,
+.dialog label input:not([type="checkbox"]):not([type="radio"]),
+.dialog label .html-select-trigger {
+  font-weight: 400;
 }
 
 .dialog textarea:focus,
@@ -1955,12 +1986,13 @@ button.pressing {
   display: flex;
   flex-direction: column;
   width: min(820px, 100%);
+  max-height: min(720px, calc(100vh - 40px));
   max-height: min(720px, calc(100dvh - 40px));
   overflow: hidden;
 }
 
 .batch-editor-backdrop { z-index: 30; }
-.batch-editor { width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.batch-editor { width: min(960px, calc(100vw - 40px)); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow: auto; }
 .batch-editor-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; }
 .batch-editor-header h2 { margin: 0; }
 .batch-editor-header p { margin: 4px 0 0; color: var(--text-secondary); }
@@ -1969,7 +2001,14 @@ button.pressing {
 .batch-editor-grid section, .batch-recording { border: 1px solid var(--border-light); border-radius: 8px; padding: 12px; }
 .batch-editor-grid h3, .batch-recording h3 { margin: 0 0 10px; font-size: 14px; }
 .batch-editor-grid label { display: grid; gap: 6px; margin: 10px 0; font-size: 12px; color: var(--text-secondary); }
-.batch-editor-grid select, .batch-recording-save input { width: 100%; box-sizing: border-box; min-height: 34px; border: 1px solid var(--border-light); border-radius: 6px; padding: 6px 8px; background: var(--bg-panel); color: var(--text-primary); }
+.batch-editor-grid select, .batch-editor-grid input:not([type="checkbox"]):not([type="radio"]), .batch-recording-save input { width: 100%; box-sizing: border-box; min-height: 34px; border: 1px solid var(--border-light); border-radius: 6px; padding: 6px 8px; background: var(--bg-panel); color: var(--text-primary); font-family: inherit; font-size: 13px; }
+.batch-editor-grid select:focus,
+.batch-editor-grid input:not([type="checkbox"]):not([type="radio"]):focus,
+.batch-recording-save input:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--focus);
+  outline: none;
+}
 .batch-card-summary { display: grid; gap: 3px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
 .batch-card-summary:last-child { border-bottom: 0; }
 .batch-card-summary small, .batch-card-summary span { color: var(--text-secondary); font-size: 11px; }
@@ -2063,7 +2102,7 @@ button.pressing {
   gap: 8px;
   max-height: 470px;
   overflow: auto;
-  padding-right: 4px;
+  padding: 4px 6px 4px 4px;
 }
 
 .workflow-create-btn {
@@ -2839,6 +2878,7 @@ button.pressing {
   }
 
   .workflow-list {
+    max-height: min(300px, 42vh);
     max-height: min(300px, 42dvh);
   }
 
@@ -3095,7 +3135,8 @@ button.pressing {
   display: flex;
   flex-direction: column;
   width: min(560px, 100%);
-  max-height: min(740px, calc(100dvh - 32px));
+  max-height: min(740px, calc(100vh - 40px));
+  max-height: min(740px, calc(100dvh - 40px));
   padding: 0;
   overflow: hidden;
 }
@@ -3316,7 +3357,6 @@ button.pressing {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   background: var(--bg-app);
-  overflow: hidden;
   transition: border-color var(--transition), background-color var(--transition);
 }
 
@@ -3327,7 +3367,7 @@ button.pressing {
 .single-card-settings-group > .settings-master-check {
   border: none;
   border-bottom: 1px solid var(--border-light);
-  border-radius: 0;
+  border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
   background: var(--bg-panel-soft);
   padding: 12px 13px;
 }
@@ -3524,7 +3564,7 @@ button.pressing {
 }
 
 .dynamic-button-preview-pill.is-active .dynamic-button-preview-dot {
-  background: var(--accent-blue);
+  background: var(--action-primary);
   color: #ffffff;
 }
 
@@ -3897,5 +3937,19 @@ button.pressing {
   .addon-update-versions {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+  }
+}
+
+@media (pointer: coarse) {
+  .addon-update-actions > button:first-child,
+  .search-clear.ghost {
+    min-width: var(--control-hit-size);
+    min-height: var(--control-hit-size);
+  }
+
+  .batch-editor-grid select,
+  .batch-editor-grid input:not([type="checkbox"]):not([type="radio"]),
+  .batch-recording-save input {
+    min-height: var(--control-hit-size);
   }
 }

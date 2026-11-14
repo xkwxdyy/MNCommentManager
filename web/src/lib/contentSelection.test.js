@@ -36,4 +36,17 @@ describe("native excerpt selection", () => {
     expect(mixed.canMoveDown).toBe(true);
     expect(mixed.canMoveToBottom).toBe(true);
   });
+
+  it("allows non-contiguous selections including the last item to gather at the bottom", () => {
+    const nonContiguous = getMoveState(makeContentSelection(false, [0, 2]), false, 3);
+    expect(nonContiguous.continuous).toBe(false);
+    expect(nonContiguous.canMoveToBottom).toBe(true);
+
+    const tailContiguous = getMoveState(makeContentSelection(false, [1, 2]), false, 3);
+    expect(tailContiguous.continuous).toBe(true);
+    expect(tailContiguous.canMoveToBottom).toBe(false);
+
+    const allSelected = getMoveState(makeContentSelection(false, [0, 1, 2]), false, 3);
+    expect(allSelected.canMoveToBottom).toBe(false);
+  });
 });

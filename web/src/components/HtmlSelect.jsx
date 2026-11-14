@@ -32,9 +32,10 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
     setOpen(true);
   };
   const choose = index => {
+    if (!options.length) { close(); trigger.current?.focus({ preventScroll: true }); return; }
     const option = options[index];
     if (!option || option.disabled || disabled || trigger.current.matches(':disabled')) return;
-    close(); trigger.current.focus();
+    close(); trigger.current.focus({ preventScroll: true });
     onChange?.({ target: { value: option.value } });
   };
   const cancelOptionTouch = () => {
@@ -108,7 +109,13 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
     };
   }, [open]);
   useEffect(() => { if (disabled) close(); }, [disabled]);
-  useEffect(() => { if (open) list.current?.children[active]?.scrollIntoView?.({ block: 'nearest' }); }, [open, active]);
+  useEffect(() => {
+    const menu = list.current, item = menu?.children[active];
+    if (!open || !menu || !item) return;
+    const itemTop = item.offsetTop, itemBottom = itemTop + item.offsetHeight;
+    if (itemTop < menu.scrollTop) menu.scrollTop = itemTop;
+    else if (itemBottom > menu.scrollTop + menu.clientHeight) menu.scrollTop = itemBottom - menu.clientHeight;
+  }, [open, active]);
   return <span className="html-select" ref={root} onBlur={event => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
     // Catalyst can report a null focus target while an option touch is still active.
@@ -119,7 +126,7 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
     }
     close();
   }}>
-    <button {...props} ref={trigger} type="button" className={`html-select-trigger ${props.className || ''}`} role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-activedescendant={open ? `${id}-${active}` : undefined} disabled={disabled} onKeyUp={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); open ? close() : show(); }} onKeyDown={event => {
+    <button {...props} ref={trigger} type="button" className={`html-select-trigger ${props.className || ''}`} role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined} disabled={disabled} onKeyUp={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); open ? close() : show(); }} onKeyDown={event => {
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault(); event.stopPropagation();
         if (!open) { show(); return; }
