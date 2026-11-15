@@ -220,6 +220,8 @@ function loadAddon({
     "CommentRichFormat",
     "CommentData",
     "UndoGroupingHelper",
+    "CommentMarkdown",
+    "RichCommentLifecycle",
     "CommentFormatBrush",
     "CommentWorkflowStore",
     "CommentWorkflowRegistry",

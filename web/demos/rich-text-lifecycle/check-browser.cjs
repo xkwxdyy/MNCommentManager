@@ -9,11 +9,11 @@ const sampleFile = path.resolve(
   process.argv[2] || 'artifacts/rich-text-lifecycle-prototype/index.html',
 );
 const output = path.resolve(process.argv[3] || 'artifacts/rich-text-lifecycle-prototype/checks');
-const target = (i) => `[aria-label="粘贴到评论 #${i}"]`;
+const target = (i) => `[aria-label="选择目标评论 #${i}"]`;
 const copyRow = (i) => `[aria-label="复制评论 #${i} 的格式"]`;
 const pasteRow = (i) => `[aria-label="粘贴格式到评论 #${i}"]`;
-const editRow = (i) => `[aria-label="编辑富文本评论 #${i}"]`;
-const undo = '[aria-label="撤销最近操作"]';
+const editRow = (i) => `[aria-label="编辑 HTML 评论 #${i}"]`;
+const undo = '[aria-label="撤销上次富文本修改"]';
 const rows = (page) =>
   page.$$eval('[data-comment-index]', (els) =>
     els.map((el) => {
@@ -43,7 +43,7 @@ async function fill(page, selector, text) {
     text,
   );
 }
-const closeDialog = (page) => page.waitForSelector('.rich-demo-dialog', { hidden: true });
+const closeDialog = (page) => page.waitForSelector('.rich-comment-dialog', { hidden: true });
 async function switchCard(page, n) {
   await page.click(`.rich-demo-tabs button:nth-child(${n})`);
   await page.waitForFunction(
@@ -72,10 +72,10 @@ async function switchCard(page, n) {
 }
 async function geometry(page) {
   return page.evaluate(() => {
-    const el = document.querySelector('.rich-demo-dialog');
+    const el = document.querySelector('.rich-comment-dialog');
     const r = el?.getBoundingClientRect(),
       f = el?.querySelector('footer').getBoundingClientRect();
-    const b = el?.querySelector('.rich-demo-dialog-body');
+    const b = el?.querySelector('.rich-comment-dialog-body');
     return {
       width: innerWidth,
       height: innerHeight,
@@ -143,27 +143,27 @@ function assertGeometry(g) {
           .find((e) => e.textContent === '格式刷')
           .click(),
       );
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.waitForSelector('.rich-comment-dialog');
       assert.equal(await page.$eval('.selection-actions-panel', (e) => e.hidden), true);
-      assert.equal(await page.$eval('#rich-demo-dialog-title', (e) => e.textContent), '格式刷');
-      assert.equal(await page.$$('.rich-demo-target').then((e) => e.length), 2);
+      assert.equal(await page.$eval('#rich-comment-dialog-title', (e) => e.textContent), '格式刷');
+      assert.equal(await page.$$('.brush-target').then((e) => e.length), 2);
       assert.equal(await page.$$('.rich-demo-paste').then((e) => e.length), 0);
       await page.keyboard.press('Escape');
       await closeDialog(page);
       await page.click('#comment-0 .selection-checkbox');
-      assert.equal(await page.$$('.rich-demo-clipboard.has-format').then((e) => e.length), 0);
+      assert.equal(await page.$$('.rich-format-clipboard.has-format').then((e) => e.length), 0);
       // Direct brush applies once without copying or changing the cross-card clipboard.
       await page.click('#comment-0-format-brush');
-      await page.waitForSelector('.rich-demo-dialog');
-      await page.click('[aria-label="格式刷到评论 #2"]');
+      await page.waitForSelector('.rich-comment-dialog');
+      await page.click('[aria-label="选择目标评论 #2"]');
       await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-brush.png`) });
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForFunction(
         () =>
           document.querySelector('#comment-2 pre')?.style.backgroundColor === 'rgb(227, 242, 253)',
       );
-      assert.equal(await page.$$('.rich-demo-clipboard.has-format').then((e) => e.length), 0);
+      assert.equal(await page.$$('.rich-format-clipboard.has-format').then((e) => e.length), 0);
       await page.click(undo);
       await page.waitForFunction(
         () =>
@@ -172,16 +172,16 @@ function assertGeometry(g) {
       assert.deepEqual(await rows(page), originalProof);
       await page.click(copyRow(0));
       await page.waitForSelector(pasteRow(0));
-      assert.equal(await page.$$('.rich-demo-dialog').then((e) => e.length), 0);
-      const copiedStrip = await page.$eval('.rich-demo-clipboard', (e) => e.textContent);
+      assert.equal(await page.$$('.rich-comment-dialog').then((e) => e.length), 0);
+      const copiedStrip = await page.$eval('.rich-format-clipboard', (e) => e.textContent);
       await page.click('#comment-2-format-brush');
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.waitForSelector('.rich-comment-dialog');
       assert.equal(
-        await page.$eval('.rich-demo-source pre', (e) => e.style.backgroundColor),
+        await page.$eval('.brush-source .rich-comment-sample', (e) => e.style.backgroundColor),
         'rgb(255, 240, 220)',
       );
-      await page.click('[aria-label="格式刷到评论 #0"]');
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('[aria-label="选择目标评论 #0"]');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForFunction(
         () =>
@@ -189,12 +189,12 @@ function assertGeometry(g) {
       );
       assert.equal(
         await page.$eval(
-          '.rich-demo-clipboard .rich-demo-color-dot:last-child',
+          '.rich-format-clipboard .rich-clipboard-swatch:last-child',
           (e) => e.style.backgroundColor,
         ),
         'rgb(227, 242, 253)',
       );
-      assert.equal(await page.$eval('.rich-demo-clipboard', (e) => e.textContent), copiedStrip);
+      assert.equal(await page.$eval('.rich-format-clipboard', (e) => e.textContent), copiedStrip);
       await page.click(undo);
       await page.waitForFunction(
         () =>
@@ -204,16 +204,16 @@ function assertGeometry(g) {
       // Shared icons are present on all actions supplied by the approved pack.
       assert(await page.$('#comment-0-format-brush [data-action-icon="paintbrush"]'));
       assert(await page.$(`${editRow(0)} [data-action-icon="edit"]`));
-      assert(await page.$('.rich-demo-add [data-action-icon="comment-add"]'));
-      assert(await page.$(`${copyRow(0)} [data-prototype-icon="copy"]`));
+      assert(await page.$('.rich-add-comment [data-action-icon="comment-add"]'));
+      assert(await page.$(`${copyRow(0)} [data-rich-action="copy"]`));
       assert.equal(await page.$eval('#comment-0', (e) => e.getAttribute('aria-pressed')), 'false');
       assert.equal(await page.$eval(editRow(4), (e) => e.disabled), true);
       assert.equal(await page.$eval(pasteRow(5), (e) => e.disabled), true);
       // The captured format survives source changes and switching cards.
       await page.click('#comment-0 .comment-body', { clickCount: 2 });
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.waitForSelector('.rich-comment-dialog');
       await fill(page, '[aria-label="文字颜色"]', '#8A245C');
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.click(undo);
       await page.waitForFunction(
@@ -229,41 +229,50 @@ function assertGeometry(g) {
       assert.match(await page.$eval(pasteRow(4), (e) => e.title), /表格/);
       assert.match(await page.$eval(pasteRow(5), (e) => e.title), /链接/);
       // Batch conversion preview, select all eligibility, cancellation, and focus restoration.
-      await page.click('.rich-demo-clipboard .ghost');
-      await page.waitForSelector('.rich-demo-dialog');
-      assert.equal(await page.$eval('.rich-demo-dialog footer .primary', (e) => e.disabled), true);
-      await page.click('.rich-demo-target-heading button');
-      assert.equal(await page.$$eval('.rich-demo-target input:checked', (e) => e.length), 3);
-      await page.click('.rich-demo-target-heading button');
+      await page.click('.rich-format-clipboard .ghost');
+      await page.waitForSelector('.rich-comment-dialog');
+      assert.equal(
+        await page.$eval('.rich-comment-dialog footer .primary', (e) => e.disabled),
+        true,
+      );
+      await page.click('.brush-target-heading button');
+      assert.equal(await page.$$eval('.brush-target input:checked', (e) => e.length), 3);
+      await page.click('.brush-target-heading button');
       await page.click(target(0));
       await page.click(target(1));
-      assert.equal(await page.$$eval('.rich-demo-compare > div:nth-child(2)', (e) => e.length), 2);
+      assert.equal(
+        await page.$$eval('.brush-target-preview > div:nth-child(2)', (e) => e.length),
+        2,
+      );
       const pasteGeometry = await geometry(page);
       assertGeometry(pasteGeometry);
       await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-paste.png`) });
       // Last -> first and first -> last keyboard focus loop.
-      await page.focus('.rich-demo-dialog footer .primary');
+      await page.focus('.rich-comment-dialog footer .primary');
       await page.keyboard.press('Tab');
       assert.equal(await page.evaluate(() => document.activeElement.ariaLabel), '关闭对话框');
       await page.keyboard.down('Shift');
       await page.keyboard.press('Tab');
       await page.keyboard.up('Shift');
       assert.equal(
-        await page.$eval('.rich-demo-dialog footer .primary', (e) => e === document.activeElement),
+        await page.$eval(
+          '.rich-comment-dialog footer .primary',
+          (e) => e === document.activeElement,
+        ),
         true,
       );
       await page.keyboard.press('Escape');
       await closeDialog(page);
       assert.equal(
-        await page.$eval('.rich-demo-clipboard .ghost', (e) => e === document.activeElement),
+        await page.$eval('.rich-format-clipboard .ghost', (e) => e === document.activeElement),
         true,
       );
       assert.deepEqual(await rows(page), originalDefinition);
       await page.click(pasteRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.waitForSelector('.rich-comment-dialog');
       assert.equal(await page.$eval(target(0), (e) => e.checked), true);
       await page.click(target(1));
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForFunction(
         () => document.querySelector('#comment-0 .type-pill')?.textContent === 'HTML',
@@ -288,32 +297,42 @@ function assertGeometry(g) {
       await switchCard(page, 1);
       await page.waitForSelector(editRow(0));
       await page.click(editRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
-      await fill(page, '[aria-label="富文本正文"]', '证明修改后\n第二行完整保留。');
+      await page.waitForSelector('.rich-comment-dialog');
+      await fill(page, '[aria-label="评论正文"]', '证明修改后\n第二行完整保留。');
       await fill(page, '[aria-label="文字颜色"]', '#315D92');
       await fill(page, '[aria-label="背景颜色"]', '#D7EBFF');
       await fill(page, '[aria-label="字号"]', '21');
-      await page.select('[aria-label="字重"]', 'PingFangSC-Semibold');
+      await page.click('[aria-label="字体"]');
+      await page.evaluate(() =>
+        [...document.querySelectorAll('[role="option"]')]
+          .find((e) => e.textContent.includes('半粗体'))
+          .click(),
+      );
       assert.equal(
-        await page.$eval('.rich-demo-preview pre', (e) => e.style.backgroundColor),
+        await page.$eval('.rich-editor-preview pre', (e) => e.style.backgroundColor),
         'rgb(215, 235, 255)',
       );
       assert.deepEqual(await rows(page), originalProof);
       const editorGeometry = await geometry(page);
       assertGeometry(editorGeometry);
       await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-editor.png`) });
-      await page.click('.rich-demo-dialog footer .secondary');
+      await page.click('.rich-comment-dialog footer .secondary');
       await closeDialog(page);
       assert.deepEqual(await rows(page), originalProof);
       assert.equal(await page.$eval(editRow(0), (e) => e === document.activeElement), true);
       await page.click(editRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
-      await fill(page, '[aria-label="富文本正文"]', '证明修改后\n第二行完整保留。');
+      await page.waitForSelector('.rich-comment-dialog');
+      await fill(page, '[aria-label="评论正文"]', '证明修改后\n第二行完整保留。');
       await fill(page, '[aria-label="文字颜色"]', '#315D92');
       await fill(page, '[aria-label="背景颜色"]', '#D7EBFF');
       await fill(page, '[aria-label="字号"]', '21');
-      await page.select('[aria-label="字重"]', 'PingFangSC-Semibold');
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('[aria-label="字体"]');
+      await page.evaluate(() =>
+        [...document.querySelectorAll('[role="option"]')]
+          .find((e) => e.textContent.includes('半粗体'))
+          .click(),
+      );
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForFunction(() =>
         document.querySelector('#comment-0 pre')?.textContent.includes('修改后'),
@@ -323,19 +342,19 @@ function assertGeometry(g) {
       assert.equal(edited[0].background, 'rgb(215, 235, 255)');
       assert.deepEqual(edited.slice(1), originalProof.slice(1));
       await page.click(editRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.waitForSelector('.rich-comment-dialog');
       assert.equal(await page.$eval('[aria-label="文字颜色"]', (e) => e.value), '#315D92');
       assert.equal(await page.$eval('[aria-label="背景颜色"]', (e) => e.value), '#D7EBFF');
       // Invalid colors fail without partial writes; default/transparent resets preview correctly.
       await fill(page, '[aria-label="文字颜色"]', '#XYZ');
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.click('.rich-comment-dialog footer .primary');
       await page.waitForSelector('[role="alert"]');
       assert.match(await page.$eval('[role="alert"]', (e) => e.textContent), /#RRGGBB/);
       assert.deepEqual(await rows(page), edited);
-      await page.click('[aria-label="恢复默认文字色"]');
-      await page.click('[aria-label="取消背景色"]');
+      await page.click('[aria-label="使用默认文字颜色"]');
+      await page.click('[aria-label="移除背景色"]');
       assert.equal(
-        await page.$eval('.rich-demo-preview pre', (e) => e.style.backgroundColor),
+        await page.$eval('.rich-editor-preview pre', (e) => e.style.backgroundColor),
         'transparent',
       );
       await page.keyboard.press('Escape');
@@ -347,19 +366,22 @@ function assertGeometry(g) {
       assert.deepEqual(await rows(page), originalProof);
       // Creation starts with the captured source style, not the later edited source.
       await switchCard(page, 3);
-      await page.click('.rich-demo-add');
-      await page.waitForSelector('.rich-demo-dialog');
+      await page.click('.rich-add-comment');
+      await page.waitForSelector('.rich-comment-dialog');
       assert.equal(await page.$eval('[aria-label="文字颜色"]', (e) => e.value), '#175D62');
       assert.equal(await page.$eval('[aria-label="背景颜色"]', (e) => e.value), '#E3F2FD');
-      assert.equal(await page.$eval('.rich-demo-dialog footer .primary', (e) => e.disabled), true);
-      await fill(page, '[aria-label="富文本正文"]', '空白卡片新增富文本\n换行与标点保持原样。');
-      await page.click('.rich-demo-dialog footer .primary');
+      assert.equal(
+        await page.$eval('.rich-comment-dialog footer .primary', (e) => e.disabled),
+        true,
+      );
+      await fill(page, '[aria-label="评论正文"]', '空白卡片新增富文本\n换行与标点保持原样。');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForSelector(editRow(0));
       assert.equal((await rows(page)).length, 1);
       await page.click(editRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
-      assert.match(await page.$eval('[aria-label="富文本正文"]', (e) => e.value), /空白卡片新增/);
+      await page.waitForSelector('.rich-comment-dialog');
+      assert.match(await page.$eval('[aria-label="评论正文"]', (e) => e.value), /空白卡片新增/);
       await page.keyboard.press('Escape');
       await closeDialog(page);
       await switchCard(page, 1);
@@ -369,10 +391,10 @@ function assertGeometry(g) {
       // No-op save doesn't create an undo entry; reload resets the memory-only clipboard.
       await switchCard(page, 1);
       await page.click(editRow(0));
-      await page.waitForSelector('.rich-demo-dialog');
-      await page.click('.rich-demo-dialog footer .primary');
+      await page.waitForSelector('.rich-comment-dialog');
+      await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
-      assert.equal(await page.$eval(undo, (e) => e.disabled), true);
+      assert.equal(await page.$(undo), null);
       await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-manager.png`) });
       const managerGeometry = await page.evaluate(() => ({
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
@@ -396,7 +418,7 @@ function assertGeometry(g) {
       );
       await page.click('[aria-label="清除已复制格式"]');
       await page.waitForSelector('.rich-demo-paste', { hidden: true });
-      assert.equal(await page.$eval(undo, (e) => e.disabled), true);
+      assert.equal(await page.$(undo), null);
       await page.reload();
       await page.waitForSelector(editRow(0));
       assert.equal(await page.$$('.rich-demo-paste').then((x) => x.length), 0);

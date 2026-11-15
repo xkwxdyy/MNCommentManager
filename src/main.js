@@ -8,6 +8,8 @@ JSB.require("NoteAccess");
 JSB.require("CommentRichFormat");
 JSB.require("CommentData");
 JSB.require("UndoGroupingHelper");
+JSB.require("CommentMarkdown");
+JSB.require("RichCommentLifecycle");
 JSB.require("CommentFormatBrush");
 JSB.require("CommentWorkflowStore");
 JSB.require("CommentWorkflowRegistry");

@@ -140,3 +140,8 @@ assert.throws(() => separate.brushPlan(4));
 console.log(
   'Separate copy/paste and one-shot brush: source exclusion, HTML-only targets, no clipboard side effects, independent undo and stale-source guards passed',
 );
+
+for(const input of ['$\nx+y\n$','$\n\nx+y\n\n$'])assert.equal(markdownToText(input).supported,false);
+assert.equal(markdownToText('```\n$\nx+y\n$\n```').supported,true);
+
+for(const input of ['价格 $5。\n\n费用 $6。','- 价格 $5。\n- 费用 $6。'])assert.equal(markdownToText(input).supported,true);

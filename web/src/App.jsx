@@ -1,3 +1,7 @@
+import RichCommentEditor from './components/RichCommentEditor';
+import RichClipboardBar from './components/RichClipboardBar';
+import {RichActionIcon} from './components/RichCommentPresentation';
+import ActionIcon from "./components/ActionIcon";
 import FormatBrushDialog, { FormatBrushIcon, richTextStyle } from "./components/FormatBrushDialog";
 import HtmlSelect from "./components/HtmlSelect";
 import HelpVideos from "./components/HelpVideos";
@@ -982,6 +986,9 @@ function App() {
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const [formatBrush, setFormatBrush] = useState(null);
   const [formatBrushUndo, setFormatBrushUndo] = useState(null);
+  const [richEditor, setRichEditor] = useState(null);
+  const richEditorRef = useRef(null), pendingRichNoteSync = useRef(null);
+  richEditorRef.current = richEditor;
   const selectionModeTriggerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
@@ -1041,23 +1048,24 @@ function App() {
     setDialog(null);
     setInvalidLinkCleanup(null);
     setFormatBrush(null);
+    setRichEditor(null); richEditorRef.current=null; pendingRichNoteSync.current=null;
     setSelectionActionsOpen(false);
     if (typeof clearAllPressTimers === "function") clearAllPressTimers();
     if (typeof document !== "undefined") {
       document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
     }
   };
-  useEffect(() => { setSelectionActionsOpen(false); setFormatBrush(null); setFormatBrushUndo(null); }, [snapshot.noteId]);
+  useEffect(() => { setSelectionActionsOpen(false); setFormatBrush(null); setRichEditor(null); setFormatBrushUndo(null); }, [snapshot.noteId]);
   useEffect(() => {
-    if (formatBrush || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
       setSelectionActionsOpen(false);
     }
-  }, [formatBrush, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  }, [formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
   useEffect(() => {
-    if (formatBrush || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
       document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
     }
-  }, [formatBrush, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
+  }, [formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
   const closeSelectionActions = () => {
     setSelectionActionsOpen(false);
     document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
@@ -1103,6 +1111,7 @@ function App() {
   const gestureActiveRef = useRef(() => false);
   externalCardSwitchStateRef.current = {
     formatBrush,
+    richEditor,
     dialog,
     workflowManager,
     actionButtonSettings,
@@ -1237,13 +1246,13 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!formatBrush || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
+    disabled: loading || !!formatBrush || !!richEditor || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
-  const dragDisabled = loading || !!formatBrush || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragDisabled = loading || !!formatBrush || !!richEditor || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
   const dragOverview = useCommentDragOverview({
     paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
     contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
@@ -1621,6 +1630,11 @@ function App() {
         // stale batch overlay that may still be mounted in the WebView.
         hideBatchEditorRetainingDraft();
         if (!payload?.snapshot) return;
+        if (richEditorRef.current && payload.snapshot.noteId !== currentViewRef.current.snapshot.noteId) {
+          pendingRichNoteSync.current = payload;
+          return;
+        }
+        if (richEditorRef.current) pendingRichNoteSync.current = null;
         const syncMessage = payload.snapshot.error
           ? payload.snapshot.error
           : payload.snapshot.handwritingPendingCount > 0
@@ -2656,28 +2670,57 @@ function App() {
 
   const openFormatBrush = async (source = formatBrushSource) => {
     if (!source?.richFormat?.supported || loading) return;
-    const noteId = snapshot.noteId, sourceIndex = source.index, returnFocus = document.activeElement;
+    const noteId = snapshot.noteId, sourceIndex = source.index;
+    const returnFocus = selectionActionsOpen ? document.getElementById('selection-actions-toggle') : document.activeElement;
     if (selectionActionsOpen) closeSelectionActions();
     try {
-      const result = await runCommand("getFormatBrushPreview", { noteId, sourceIndex }, { keepSelection: true, expectedNoteId: noteId });
+      const result = await runCommand('getFormatBrushPreview', { noteId, sourceIndex }, { keepSelection: true, expectedNoteId: noteId });
       if (appMountedRef.current && currentNoteIdRef.current === noteId && result?.noteId === noteId) setFormatBrush({ ...result, returnFocus });
     } catch (_) {}
   };
-  const applyFormatBrush = async indices => {
-    const plan = formatBrush;
-    if (!plan) return;
-    const result = await runCommand("applyFormatBrush", { noteId: plan.noteId, token: plan.token, indices }, { expectedNoteId: plan.noteId, refreshOnError: true });
-    if (currentNoteIdRef.current === plan.noteId) {
-      setFormatBrush(null);
-      setFormatBrushUndo(result.undoToken ? { noteId: plan.noteId, token: result.undoToken } : null);
-    }
-  };
-  const undoFormatBrush = async () => {
-    if (!formatBrushUndo || loading) return;
+  const copyRichFormat = async comment => {
+    if (loading || !comment.richFormat?.supported) return;
+    const noteId=snapshot.noteId;
     try {
-      await runCommand("undoFormatBrush", formatBrushUndo, { expectedNoteId: formatBrushUndo.noteId, refreshOnError: true });
-      setFormatBrushUndo(null);
+      const result=await runCommand('copyRichCommentFormat',{noteId,sourceIndex:comment.index,expectedText:comment.text,expectedStyle:comment.richFormat.style},{keepSelection:true,expectedNoteId:noteId});
+      if(appMountedRef.current&&result?.state)setSnapshot(old=>({...old,richText:{...(old.richText||{}),...(old.noteId===noteId?result.state:{}),clipboard:result.state.clipboard}}));
     } catch (_) {}
+  };
+  const clearRichFormat = async () => {
+    const noteId=snapshot.noteId;
+    try {const result=await runCommand('clearRichCommentFormat',{noteId},{keepSelection:true,expectedNoteId:noteId,message:''});if(appMountedRef.current&&result?.state)setSnapshot(old=>({...old,richText:{...(old.richText||{}),...(old.noteId===noteId?result.state:{}),clipboard:result.state.clipboard}}));}catch(_){}
+  };
+  const openRichPaste = async (comment=null,trigger=document.activeElement) => {
+    if(loading||!snapshot.richText?.clipboard)return;
+    const noteId=snapshot.noteId;
+    if(selectionActionsOpen)closeSelectionActions();
+    try {const result=await runCommand('getRichCommentPastePreview',{noteId,...(comment?{targetIndex:comment.index,expectedText:comment.text}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setFormatBrush({...result,returnFocus:trigger});}catch(_){}
+  };
+  const openRichEditor = async (comment=null,trigger=document.activeElement) => {
+    if(loading||(!comment&&(!snapshot.noteId||snapshot.error)))return;
+    const noteId=snapshot.noteId;
+    try {const result=await runCommand('getRichCommentDraft',{noteId,index:comment?.index??null,...(comment?{expectedText:comment.text}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setRichEditor({...result,trigger});}catch(_){}
+  };
+  const closeRichEditor = () => {
+    setRichEditor(null);richEditorRef.current=null;
+    const pending=pendingRichNoteSync.current;pendingRichNoteSync.current=null;
+    if(pending)window.__MNCommentManagerNativeSync?.(pending);
+  };
+  const saveRichComment = async (text,style) => {
+    const plan=richEditor;
+    if(!plan||currentNoteIdRef.current!==plan.noteId)throw Error('当前卡片已变化，评论尚未保存');
+    await runCommand('saveRichComment',{noteId:plan.noteId,token:plan.token,text,style},{expectedNoteId:plan.noteId,refreshOnError:true});
+  };
+  const applyFormatBrush = async indices => {
+    const plan=formatBrush;if(!plan)return;
+    const command=plan.mode==='paste'?'applyRichCommentFormat':'applyFormatBrush';
+    const result=await runCommand(command,{noteId:plan.noteId,token:plan.token,indices},{expectedNoteId:plan.noteId,refreshOnError:true});
+    if(currentNoteIdRef.current===plan.noteId){setFormatBrush(null);setFormatBrushUndo(result.undoToken?{noteId:plan.noteId,token:result.undoToken}:null);}
+  };
+  const richUndo = snapshot.richText ? snapshot.richText.undo : (formatBrushUndo?.noteId===snapshot.noteId?formatBrushUndo:null);
+  const undoFormatBrush = async () => {
+    if(!richUndo||loading)return;
+    try {await runCommand(snapshot.richText?'undoRichComment':'undoFormatBrush',richUndo,{expectedNoteId:richUndo.noteId,refreshOnError:true});setFormatBrushUndo(null);}catch(_){}
   };
 
   const moveActions = [
@@ -2888,13 +2931,14 @@ function App() {
         <BatchCommentEditor state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
       ) : null}
       {formatBrush && <FormatBrushDialog preview={formatBrush} busy={loading} onApply={applyFormatBrush} onClose={() => { if (!loading) setFormatBrush(null); }} />}
+      <div className="manager-heading">
       <header className="topbar">
         <div className="topbar-title">
           <h1>评论管理器</h1>
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
-          {formatBrushUndo?.noteId === snapshot.noteId && <Button className="ghost format-brush-undo" disabled={loading} title="撤销整批格式刷" aria-label="撤销格式刷" onClick={undoFormatBrush}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12" /></svg></Button>}
+          {richUndo && <Button className="ghost format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次格式刷'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
@@ -2932,6 +2976,7 @@ function App() {
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
             <HelpVideos />
             {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
+            <Button className="secondary rich-add-comment" aria-label="添加 HTML 评论" title="添加 HTML 评论" disabled={loading||!snapshot.noteId||!!snapshot.error||!!openingOverlay||closingPanel} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
             <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" /></svg><span className="sr-only">刷新</span></Button>
             <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM7 10v7h7M10 7h7v7" /></svg><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
             <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6" /></svg><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
@@ -2939,6 +2984,8 @@ function App() {
           </div>
         </div>
       </header>
+      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} onPaste={event=>openRichPaste(null,event.currentTarget)} onClear={clearRichFormat}/>
+      </div>
 
       <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined}>
         <span className="status-count status-excerpt">{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
@@ -3277,6 +3324,7 @@ function App() {
                   aria-label={selectedNow ? `取消选择评论 #${comment.index}` : `选择评论 #${comment.index}`}
                   aria-pressed={selectedNow ? "true" : "false"}
                   tabIndex={0}
+                  onDoubleClick={event=>{if(comment.capabilities?.isHtml&&comment.richEditing?.supported&&!event.target.closest('button,input,select,textarea')){event.preventDefault();event.stopPropagation();openRichEditor(comment,event.currentTarget);}}}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
@@ -3310,7 +3358,13 @@ function App() {
                         onClick={event => { event.stopPropagation(); openFormatBrush(comment); }}
                       ><FormatBrushIcon /></Button>
                     )}
-                    {isModuleTitleAnchor ? <span className="title-anchor-badge" title="该评论作为当前模块的标题源">标题源</span> : null}
+                    <span className="rich-comment-actions">
+                      {comment.capabilities?.isHtml && <>
+                        <Button className="quick-action-btn rich-copy-format" aria-label={`复制评论 #${comment.index} 的格式`} title={comment.richFormat?.supported?'复制格式':comment.richFormat?.reason} disabled={loading||!comment.richFormat?.supported} onClick={event=>{event.stopPropagation();copyRichFormat(comment);}}><RichActionIcon name="copy"/></Button>
+                        <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑 HTML 评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit" size={20}/></Button>
+                      </>}
+                      {snapshot.richText?.clipboard && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴格式':'粘贴格式并转换为 HTML'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
+                    </span>
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
                       <span className={`direction-pill direction-${comment.linkDirection}`}>
@@ -3623,6 +3677,7 @@ function App() {
       </main>
 
         {moduleSettingsOpen && moduleSettings ? <ModuleSettingsDialog key={snapshot.noteId} settings={moduleSettings} noteId={snapshot.noteId} readError={snapshot.moduleSettingsError} onSave={saveModuleSettings} onClose={() => { if (currentNoteIdRef.current === snapshot.noteId) setModuleSettingsOpen(false); }} /> : null}
+      {richEditor && <RichCommentEditor plan={richEditor} onSave={saveRichComment} onClose={closeRichEditor}/>}
       {dialog ? (
         <Dialog dialog={dialog} loading={loading} onClose={() => setDialog(null)} />
       ) : null}

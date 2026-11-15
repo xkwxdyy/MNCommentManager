@@ -1,4 +1,5 @@
-import { marked } from 'marked';
+import { markdownToText } from '../../src/lib/markdownPlainText.mjs';
+export { markdownToText } from '../../src/lib/markdownPlainText.mjs';
 import { defaultSettings } from '../../src/lib/commentModules.mjs';
 const clone = (value) => JSON.parse(JSON.stringify(value));
 export const DEFAULT_STYLE = {
@@ -7,87 +8,6 @@ export const DEFAULT_STYLE = {
   textColor: '#175D62',
   backgroundColor: '#E3F2FD',
 };
-const math = (text) => /\$\$|\$[^$\n]+\$|\\\(|\\\[|\\begin\{/.test(text);
-function decode(text) {
-  const names = {
-    amp: '&',
-    lt: '<',
-    gt: '>',
-    quot: '"',
-    apos: "'",
-    nbsp: ' ',
-    copy: '©',
-    reg: '®',
-    trade: '™',
-    hellip: '…',
-    ndash: '–',
-    mdash: '—',
-  };
-  return String(text).replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (all, name) => {
-    if (name[0] !== '#') {
-      if (!(name in names)) throw Error('包含暂不支持的字符实体');
-      return names[name];
-    }
-    const n = name[1].toLowerCase() === 'x' ? parseInt(name.slice(2), 16) : Number(name.slice(1));
-    if (!Number.isInteger(n) || n <= 0 || n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff))
-      throw Error('字符实体无效');
-    return String.fromCodePoint(n);
-  });
-}
-export function markdownToText(source) {
-  try {
-    function inline(tokens) {
-      const mathSource = (rows) =>
-        (rows || [])
-          .map((t) =>
-            t.type === 'codespan' ? '' : t.tokens ? mathSource(t.tokens) : t.raw || t.text || '',
-          )
-          .join('');
-      if (math(mathSource(tokens))) throw Error('包含公式，暂不转换');
-      return (tokens || [])
-        .map((t) => {
-          if (['strong', 'em', 'del'].includes(t.type)) return inline(t.tokens);
-          if (t.type === 'codespan' || t.type === 'escape') return decode(t.text);
-          if (t.type === 'br') return '\n';
-          if (t.type === 'text') {
-            if (math(t.text)) throw Error('包含公式，暂不转换');
-            return t.tokens ? inline(t.tokens) : decode(t.text);
-          }
-          if (t.type === 'image') throw Error('包含图片，暂不转换');
-          if (t.type === 'link') throw Error('包含链接，暂不转换，以保留链接信息');
-          throw Error('包含 HTML 或复杂行内结构，暂不转换');
-        })
-        .join('');
-    }
-    function blocks(tokens, nested = false) {
-      return tokens
-        .filter((t) => t.type !== 'space')
-        .map((t) => {
-          if (['paragraph', 'heading', 'text'].includes(t.type))
-            return t.tokens ? inline(t.tokens) : decode(t.text);
-          if (t.type === 'code') return t.text;
-          if (t.type === 'list') {
-            if (nested || t.items.some((item) => item.task))
-              throw Error('包含嵌套或任务列表，暂不转换');
-            return t.items
-              .map(
-                (item, i) =>
-                  `${t.ordered ? Number(t.start || 1) + i + '.' : '•'} ${blocks(item.tokens, true)}`,
-              )
-              .join('\n');
-          }
-          if (t.type === 'table') throw Error('包含表格，暂不转换');
-          throw Error('包含引用、HTML 或其他复杂结构，暂不转换');
-        })
-        .join('\n\n');
-    }
-    const text = blocks(marked.lexer(String(source)));
-    if (!text.trim()) throw Error('没有可转换的显示文字');
-    return { supported: true, text, reason: '' };
-  } catch (e) {
-    return { supported: false, text: '', reason: e.message };
-  }
-}
 const rich = (key, text, style = DEFAULT_STYLE, extra = {}) => ({
   key,
   kind: 'html',
@@ -191,7 +111,7 @@ export function createStore(fixtures = FIXTURES) {
     fn(current().comments);
     if (JSON.stringify(before) === JSON.stringify(current().comments)) return false;
     const history = histories.get(currentId) || [];
-    history.push({ label, comments: before });
+    history.push({ label, comments: before, token: 'prototype-undo-' + ++serial });
     histories.set(currentId, history);
     revisions.set(currentId, revisions.get(currentId) + 1);
     emit(true);
@@ -300,6 +220,23 @@ export function createStore(fixtures = FIXTURES) {
         moduleSettings: defaultSettings(),
         excerpt: { present: false },
         commentFold: { supported: false },
+        richText: {
+          clipboard: clipboard
+            ? {
+                style: clone(clipboard.style),
+                text: clipboard.sourceText,
+                noteTitle: clipboard.sourceCard,
+                index: clipboard.sourceIndex,
+              }
+            : null,
+          undo: histories.get(currentId)?.length
+            ? {
+                noteId: currentId,
+                token: histories.get(currentId).slice(-1)[0].token,
+                label: histories.get(currentId).slice(-1)[0].label,
+              }
+            : null,
+        },
         comments: current().comments.map((c, index) => ({
           index,
           key: c.key,
@@ -317,6 +254,7 @@ export function createStore(fixtures = FIXTURES) {
                   reason: c.mixed ? '混合格式暂不支持格式刷' : '',
                 }
               : null,
+          richEditing: { supported: targetState(c).supported, reason: targetState(c).reason },
           capabilities: {
             isHtml: c.kind === 'html',
             isMarkdown: c.kind === 'markdown',

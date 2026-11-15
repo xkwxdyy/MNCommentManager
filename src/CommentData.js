@@ -480,6 +480,7 @@ var __MN_COMMENT_DATA__ = (function () {
       text,
       htmlText: rawComment && rawComment.type === "HtmlNote" ? text : "",
       richFormat: typeof __MN_COMMENT_RICH_FORMAT__ !== "undefined" && rawComment?.type === "HtmlNote" ? __MN_COMMENT_RICH_FORMAT__.describe(rawComment) : null,
+      richEditing: typeof __MN_RICH_COMMENTS_MNCommentManagerAddon__ !== "undefined" ? __MN_RICH_COMMENTS_MNCommentManagerAddon__.access(note.note || note, rawComment) : null,
       lifecycleStage: buildLifecycleStage(type, rawComment),
       capabilities,
       imageBase64,
@@ -542,6 +543,7 @@ var __MN_COMMENT_DATA__ = (function () {
       ...(typeof __MN_COMMENT_MODULE_STORE__ !== "undefined" ? __MN_COMMENT_MODULE_STORE__.snapshot() : {}),
       commentFold: { supported: foldState.supported, revision: foldState.revision, code: foldState.code || "", error: foldState.error || "", details: foldState.details },
       handwritingPendingCount,
+      richText: typeof __MN_RICH_COMMENTS_MNCommentManagerAddon__ !== "undefined" ? __MN_RICH_COMMENTS_MNCommentManagerAddon__.state(toStringValue(note.noteId)) : null,
       error: "",
     };
   }

@@ -138,6 +138,7 @@ function build() {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "mn-addon-build-"));
   const distDir = path.join(temporary, "payload");
   try {
+    execFileSync(process.execPath, [path.join(__dirname, 'sync-rich-markdown.mjs')], { stdio: 'inherit' });
     fs.cpSync(srcDir, distDir, { recursive: true,
       filter: source => source !== path.join(srcDir, "web-dist"),
     });

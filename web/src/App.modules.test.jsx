@@ -213,7 +213,7 @@ it('supports collapsible sidebar rail with search wake, lossless module title an
   );
 
   expect(card(2).classList.contains('comment-is-module-title-anchor')).toBe(true);
-  expect(card(2).querySelector('.title-anchor-badge')?.textContent).toBe('标题源');
+  expect(card(2).querySelector('.title-anchor-badge')).toBeNull();
   expect(card(3).classList.contains('comment-is-module-title-anchor')).toBe(false);
 
   snapshot={...snapshot,moduleSettings:{...snapshot.moduleSettings,defaultProfileId:'nested'},comments:snapshot.comments.map(c=>({...c,capabilities:{...c.capabilities,canMergeText:c.type!=='HtmlComment'}}))};

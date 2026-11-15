@@ -1500,7 +1500,8 @@
         "web/src/lib/contentSelection.test.js",
         "web/src/lib/markdownRenderer.test.js",
         "web/src/App.drag-overview.test.jsx",
-        "web/src/App.format-brush.test.jsx"
+        "web/src/App.format-brush.test.jsx",
+        "web/src/App.rich-comment.test.jsx"
       ]
     },
     {
@@ -1667,6 +1668,45 @@
       "argv": [
         "node",
         "scripts/test-format-brush.js"
+      ]
+    },
+    {
+      "name": "Syntax src/RichCommentLifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/RichCommentLifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMarkdown.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMarkdown.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/sync-rich-markdown.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/sync-rich-markdown.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-rich-comment-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-rich-comment-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-rich-comment-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-rich-comment-lifecycle.js"
       ]
     }
   ]

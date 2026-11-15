@@ -101,6 +101,7 @@ function makeBatchOverlayContext(send = async () => []) {
     setModuleSettingsOpen: value => { states.modules = value; }, setModuleResult: value => { states.moduleResult = value; },
     setDialog: value => { states.dialog = value; }, setInvalidLinkCleanup: value => { states.invalidLinks = value; },
     setFormatBrush: value => { states.formatBrush = value; },
+    setRichEditor() {}, richEditorRef:{current:null}, pendingRichNoteSync:{current:null},
     setSelectionActionsOpen: value => { states.selection = value; }, setOpeningOverlay: value => { states.opening = value; },
     setBatchEditor: value => { states.batch = value; }, hideBatchEditorRetainingDraft() { states.batch = null; },
   });
