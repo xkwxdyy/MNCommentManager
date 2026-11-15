@@ -95,3 +95,48 @@ assert.equal(noOp.card.comments[0].text, '## 定义\n\n算子 **T** 将有界集
 console.log(
   'Rich text prototype: cross-card format clipboard, Markdown conversion/protection, arbitrary RGB, metadata, create/edit, no-op/cancel safety, stale previews and full undo passed',
 );
+
+// The one-shot brush never reads or rewrites the cross-card format clipboard.
+const brushOnly = createStore();
+const brushBefore = brushOnly.card.comments;
+const brushPlan = brushOnly.brushPlan(0);
+assert.equal(brushPlan.mode, 'brush');
+assert.equal(brushOnly.clipboard, null);
+assert.deepEqual(
+  brushPlan.targets.map((t) => t.index),
+  [2, 4],
+);
+assert.equal(brushPlan.targets[1].eligible, false);
+assert.throws(() => brushOnly.brush(brushPlan, [0]));
+assert.throws(() => brushOnly.paste(brushPlan, [2]));
+assert.deepEqual(brushOnly.card.comments, brushBefore);
+brushOnly.brush(brushPlan, [2]);
+assert.equal(brushOnly.undoLabel, '撤销格式刷');
+assert.equal(brushOnly.clipboard, null);
+assert.deepEqual(brushOnly.card.comments[2].style, DEFAULT_STYLE);
+assert.equal(brushOnly.card.comments[2].text, brushBefore[2].text);
+brushOnly.undo();
+assert.deepEqual(brushOnly.card.comments, brushBefore);
+const separate = createStore();
+separate.copy(2);
+const orangeClipboard = separate.clipboard;
+separate.brush(separate.brushPlan(0), [2]);
+assert.deepEqual(separate.clipboard, orangeClipboard);
+separate.switchCard('demo-definition');
+separate.paste(separate.pastePlan(), [0]);
+assert.deepEqual(separate.card.comments[0].style, orangeClipboard.style);
+separate.undo();
+assert.equal(separate.card.comments[0].kind, 'markdown');
+separate.switchCard('demo-proof');
+separate.undo();
+assert.deepEqual(separate.card.comments, brushBefore);
+assert.deepEqual(separate.clipboard, orangeClipboard);
+const staleBrush = separate.brushPlan(0);
+const sourceDraft = separate.draft(0);
+separate.save(sourceDraft, '源正文变更', sourceDraft.style);
+assert.throws(() => separate.brush(staleBrush, [2]));
+assert.throws(() => separate.brushPlan(1));
+assert.throws(() => separate.brushPlan(4));
+console.log(
+  'Separate copy/paste and one-shot brush: source exclusion, HTML-only targets, no clipboard side effects, independent undo and stale-source guards passed',
+);

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import App from '../../src/App';
+import ActionIcon from '../../src/components/ActionIcon';
 import MNBridge from '../../src/lib/mnBridge';
-import { FormatBrushIcon, richTextStyle } from '../../src/components/FormatBrushDialog';
+import { richTextStyle } from '../../src/components/FormatBrushDialog';
 import { renderMarkdownToHtml } from '../../src/lib/markdownRenderer';
 import { createStore, targetState } from './model.mjs';
 import 'katex/dist/katex.min.css';
@@ -16,10 +17,14 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 160));
 let activeModalKey = null;
 document.addEventListener('keydown', (event) => activeModalKey?.(event), true);
 function Icon({ name }) {
-  const p = {
-    edit: (
+  const shared = { edit: 'edit', add: 'comment-add', reset: 'refresh', close: 'close' };
+  if (shared[name]) return <ActionIcon name={shared[name]} size={20} />;
+  // The shared pack has no copy, paste, or undo; retain their standard action symbols.
+  const paths = {
+    copy: (
       <>
-        <path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14z" />
+        <rect x="8" y="8" width="13" height="13" rx="2" />
+        <path d="M16 8V3H3v13h5" />
       </>
     ),
     paste: (
@@ -28,26 +33,20 @@ function Icon({ name }) {
         <path d="M9 5V2h6v3M9 12h6M9 16h4" />
       </>
     ),
-    add: <path d="M12 4v16M4 12h16" />,
     undo: <path d="m8 4-5 5 5 5M3 9h10a6 6 0 0 1 0 12" />,
-    reset: (
-      <>
-        <path d="M3 10a9 9 0 1 1 2 9M3 4v6h6" />
-      </>
-    ),
-    close: <path d="m6 6 12 12M18 6 6 18" />,
   };
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.85"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      data-prototype-icon={name}
     >
-      {p[name]}
+      {paths[name]}
     </svg>
   );
 }
@@ -303,10 +302,11 @@ function Editor({ plan, onClose, notice }) {
     </Modal>
   );
 }
-function Paste({ initial, onClose, notice }) {
+function FormatApplication({ initial, onClose, notice }) {
   const { plan, indices, trigger } = initial;
+  const isBrush = plan.mode === 'brush';
   const [selected, setSelected] = useState(
-      new Set(indices.filter((i) => plan.targets[i]?.eligible)),
+      new Set(indices.filter((i) => plan.targets.some((t) => t.index === i && t.eligible))),
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -318,8 +318,14 @@ function Paste({ initial, onClose, notice }) {
     setError('');
     try {
       await delay();
-      const changed = store.paste(plan, [...selected]);
-      notice(changed ? '格式已粘贴，评论已刷新' : '所选评论已具有相同格式');
+      const changed = isBrush ? store.brush(plan, [...selected]) : store.paste(plan, [...selected]);
+      notice(
+        changed
+          ? isBrush
+            ? '格式刷已应用，评论已刷新'
+            : '已粘贴复制的格式，评论已刷新'
+          : '所选评论已具有相同格式',
+      );
       onClose();
     } catch (e) {
       setError(e.message);
@@ -329,7 +335,7 @@ function Paste({ initial, onClose, notice }) {
   }
   return (
     <Modal
-      title="粘贴格式"
+      title={isBrush ? '格式刷' : '粘贴格式'}
       busy={busy}
       onClose={onClose}
       trigger={trigger}
@@ -342,7 +348,7 @@ function Paste({ initial, onClose, notice }) {
               取消
             </button>
             <button className="primary" disabled={busy || !selected.size} onClick={apply}>
-              {busy ? '正在应用…' : `应用到 ${selected.size} 条评论`}
+              {busy ? '正在应用…' : `${isBrush ? '刷到' : '粘贴到'} ${selected.size} 条评论`}
             </button>
           </div>
         </>
@@ -350,13 +356,13 @@ function Paste({ initial, onClose, notice }) {
     >
       <div className="rich-demo-source">
         <div>
-          <strong>已复制的格式</strong>
+          <strong>{isBrush ? '当前格式源' : '已复制的格式'}</strong>
           <span>{plan.source.sourceCard}</span>
         </div>
         <RichSample text={plan.source.sourceText} style={plan.source.style} />
       </div>
       <div className="rich-demo-target-heading">
-        <h3>目标评论</h3>
+        <h3>{isBrush ? '当前卡片的其他 HTML 评论' : '目标评论'}</h3>
         <button
           className="ghost"
           disabled={busy || !available.length}
@@ -367,7 +373,9 @@ function Paste({ initial, onClose, notice }) {
       </div>
       <div className="rich-demo-targets">
         {plan.targets.length === 0 ? (
-          <p className="muted">当前卡片没有评论，可先新增富文本。</p>
+          <p className="muted">
+            {isBrush ? '当前卡片没有其他 HTML 评论。' : '当前卡片没有评论，可先新增富文本。'}
+          </p>
         ) : (
           plan.targets.map((t) => (
             <article
@@ -377,7 +385,7 @@ function Paste({ initial, onClose, notice }) {
               <label>
                 <input
                   type="checkbox"
-                  aria-label={`粘贴到评论 #${t.index}`}
+                  aria-label={`${isBrush ? '格式刷到' : '粘贴到'}评论 #${t.index}`}
                   disabled={busy || !t.eligible}
                   checked={selected.has(t.index)}
                   onChange={() =>
@@ -452,10 +460,10 @@ function Prototype() {
   const [version, setVersion] = useState(0),
     [mounts, setMounts] = useState([]),
     [editor, setEditor] = useState(null),
-    [paste, setPaste] = useState(null),
+    [formatPlan, setFormatPlan] = useState(null),
     [message, setMessage] = useState('');
   const modalRef = useRef(false);
-  modalRef.current = !!editor || !!paste;
+  modalRef.current = !!editor || !!formatPlan;
   const notice = (text) => setMessage(text);
   function edit(index, trigger) {
     try {
@@ -466,7 +474,14 @@ function Prototype() {
   }
   function openPaste(indices = [], trigger = document.activeElement) {
     try {
-      setPaste({ plan: store.pastePlan(), indices, trigger });
+      setFormatPlan({ plan: store.pastePlan(), indices, trigger });
+    } catch (e) {
+      notice(e.message);
+    }
+  }
+  function openBrush(index, trigger = document.activeElement) {
+    try {
+      setFormatPlan({ plan: store.brushPlan(index), indices: [], trigger });
     } catch (e) {
       notice(e.message);
     }
@@ -495,8 +510,8 @@ function Prototype() {
         if (row.classList.contains('comment-kind-html'))
           row.querySelector('.comment-body')?.setAttribute('title', '双击编辑原生富文本');
         if (brush) {
-          if (!brush.disabled) brush.title = '复制格式';
-          brush.setAttribute('aria-label', `复制评论 #${index} 的格式`);
+          if (!brush.disabled) brush.title = '格式刷：应用到当前卡片的其他 HTML 评论';
+          brush.setAttribute('aria-label', `使用评论 #${index} 的格式刷`);
         }
         let target = head.querySelector('[data-rich-demo-actions]');
         if (!target) {
@@ -540,8 +555,7 @@ function Prototype() {
         e.stopImmediatePropagation();
         try {
           const index = Number(brush.closest('[data-comment-index]').dataset.commentIndex);
-          store.copy(index);
-          notice('格式已复制，可切换卡片后粘贴');
+          openBrush(index, brush);
         } catch (error) {
           notice(error.message);
         }
@@ -556,10 +570,9 @@ function Prototype() {
         ];
         if (selected.length === 1) {
           try {
-            store.copy(Number(selected[0].dataset.commentIndex));
             const trigger = document.getElementById('selection-actions-toggle');
             document.querySelector('.selection-actions-close')?.click();
-            openPaste([], trigger);
+            openBrush(Number(selected[0].dataset.commentIndex), trigger);
           } catch (error) {
             notice(error.message);
           }
@@ -587,7 +600,7 @@ function Prototype() {
   }, []);
   const card = store.card,
     clipboard = store.clipboard,
-    blocked = !!editor || !!paste;
+    blocked = !!editor || !!formatPlan;
   return (
     <div className="rich-demo-shell" data-revision={version}>
       <section className="rich-demo-toolbar" aria-label="原型导航">
@@ -654,7 +667,7 @@ function Prototype() {
         <div>
           {clipboard ? (
             <>
-              <FormatBrushIcon />
+              <Icon name="copy" />
               <span>
                 已复制「
                 {clipboard.sourceText.length > 12
@@ -674,13 +687,15 @@ function Prototype() {
               />
             </>
           ) : (
-            <span>点击 HTML 旁的格式刷图标复制格式</span>
+            <span>尚未复制格式</span>
           )}
         </div>
         {clipboard && (
           <div>
             <button
               className="ghost"
+              aria-label="批量粘贴已复制的格式"
+              title="批量粘贴已复制的格式"
               disabled={blocked || !card.comments.length}
               onClick={(e) => openPaste([], e.currentTarget)}
             >
@@ -711,6 +726,26 @@ function Prototype() {
         const state = targetState(c);
         return createPortal(
           <>
+            {c.kind === 'html' && (
+              <button
+                type="button"
+                className="quick-action-btn rich-demo-copy-format"
+                disabled={c.mixed}
+                aria-label={`复制评论 #${index} 的格式`}
+                title={c.mixed ? '混合格式暂不支持复制' : '复制格式：保留到跨卡片粘贴'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  try {
+                    store.copy(index);
+                    notice('格式已复制，可切换卡片后粘贴');
+                  } catch (error) {
+                    notice(error.message);
+                  }
+                }}
+              >
+                <Icon name="copy" />
+              </button>
+            )}
             {c.kind === 'html' && (
               <button
                 type="button"
@@ -752,7 +787,13 @@ function Prototype() {
         );
       })}
       {editor && <Editor plan={editor} onClose={() => setEditor(null)} notice={notice} />}
-      {paste && <Paste initial={paste} onClose={() => setPaste(null)} notice={notice} />}
+      {formatPlan && (
+        <FormatApplication
+          initial={formatPlan}
+          onClose={() => setFormatPlan(null)}
+          notice={notice}
+        />
+      )}
     </div>
   );
 }

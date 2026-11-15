@@ -206,6 +206,62 @@ export function createStore(fixtures = FIXTURES) {
     )
       throw Error('卡片或评论已变化，请重新打开预览');
   }
+  function readSource(index) {
+    const c = current().comments[index];
+    if (!c || c.kind !== 'html' || c.mixed) throw Error('仅支持具有统一样式的原生 HTML 评论');
+    return {
+      style: clone(c.style),
+      sourceCard: current().title,
+      sourceKey: c.key,
+      sourceText: c.text,
+      sourceIndex: index,
+    };
+  }
+  function makePlan(source, mode, sourceIndex = null) {
+    return {
+      cardId: currentId,
+      epoch,
+      revision: revisions.get(currentId),
+      mode,
+      source: clone(source),
+      targets: current()
+        .comments.map((c, index) => {
+          const state = targetState(c);
+          return {
+            index,
+            key: c.key,
+            kind: c.kind,
+            text: c.text,
+            style: clone(c.style || null),
+            afterText: state.text || '',
+            eligible: state.supported,
+            reason: state.reason,
+            converted: c.kind !== 'html',
+          };
+        })
+        .filter((c) => mode !== 'brush' || (c.kind === 'html' && c.index !== sourceIndex)),
+    };
+  }
+  function applyPlan(plan, indices, mode) {
+    guard(plan);
+    if (plan.mode !== mode) throw Error('操作类型已变化，请重新打开预览');
+    if (!Array.isArray(indices) || !indices.length || new Set(indices).size !== indices.length)
+      throw Error('请选择目标评论');
+    const rows = indices.map((i) => plan.targets.find((c) => c.index === i));
+    if (rows.some((c) => !c?.eligible)) throw Error('目标含有不支持转换的内容');
+    if (rows.some((c) => current().comments[c.index]?.key !== c.key)) throw Error('评论位置已变化');
+    const style = validateStyle(plan.source.style);
+    return mutate(mode === 'brush' ? '撤销格式刷' : '撤销粘贴格式', (comments) =>
+      rows.forEach((c) => {
+        comments[c.index] = {
+          ...comments[c.index],
+          kind: 'html',
+          text: c.afterText,
+          style: clone(style),
+        };
+      }),
+    );
+  }
   function draft(index = null) {
     const c = index === null ? null : current().comments[index];
     if (index !== null && (!c || c.kind !== 'html' || !targetState(c).supported))
@@ -278,15 +334,7 @@ export function createStore(fixtures = FIXTURES) {
       emit(true);
     },
     copy(index) {
-      const c = current().comments[index];
-      if (!c || c.kind !== 'html' || c.mixed) throw Error('仅支持具有统一样式的原生 HTML 评论');
-      clipboard = {
-        style: clone(c.style),
-        sourceCard: current().title,
-        sourceKey: c.key,
-        sourceText: c.text,
-        serial: ++serial,
-      };
+      clipboard = { ...readSource(index), serial: ++serial };
       emit();
       return this.clipboard;
     },
@@ -296,41 +344,16 @@ export function createStore(fixtures = FIXTURES) {
     },
     pastePlan() {
       if (!clipboard) throw Error('请先复制格式');
-      return {
-        cardId: currentId,
-        epoch,
-        revision: revisions.get(currentId),
-        source: clone(clipboard),
-        targets: current().comments.map((c, index) => {
-          const state = targetState(c);
-          return {
-            index,
-            key: c.key,
-            kind: c.kind,
-            text: c.text,
-            style: c.style,
-            afterText: state.text || '',
-            eligible: state.supported,
-            reason: state.reason,
-            converted: c.kind !== 'html',
-          };
-        }),
-      };
+      return makePlan(clipboard, 'paste');
+    },
+    brushPlan(index) {
+      return makePlan(readSource(index), 'brush', index);
     },
     paste(plan, indices) {
-      guard(plan);
-      if (!Array.isArray(indices) || !indices.length || new Set(indices).size !== indices.length)
-        throw Error('请选择目标评论');
-      const rows = indices.map((i) => plan.targets.find((c) => c.index === i));
-      if (rows.some((c) => !c?.eligible)) throw Error('目标含有不支持转换的内容');
-      const style = validateStyle(plan.source.style);
-      return mutate('撤销粘贴格式', (comments) =>
-        rows.forEach((c) => {
-          const old = comments[c.index];
-          if (old.key !== c.key) throw Error('评论位置已变化');
-          comments[c.index] = { ...old, kind: 'html', text: c.afterText, style: clone(style) };
-        }),
-      );
+      return applyPlan(plan, indices, 'paste');
+    },
+    brush(plan, indices) {
+      return applyPlan(plan, indices, 'brush');
     },
     draft,
     save(plan, text, style) {

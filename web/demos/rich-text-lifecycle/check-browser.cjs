@@ -10,6 +10,7 @@ const sampleFile = path.resolve(
 );
 const output = path.resolve(process.argv[3] || 'artifacts/rich-text-lifecycle-prototype/checks');
 const target = (i) => `[aria-label="粘贴到评论 #${i}"]`;
+const copyRow = (i) => `[aria-label="复制评论 #${i} 的格式"]`;
 const pasteRow = (i) => `[aria-label="粘贴格式到评论 #${i}"]`;
 const editRow = (i) => `[aria-label="编辑富文本评论 #${i}"]`;
 const undo = '[aria-label="撤销最近操作"]';
@@ -144,12 +145,67 @@ function assertGeometry(g) {
       );
       await page.waitForSelector('.rich-demo-dialog');
       assert.equal(await page.$eval('.selection-actions-panel', (e) => e.hidden), true);
+      assert.equal(await page.$eval('#rich-demo-dialog-title', (e) => e.textContent), '格式刷');
+      assert.equal(await page.$$('.rich-demo-target').then((e) => e.length), 2);
+      assert.equal(await page.$$('.rich-demo-paste').then((e) => e.length), 0);
       await page.keyboard.press('Escape');
       await closeDialog(page);
       await page.click('#comment-0 .selection-checkbox');
-
+      assert.equal(await page.$$('.rich-demo-clipboard.has-format').then((e) => e.length), 0);
+      // Direct brush applies once without copying or changing the cross-card clipboard.
       await page.click('#comment-0-format-brush');
+      await page.waitForSelector('.rich-demo-dialog');
+      await page.click('[aria-label="格式刷到评论 #2"]');
+      await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-brush.png`) });
+      await page.click('.rich-demo-dialog footer .primary');
+      await closeDialog(page);
+      await page.waitForFunction(
+        () =>
+          document.querySelector('#comment-2 pre')?.style.backgroundColor === 'rgb(227, 242, 253)',
+      );
+      assert.equal(await page.$$('.rich-demo-clipboard.has-format').then((e) => e.length), 0);
+      await page.click(undo);
+      await page.waitForFunction(
+        () =>
+          document.querySelector('#comment-2 pre')?.style.backgroundColor === 'rgb(255, 240, 220)',
+      );
+      assert.deepEqual(await rows(page), originalProof);
+      await page.click(copyRow(0));
       await page.waitForSelector(pasteRow(0));
+      assert.equal(await page.$$('.rich-demo-dialog').then((e) => e.length), 0);
+      const copiedStrip = await page.$eval('.rich-demo-clipboard', (e) => e.textContent);
+      await page.click('#comment-2-format-brush');
+      await page.waitForSelector('.rich-demo-dialog');
+      assert.equal(
+        await page.$eval('.rich-demo-source pre', (e) => e.style.backgroundColor),
+        'rgb(255, 240, 220)',
+      );
+      await page.click('[aria-label="格式刷到评论 #0"]');
+      await page.click('.rich-demo-dialog footer .primary');
+      await closeDialog(page);
+      await page.waitForFunction(
+        () =>
+          document.querySelector('#comment-0 pre')?.style.backgroundColor === 'rgb(255, 240, 220)',
+      );
+      assert.equal(
+        await page.$eval(
+          '.rich-demo-clipboard .rich-demo-color-dot:last-child',
+          (e) => e.style.backgroundColor,
+        ),
+        'rgb(227, 242, 253)',
+      );
+      assert.equal(await page.$eval('.rich-demo-clipboard', (e) => e.textContent), copiedStrip);
+      await page.click(undo);
+      await page.waitForFunction(
+        () =>
+          document.querySelector('#comment-0 pre')?.style.backgroundColor === 'rgb(227, 242, 253)',
+      );
+      assert.deepEqual(await rows(page), originalProof);
+      // Shared icons are present on all actions supplied by the approved pack.
+      assert(await page.$('#comment-0-format-brush [data-action-icon="paintbrush"]'));
+      assert(await page.$(`${editRow(0)} [data-action-icon="edit"]`));
+      assert(await page.$('.rich-demo-add [data-action-icon="comment-add"]'));
+      assert(await page.$(`${copyRow(0)} [data-prototype-icon="copy"]`));
       assert.equal(await page.$eval('#comment-0', (e) => e.getAttribute('aria-pressed')), 'false');
       assert.equal(await page.$eval(editRow(4), (e) => e.disabled), true);
       assert.equal(await page.$eval(pasteRow(5), (e) => e.disabled), true);
@@ -357,6 +413,9 @@ function assertGeometry(g) {
         passed: true,
         checks: [
           'copy-without-selection',
+          'one-shot-brush-independent-from-copy',
+          'brush-html-only-source-excluded',
+          'shared-icon-system',
           'double-click-edit',
           'clear-format-clipboard',
           'cross-card-style-clipboard',

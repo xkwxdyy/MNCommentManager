@@ -473,8 +473,21 @@
     gap: 0;
   }
   .rich-demo-clipboard > div:first-child {
-    flex-basis: 100%;
-    min-height: 36px;
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+  .rich-demo-clipboard .rich-demo-color-dot {
+    display: none;
+  }
+  .rich-demo-clipboard .ghost {
+    width: 44px;
+    padding: 10px;
+    font-size: 0;
+    gap: 0;
+  }
+  /* Rich text actions take priority on phones; move/delete remain in More. */
+  .rich-demo-panel .comment-inline-actions {
+    display: none;
   }
   .rich-demo-clipboard > div:last-child:not(:first-child) {
     margin-left: auto;
