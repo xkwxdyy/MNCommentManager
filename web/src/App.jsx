@@ -93,9 +93,17 @@ function getLongPressDelay(event, baseMs) {
   return isPencil ? Math.min(Number(baseMs) + 220, 760) : Number(baseMs);
 }
 
+const RICH_COMMENT_META = { label: "富文本", filter: "html" };
+
 function getTypeMeta(comment) {
   if (comment?.type === "textComment" && comment?.capabilities?.isMarkdown) {
     return TYPE_META.markdownComment;
+  }
+  if (
+    comment?.type === "HtmlComment" &&
+    (comment?.capabilities?.isRichRtf || (comment?.richFormat && !comment?.capabilities?.isHtmlMarkup))
+  ) {
+    return RICH_COMMENT_META;
   }
   return TYPE_META[comment?.type] || TYPE_META.unknownComment;
 }
@@ -1196,6 +1204,10 @@ function App() {
     excerptCanCopyImage || (!excerptSelected && canComment(selectedComments[0], "canCopyImage"))
   );
   const selectedCanEditText = !excerptSelected && hasOneSelection && canComment(selectedComments[0], "canEditText");
+  const selectedCanEditRich = !excerptSelected && hasOneSelection && !!selectedComments[0]?.capabilities?.isHtml && !selectedComments[0]?.capabilities?.isHtmlMarkup;
+  const selectedRichEditSupported = selectedCanEditRich && !!selectedComments[0]?.richEditing?.supported;
+  const selectedRichEditReason = selectedCanEditRich ? (selectedComments[0]?.richEditing?.reason || "当前评论暂不支持编辑") : "";
+  const canPasteRichToSelection = !!snapshot.richText?.clipboard && hasSelection && !excerptSelected && selectedComments.some((comment) => comment?.richEditing?.supported);
   const selectedCanMergeText = hasMultiSelection && excerptCanMergeText && allSelectedCan(selectedComments, "canMergeText") && allSelectedCan(selectedComments, "canCopyText");
   const selectedCommentsCanMergeToExcerpt = selectedComments.length >= (excerptSelected ? 1 : 2)
     && allSelectedCan(selectedComments, "canMergeText")
@@ -2319,7 +2331,7 @@ function App() {
       return;
     }
     if ((!rangePicking && !insertMode) || loading || commandInFlightRef.current) return;
-    if (dialog || moduleSettingsOpen || moduleActionModalOpen || selectionActionsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || selectionActionsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
     if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     const target = event.target;
     if (target.closest?.('textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
@@ -2512,9 +2524,16 @@ function App() {
     setDialog({
       kind: "editCommentText",
       title: `编辑评论 #${index}`,
-      body: "只修改这条评论的文本内容；如需维护卡片链接，请使用链接相关操作。",
+      body: "修改这条评论的文本内容；可切换 Markdown 解析或升级为自定义富文本样式。",
       inputLabel: "评论内容",
       inputValue: commentText(current),
+      checkboxLabel: current?.originalType === "LinkNote" ? undefined : "按 Markdown 格式解析",
+      checkboxDescription: current?.originalType === "LinkNote" ? undefined : "开启后支持标题、强调、列表、公式与行内链接。",
+      checkboxDefault: !!current?.capabilities?.isMarkdown,
+      secondaryActionLabel: typeof openRichEditor === "function" && current?.richEditing?.supported ? "转为富文本样式…" : undefined,
+      onSecondaryAction: typeof openRichEditor === "function" && current?.richEditing?.supported
+        ? () => openRichEditor(current, returnFocusTarget || returnFocusFallback, "rich")
+        : undefined,
       confirmText: "保存",
       pendingText: "保存中…",
       closeOnConfirmSuccess: true,
@@ -2522,12 +2541,48 @@ function App() {
       returnFocusFallback: returnFocusFallback && typeof returnFocusFallback.focus === "function"
         ? returnFocusFallback
         : null,
-      onConfirm: async (value) => {
+      onConfirm: async (value, options) => {
         await runCommand("editCommentText", {
           noteId: snapshot.noteId,
           index,
           text: value,
-          markdown: !!current?.capabilities?.isMarkdown,
+          markdown: options && typeof options.checked === "boolean" ? options.checked : !!current?.capabilities?.isMarkdown,
+        }, { message: "评论已更新" });
+      },
+    });
+  };
+
+  const openTextEditByComment = (comment, trigger = null) => {
+    if (!comment || !canComment(comment, "canEditText")) return;
+    const index = comment.index;
+    const returnFocusTarget = trigger && typeof trigger.focus === "function" ? trigger : null;
+    const returnFocusFallback = document.getElementById(`comment-${index}`) || document.getElementById("selection-summary");
+    setDialog({
+      kind: "editCommentText",
+      title: `编辑评论 #${index}`,
+      body: "修改这条评论的文本内容；可切换 Markdown 解析或升级为自定义富文本样式。",
+      inputLabel: "评论内容",
+      inputValue: commentText(comment),
+      checkboxLabel: comment?.originalType === "LinkNote" ? undefined : "按 Markdown 格式解析",
+      checkboxDescription: comment?.originalType === "LinkNote" ? undefined : "开启后支持标题、强调、列表、公式与行内链接。",
+      checkboxDefault: !!comment?.capabilities?.isMarkdown,
+      secondaryActionLabel: comment?.richEditing?.supported ? "转为富文本样式…" : undefined,
+      onSecondaryAction: comment?.richEditing?.supported
+        ? () => openRichEditor(comment, returnFocusTarget || returnFocusFallback, "rich")
+        : undefined,
+      confirmText: "保存",
+      pendingText: "保存中…",
+      closeOnConfirmSuccess: true,
+      returnFocusTarget,
+      returnFocusFallback: returnFocusFallback && typeof returnFocusFallback.focus === "function"
+        ? returnFocusFallback
+        : null,
+      onConfirm: async (value, options) => {
+        await runCommand("editCommentText", {
+          noteId: snapshot.noteId,
+          index,
+          text: value,
+          markdown: options && typeof options.checked === "boolean" ? options.checked : !!comment?.capabilities?.isMarkdown,
         }, { message: "评论已更新" });
       },
     });
@@ -2562,7 +2617,7 @@ function App() {
 
   const openConvertHtmlToMarkdownDialog = (event) => {
     if (!selectedHasHtmlComments) {
-      notifyStatus("先选择 HTML 评论");
+      notifyStatus("先选择富文本或 HTML 评论");
       return;
     }
     const skipped = selectedComments.length - selectedHtmlComments.length;
@@ -2571,10 +2626,10 @@ function App() {
       closeBeforeConfirm: true,
       title: "转为 Markdown",
       body: [
-        `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条 HTML 评论。`,
-        skipped > 0 ? `另外 ${skipped} 条非 HTML 评论会跳过。` : "",
+        `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条富文本 / HTML 评论。`,
+        skipped > 0 ? `另外 ${skipped} 条其他类型评论会跳过。` : "",
         excerptSelected ? "所选原生摘录保持不变，卡片不会转为非摘录版。" : "",
-        "可保留的标题、强调、链接、图片、列表和代码会转为 Markdown；含不支持的样式或结构时保留原 HTML。",
+        "原生富文本会移除颜色与字号样式并保留正文；模板 HTML 的标题、强调、链接、列表和代码会转为 Markdown，不支持的复杂结构保留原样。",
       ].filter(Boolean).join("\n"),
       confirmText: "确认转换",
       returnFocusTarget: event?.currentTarget || null,
@@ -2583,7 +2638,7 @@ function App() {
         await runCommand("convertHtmlCommentsToMarkdown", {
           noteId: snapshot.noteId,
           indices: selectedIndices,
-        }, { message: excerptSelected ? "HTML 评论已转为 Markdown；原生摘录保持不变" : "HTML 评论已转为 Markdown" });
+        }, { message: excerptSelected ? "已转为 Markdown；原生摘录保持不变" : "已转为 Markdown" });
       },
     });
   };
@@ -2690,26 +2745,28 @@ function App() {
     const noteId=snapshot.noteId;
     try {const result=await runCommand('clearRichCommentFormat',{noteId},{keepSelection:true,expectedNoteId:noteId,message:''});if(appMountedRef.current&&result?.state)setSnapshot(old=>({...old,richText:{...(old.richText||{}),...(old.noteId===noteId?result.state:{}),clipboard:result.state.clipboard}}));}catch(_){}
   };
-  const openRichPaste = async (comment=null,trigger=document.activeElement) => {
+  const openRichPaste = async (comment=null,trigger=document.activeElement,preselected=[]) => {
     if(loading||!snapshot.richText?.clipboard)return;
     const noteId=snapshot.noteId;
     if(selectionActionsOpen)closeSelectionActions();
-    try {const result=await runCommand('getRichCommentPastePreview',{noteId,...(comment?{targetIndex:comment.index,expectedText:comment.text}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setFormatBrush({...result,returnFocus:trigger});}catch(_){}
+    const extra=comment?{targetIndex:comment.index,expectedText:comment.text}:preselected.length>0?{selectedIndices:preselected}:{};
+    try {const result=await runCommand('getRichCommentPastePreview',{noteId,...extra},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setFormatBrush({...result,returnFocus:trigger});}catch(_){}
   };
-  const openRichEditor = async (comment=null,trigger=document.activeElement) => {
+  const openRichEditor = async (comment=null,trigger=document.activeElement,initialMode=undefined) => {
     if(loading||(!comment&&(!snapshot.noteId||snapshot.error)))return;
     const noteId=snapshot.noteId;
-    try {const result=await runCommand('getRichCommentDraft',{noteId,index:comment?.index??null,...(comment?{expectedText:comment.text}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setRichEditor({...result,trigger});}catch(_){}
+    if(selectionActionsOpen)closeSelectionActions();
+    try {const result=await runCommand('getRichCommentDraft',{noteId,index:comment?.index??null,...(comment?{expectedText:comment.text}:{}),...(initialMode?{initialMode}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setRichEditor({...result,trigger});}catch(_){}
   };
   const closeRichEditor = () => {
     setRichEditor(null);richEditorRef.current=null;
     const pending=pendingRichNoteSync.current;pendingRichNoteSync.current=null;
     if(pending)window.__MNCommentManagerNativeSync?.(pending);
   };
-  const saveRichComment = async (text,style) => {
+  const saveRichComment = async (text,style,mode='rich') => {
     const plan=richEditor;
     if(!plan||currentNoteIdRef.current!==plan.noteId)throw Error('当前卡片已变化，评论尚未保存');
-    await runCommand('saveRichComment',{noteId:plan.noteId,token:plan.token,text,style},{expectedNoteId:plan.noteId,refreshOnError:true});
+    await runCommand('saveRichComment',{noteId:plan.noteId,token:plan.token,text,style,...(mode&&mode!=='rich'?{mode}:{})},{expectedNoteId:plan.noteId,refreshOnError:true});
   };
   const applyFormatBrush = async indices => {
     const plan=formatBrush;if(!plan)return;
@@ -2732,8 +2789,11 @@ function App() {
   const hasMoveActions = moveActions.length > 0 || canPickInsertPosition;
   const processActions = [
     { key: "format-brush", label: "格式刷", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: () => openFormatBrush() },
+    { key: "copy-rich-format", label: "复制格式", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: () => { copyRichFormat(formatBrushSource); closeSelectionActions(); } },
+    { key: "paste-rich-format", label: "粘贴格式", visible: canPasteRichToSelection, onClick: () => openRichPaste(null, document.getElementById("selection-actions-toggle"), selectedIndices) },
     { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
+    { key: "edit-rich", label: "编辑富文本", visible: selectedCanEditRich, disabled: !selectedRichEditSupported, title: selectedRichEditReason, onClick: () => openRichEditor(selectedComments[0], document.getElementById("selection-actions-toggle")) },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
     { key: "html-to-markdown", label: "转为 Markdown", visible: selectedHasHtmlComments, onClick: openConvertHtmlToMarkdownDialog },
     { key: "merge-text", label: "合并文本", visible: selectedCanMergeAction, onClick: openMergeDialog },
@@ -2876,7 +2936,7 @@ function App() {
       if (window.__MNCommentManagerRequestedView !== "workflow") return;
       if (workflowManager) { window.__MNCommentManagerRequestedView = ""; return; }
       if (loading || openingOverlay || closingPanel) return;
-      if (dialog || moduleSettingsOpen || moduleActionModalOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
+      if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
         notifyStatus("请先完成或关闭当前编辑窗口，随后会打开工作流设置");
         return;
       }
@@ -2886,7 +2946,7 @@ function App() {
     window.__MNCommentManagerOpenWorkflow = openRequestedWorkflow;
     openRequestedWorkflow();
     return () => { delete window.__MNCommentManagerOpenWorkflow; };
-  }, [workflowManager, loading, dialog, moduleSettingsOpen, moduleActionModalOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  }, [workflowManager, loading, formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
 
   const closePanel = async () => {
     if (panelCloseRef.current) return;
@@ -2938,7 +2998,7 @@ function App() {
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
-          {richUndo && <Button className="ghost format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次格式刷'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
+          {richUndo && <Button className="ghost format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次富文本修改'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
@@ -2976,15 +3036,15 @@ function App() {
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
             <HelpVideos />
             {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
-            <Button className="secondary rich-add-comment" aria-label="添加 HTML 评论" title="添加 HTML 评论" disabled={loading||!snapshot.noteId||!!snapshot.error||!!openingOverlay||closingPanel} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
-            <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" /></svg><span className="sr-only">刷新</span></Button>
-            <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM7 10v7h7M10 7h7v7" /></svg><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
-            <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6" /></svg><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
-            <Button className="secondary" aria-label="关闭" title="关闭评论管理器" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel} aria-busy={closingPanel || undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg><span className="sr-only">{closingPanel ? "关闭中…" : "关闭"}</span></Button>
+            <Button className="secondary rich-add-comment" aria-label="新建评论" title="新建评论（普通文本 / Markdown / 富文本）" disabled={loading||!snapshot.noteId||!!snapshot.error||!!openingOverlay||closingPanel} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
+            <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><ActionIcon name="refresh" /><span className="sr-only">刷新</span></Button>
+            <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><ActionIcon name="workflow" /><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
+            <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><ActionIcon name="settings-sliders" /><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
+            <Button className="secondary" aria-label="关闭" title="关闭评论管理器" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel} aria-busy={closingPanel || undefined}><ActionIcon name="close" /><span className="sr-only">{closingPanel ? "关闭中…" : "关闭"}</span></Button>
           </div>
         </div>
       </header>
-      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} onPaste={event=>openRichPaste(null,event.currentTarget)} onClear={clearRichFormat}/>
+      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} onPaste={event=>openRichPaste(null,event.currentTarget,selectedIndices)} onClear={clearRichFormat}/>
       </div>
 
       <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined}>
@@ -3056,17 +3116,11 @@ function App() {
                 requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
               }}
             >
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <path d="m13 13 4 4" strokeLinecap="round" />
-              </svg>
+              <ActionIcon name="search" />
             </Button>
             <div className="search-box" role="search" aria-label="查找评论">
               <label htmlFor="comment-search">搜索评论</label>
-              <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <path d="m13 13 4 4" strokeLinecap="round" />
-              </svg>
+              <ActionIcon name="search" className="search-icon" />
               <input
                 ref={searchInputRef}
                 id="comment-search"
@@ -3237,7 +3291,7 @@ function App() {
                   <Button className="quick-action-btn" disabled title="原生摘录已在最上方" aria-label="上移摘录">↑</Button>
                   <Button
                     className="quick-action-btn"
-                    disabled={loading || !!dialog || comments.length === 0 || excerpt?.conversion?.eligible !== true}
+                    disabled={loading || !!formatBrush || !!richEditor || !!dialog || comments.length === 0 || excerpt?.conversion?.eligible !== true}
                     title={excerpt?.conversion?.eligible !== true ? getExcerptConversionError(excerpt) : comments.length === 0 ? "已在最下方" : "转为非摘录版并下移一位"}
                     aria-label="下移摘录"
                     onClick={(event) => {
@@ -3324,7 +3378,7 @@ function App() {
                   aria-label={selectedNow ? `取消选择评论 #${comment.index}` : `选择评论 #${comment.index}`}
                   aria-pressed={selectedNow ? "true" : "false"}
                   tabIndex={0}
-                  onDoubleClick={event=>{if(comment.capabilities?.isHtml&&comment.richEditing?.supported&&!event.target.closest('button,input,select,textarea')){event.preventDefault();event.stopPropagation();openRichEditor(comment,event.currentTarget);}}}
+                  onDoubleClick={event=>{if(event.target.closest('button,input,select,textarea,a'))return;if(comment.capabilities?.isHtml&&comment.richEditing?.supported){event.preventDefault();event.stopPropagation();openRichEditor(comment,event.currentTarget);}else if(canComment(comment,"canEditText")){event.preventDefault();event.stopPropagation();openTextEditByComment(comment,event.currentTarget);}}}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
@@ -3348,7 +3402,7 @@ function App() {
                     />
                     <span className="comment-index">#{comment.index}</span>
                     <span className={`type-pill type-${meta.filter}`}>{meta.label}</span>
-                    {comment.capabilities?.isHtml && (
+                    {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && (
                       <Button
                         id={`comment-${comment.index}-format-brush`}
                         className="quick-action-btn format-brush-button"
@@ -3359,11 +3413,11 @@ function App() {
                       ><FormatBrushIcon /></Button>
                     )}
                     <span className="rich-comment-actions">
-                      {comment.capabilities?.isHtml && <>
+                      {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && <>
                         <Button className="quick-action-btn rich-copy-format" aria-label={`复制评论 #${comment.index} 的格式`} title={comment.richFormat?.supported?'复制格式':comment.richFormat?.reason} disabled={loading||!comment.richFormat?.supported} onClick={event=>{event.stopPropagation();copyRichFormat(comment);}}><RichActionIcon name="copy"/></Button>
-                        <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑 HTML 评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit" size={20}/></Button>
+                        <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑${meta.label}评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit"/></Button>
                       </>}
-                      {snapshot.richText?.clipboard && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴格式':'粘贴格式并转换为 HTML'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
+                      {snapshot.richText?.clipboard && !comment.capabilities?.isMedia && comment.type !== "linkComment" && comment.type !== "summaryComment" && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴格式':'粘贴格式并转为富文本'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
                     </span>
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
@@ -3590,6 +3644,10 @@ function App() {
                 </Button>
               ) : selectedCanEditText ? (
                 <Button key="quick-edit" className="secondary quick-batch-btn" disabled={loading} title="编辑所选评论文本" onClick={openEditDialog}>
+                  编辑所选
+                </Button>
+              ) : selectedCanEditRich ? (
+                <Button key="quick-edit-rich" className="secondary quick-batch-btn" disabled={loading || !selectedRichEditSupported} title={selectedRichEditSupported ? "编辑所选富文本评论" : selectedRichEditReason} onClick={(event) => openRichEditor(selectedComments[0], event.currentTarget)}>
                   编辑所选
                 </Button>
               ) : null}
@@ -4319,10 +4377,7 @@ function ActionButtonSettingsDialog({
       label: "显示管理按钮",
       hint: "单击与长按分别设置；下拉箭头始终打开整卡操作，并随管理入口一起显隐和排序。",
       icon: (
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 3.5h12a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H8L4 18v-2.5A1.5 1.5 0 0 1 2.5 14V5A1.5 1.5 0 0 1 4 3.5Z" />
-          <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4.5" />
-        </svg>
+        <ActionIcon name="comments" />
       ),
       actions: [
         ["managementTapAction", "管理按钮单击", "manager"],
@@ -4335,10 +4390,7 @@ function ActionButtonSettingsDialog({
       label: "显示添加评论按钮",
       hint: "单击与长按的动作可以分别设置。",
       icon: (
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H8.5L5 17v-2.5H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5Z" />
-          <path d="M10 7.25v4.5M7.75 9.5h4.5" />
-        </svg>
+        <ActionIcon name="comment-add" />
       ),
       actions: [
         ["addTapAction", "添加按钮单击", "quickInput"],
@@ -5905,6 +5957,13 @@ function TextDialog({ dialog, loading, onClose }) {
     }
   };
 
+  const handleSecondaryAction = () => {
+    if (busy || typeof dialog.onSecondaryAction !== "function") return;
+    const dismiss = requestClose;
+    dismiss();
+    dialog.onSecondaryAction(value);
+  };
+
   const handleConfirm = () => {
     if (busy) return undefined;
     if (!closeOnConfirmSuccess) {
@@ -6016,6 +6075,7 @@ function TextDialog({ dialog, loading, onClose }) {
         ) : null}
         <div className="dialog-actions">
           {dialog.inputLabel ? <span className="dialog-shortcut-hint" aria-hidden="true">⌘/Ctrl + Enter 提交</span> : null}
+          {dialog.secondaryActionLabel && typeof dialog.onSecondaryAction === "function" ? <Button className="secondary" disabled={busy} onClick={handleSecondaryAction}>{dialog.secondaryActionLabel}</Button> : null}
           {dialog.hideCancel !== true ? <Button className="secondary" disabled={busy} onClick={requestClose}>取消</Button> : null}
           <Button
             className={dialog.danger ? "danger" : "primary"}

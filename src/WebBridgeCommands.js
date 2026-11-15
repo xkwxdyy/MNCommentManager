@@ -410,7 +410,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     getRichCommentDraft: (_context, payload) => __MN_RICH_COMMENTS_MNCommentManagerAddon__.draft(payload),
     saveRichComment: (_context, payload) => __MN_RICH_COMMENTS_MNCommentManagerAddon__.save(payload),
     undoRichComment: (_context, payload) => __MN_RICH_COMMENTS_MNCommentManagerAddon__.undo(payload),
-    getFormatBrushPreview: (_context, payload) => __MN_COMMENT_FORMAT_BRUSH__.preview(payload.noteId, payload.sourceIndex),
+    getFormatBrushPreview: (_context, payload) => __MN_RICH_COMMENTS_MNCommentManagerAddon__.previewFormat(Object.assign({}, payload || {}, { includeConvertible: true }), 'brush'),
     applyFormatBrush: (_context, payload) => __MN_COMMENT_FORMAT_BRUSH__.apply(payload),
     undoFormatBrush: (_context, payload) => __MN_COMMENT_FORMAT_BRUSH__.undo(payload),
     convertHtmlCommentsToMarkdown,

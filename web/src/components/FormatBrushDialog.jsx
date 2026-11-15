@@ -40,6 +40,7 @@ export default function FormatBrushDialog({ preview, busy, onApply, onClose }) {
       mode={isPaste ? 'paste' : 'brush'}
       busy={working}
       onClose={onClose}
+      onConfirmShortcut={apply}
       trigger={preview.returnFocus}
       wide
       footer={
@@ -68,7 +69,7 @@ export default function FormatBrushDialog({ preview, busy, onApply, onClose }) {
         <RichSample text={preview.source.text} style={preview.source.style} />
       </div>
       <div className="brush-target-heading">
-        <h3>{isPaste ? '选择目标评论' : '当前卡片的其他 HTML 评论'}</h3>
+        <h3>{isPaste ? '选择目标评论' : '选择要应用格式的评论'}</h3>
         <button
           className="ghost"
           disabled={working || !available.length}
@@ -80,7 +81,7 @@ export default function FormatBrushDialog({ preview, busy, onApply, onClose }) {
       <div className="brush-target-list">
         {preview.targets.length === 0 ? (
           <p className="brush-empty">
-            {isPaste ? '当前卡片没有评论，可以先添加 HTML 评论。' : '当前卡片没有其他 HTML 评论。'}
+            {isPaste ? '当前卡片没有可粘贴格式的评论，可先新建评论。' : '当前卡片没有其他可应用格式的评论。'}
           </p>
         ) : (
           preview.targets.map((t) => (
@@ -105,11 +106,11 @@ export default function FormatBrushDialog({ preview, busy, onApply, onClose }) {
                 <span>
                   #{t.index} ·{' '}
                   {
-                    { markdown: 'Markdown', text: '文本', html: 'HTML', media: '媒体' }[
+                    { markdown: 'Markdown', text: '文本', html: '富文本', media: '媒体' }[
                       t.kind || 'html'
                     ]
                   }
-                  {t.eligible && t.kind && t.kind !== 'html' ? ' → HTML' : ''}
+                  {t.eligible && t.kind && t.kind !== 'html' ? ' → 富文本' : ''}
                 </span>
                 {!t.eligible && <small>{t.reason}</small>}
               </label>

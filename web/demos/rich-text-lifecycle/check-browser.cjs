@@ -12,7 +12,7 @@ const output = path.resolve(process.argv[3] || 'artifacts/rich-text-lifecycle-pr
 const target = (i) => `[aria-label="选择目标评论 #${i}"]`;
 const copyRow = (i) => `[aria-label="复制评论 #${i} 的格式"]`;
 const pasteRow = (i) => `[aria-label="粘贴格式到评论 #${i}"]`;
-const editRow = (i) => `[aria-label="编辑 HTML 评论 #${i}"]`;
+const editRow = (i) => `[aria-label="编辑富文本评论 #${i}"]`;
 const undo = '[aria-label="撤销上次富文本修改"]';
 const rows = (page) =>
   page.$$eval('[data-comment-index]', (els) =>
@@ -275,7 +275,7 @@ function assertGeometry(g) {
       await page.click('.rich-comment-dialog footer .primary');
       await closeDialog(page);
       await page.waitForFunction(
-        () => document.querySelector('#comment-0 .type-pill')?.textContent === 'HTML',
+        () => document.querySelector('#comment-0 .type-pill')?.textContent === '富文本',
       );
       const applied = await rows(page);
       assert.equal(applied[0].body, '定义\n\n算子 T 将有界集映为相对紧集。');

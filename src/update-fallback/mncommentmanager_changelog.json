@@ -1,8 +1,31 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-15T04:40:06.165164+00:00",
+  "updatedAt": "2026-11-15T17:19:38.050604+00:00",
   "entries": [
+    {
+      "version": "0.1.43",
+      "channel": "stable",
+      "date": "2026-11-16",
+      "items": [
+        {
+          "zh": "新增原生富文本编辑、跨卡片复制格式、多选粘贴与格式刷预览，支持普通文本和 Markdown 类型转换。",
+          "en": "Add native rich-text editing, cross-card format copying, multi-selection pasting and format-brush previews, with plain-text and Markdown conversion."
+        },
+        {
+          "zh": "统一功能图标，完善编辑器、窄屏布局与多级菜单，并保留评论折叠状态和整批撤销。",
+          "en": "Unify action icons and refine the editor, narrow layouts and cascading menus while preserving comment folding and batch undo."
+        },
+        {
+          "zh": "修复原生预览缓存、统一粗体、Markdown 分类、正文核对及面板拉长后底部空白问题。",
+          "en": "Fix native preview-cache and uniform-bold compatibility, Markdown classification, body validation and blank space after extending the panel."
+        },
+        {
+          "zh": "复杂结构和局部混合格式仍受保护；系统撤销、双列菜单实际交互及 iPad/iPhone 继续待验收。",
+          "en": "Keep complex content and mixed formatting protected; system undo, live cascading-menu interaction and iPad/iPhone acceptance remain pending."
+        }
+      ]
+    },
     {
       "version": "0.1.42",
       "channel": "stable",

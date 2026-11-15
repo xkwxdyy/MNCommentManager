@@ -1,10 +1,11 @@
+import ActionIcon from "./ActionIcon";
 import HtmlSelect from "./HtmlSelect";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { moduleIds, selectionState, toggleIds, moduleMovePlan, bodyMovePlan, effectiveSettings, validateSettings } from '../lib/commentModules.mjs';
 import './CommentModules.css';
 
-function IconButton({ label, children, ...props }) {
-  return <button type="button" className="module-icon" title={label} aria-label={label} {...props}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg></button>;
+function IconButton({ label, name, ...props }) {
+  return <button type="button" className="module-icon" title={label} aria-label={label} {...props}><ActionIcon name={name} /></button>;
 }
 function ModuleCheckbox({ label, checked, partial, ...props }) {
   const ref = useRef(null);
@@ -190,13 +191,13 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
     const closed = hidden.has(node.id);
     return <section className="comment-module" id={node.id} key={node.id}>
       <header className="comment-module-head" data-closed={closed ? 'true' : undefined}>
-        <IconButton label={`${closed ? '显示' : '隐藏'}模块内容：${node.title}`} aria-expanded={!closed} aria-controls={`${node.id}-content`} onClick={() => onHide(node.id)}>{closed ? <path d="M3 7h7l2 2h9v11H3V7ZM3 7V4h7l2 3M8 14h8m-4-4v8" /> : <path d="M3 7V4h7l2 3h8v4M3 7h7l2 3h9l-3 10H3V7Z" />}</IconButton>
+        <IconButton label={`${closed ? '显示' : '隐藏'}模块内容：${node.title}`} aria-expanded={!closed} aria-controls={`${node.id}-content`} onClick={() => onHide(node.id)} name="folder" />
         {state.checked ? <button type="button" className="comment-fold-button module-comment-fold" aria-expanded={!folded} aria-label={`${folded ? '展开' : '折叠'}模块评论：${node.title}`} title={enabledFold ? `${folded ? '展开' : '折叠'}模块内所选评论（包含筛选隐藏成员）` : '宿主未支持折叠，或超过 200 条评论'} disabled={loading || !enabledFold} onClick={() => onFold(ids,!folded)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></button> : null}
         <ModuleCheckbox label={`选择模块：${node.title}${includeTitle ? '（含标题）' : '（仅正文）'}`} checked={state.checked} partial={state.partial} disabled={loading || !ids.length} onChange={() => onSelect(toggleIds(selected,ids),hiddenCount)} />
         <strong className="comment-module-title" title={node.title}>{node.title}</strong><span className="module-count" title={`模块共 ${node.end-node.start} 条评论`}>{node.end-node.start}</span>
         {hiddenCount ? <span className="module-hidden-count" title="整组选择包含筛选隐藏成员">隐藏 {hiddenCount}</span> : null}
-        <IconButton label={`上移模块：${node.title}`} disabled={loading || !canMoveUp} onClick={() => onAction('reorder',{moduleId:node.id,direction:'up'}).catch(() => {})}><path d="m7 14 5-5 5 5" /></IconButton>
-        <IconButton label={`下移模块：${node.title}`} disabled={loading || !canMoveDown} onClick={() => onAction('reorder',{moduleId:node.id,direction:'down'}).catch(() => {})}><path d="m7 10 5 5 5-5" /></IconButton>
+        <IconButton label={`上移模块：${node.title}`} disabled={loading || !canMoveUp} onClick={() => onAction('reorder',{moduleId:node.id,direction:'up'}).catch(() => {})} name="arrow-up" />
+        <IconButton label={`下移模块：${node.title}`} disabled={loading || !canMoveDown} onClick={() => onAction('reorder',{moduleId:node.id,direction:'down'}).catch(() => {})} name="arrow-down" />
         <details className="module-menu" onToggle={e => {
           if (e.currentTarget.open) {
             document.querySelectorAll('.module-menu[open]').forEach(menu => { if (menu !== e.currentTarget) menu.open = false; });

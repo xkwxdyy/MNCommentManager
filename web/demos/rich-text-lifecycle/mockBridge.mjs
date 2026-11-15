@@ -59,19 +59,26 @@ export function createPrototypeBridge(store) {
       return { state: state() };
     }
     if (command === 'getFormatBrushPreview') return preview(store.brushPlan(payload.sourceIndex));
-    if (command === 'getRichCommentPastePreview')
+    if (command === 'getRichCommentPastePreview') {
+      const p = preview(store.pastePlan());
+      const requested = Array.isArray(payload.selectedIndices)
+        ? payload.selectedIndices
+        : Number.isInteger(payload.targetIndex)
+          ? [payload.targetIndex]
+          : [];
       return {
-        ...preview(store.pastePlan()),
-        selectedIndices: Number.isInteger(payload.targetIndex) ? [payload.targetIndex] : [],
+        ...p,
+        selectedIndices: requested.filter((i) => p.targets.some((t) => t.index === i && t.eligible)),
       };
+    }
     if (command === 'getRichCommentDraft') {
-      const draft = store.draft(payload.index);
+      const draft = store.draft(payload.index, payload.initialMode);
       return { ...draft, noteId: draft.cardId, token: token(draft) };
     }
     if (command === 'saveRichComment') {
       const p = plans.get(payload.token);
       if (!p) throw Error('编辑已失效，请重新打开评论');
-      const result = receipt(store.save(p, payload.text, payload.style));
+      const result = receipt(store.save(p, payload.text, payload.style, payload.mode));
       plans.delete(payload.token);
       return result;
     }

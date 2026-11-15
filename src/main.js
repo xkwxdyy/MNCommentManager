@@ -17,6 +17,7 @@ JSB.require("CommentHtmlConversion");
 JSB.require("CommentMutations");
 JSB.require("CommentBatchEditor");
 JSB.require("CommentWorkflowRunner");
+JSB.require("CascadingMenu");
 JSB.require("CommentActionUI");
 JSB.require("CommentWorkflowMenu");
 JSB.require("CommentActionSettings");

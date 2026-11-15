@@ -1636,6 +1636,13 @@
       ]
     },
     {
+      "name": "Cascading menu and legacy MNUtils compatibility",
+      "argv": [
+        "node",
+        "scripts/test-cascading-menu.js"
+      ]
+    },
+    {
       "name": "Candidate payload export safety",
       "argv": [
         "node",

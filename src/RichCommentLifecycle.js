@@ -2,17 +2,37 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
   'use strict';
   const plans = new Map(),
     histories = new Map();
-  const defaults = {
+  const STYLE_PREF_KEY = 'mncommentmanager.richComment.lastStyle';
+  const neutralDefaults = {
     fontName: 'PingFangSC-Regular',
     fontSize: 16,
-    textColor: '#175D62',
-    backgroundColor: '#E3F2FD',
+    textColor: null,
+    backgroundColor: null,
   };
   let clipboard = null;
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const fail = (message) => {
     throw new Error(message);
   };
+  function foldHost(noteOrRaw) {
+    if (
+      typeof __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon === 'undefined' ||
+      !__MN_COMMENT_FOLD_STATE_MNCommentManagerAddon ||
+      typeof __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.read !== 'function'
+    ) {
+      return { supported: false, revision: '', comments: [] };
+    }
+    return __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.read(noteOrRaw);
+  }
+  function validFoldDisplay(v) {
+    return (
+      !!v &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      Object.keys(v).every((k) => k === 'v' || k === 'collapsed') &&
+      typeof v.collapsed === 'boolean'
+    );
+  }
   function note(id) {
     if (typeof id !== 'string' || !id) fail('没有读取到当前卡片，请重新打开评论管理器');
     const wrapped = __MN_COMMENT_DATA__.getWrappedNoteById(id);
@@ -56,13 +76,41 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     }
     return result;
   }
+  function readPreferredStyle() {
+    try {
+      if (
+        typeof NSUserDefaults === 'undefined' ||
+        !NSUserDefaults ||
+        typeof NSUserDefaults.standardUserDefaults !== 'function'
+      ) {
+        return clone(neutralDefaults);
+      }
+      const saved = NSUserDefaults.standardUserDefaults().objectForKey(STYLE_PREF_KEY);
+      if (typeof saved !== 'string' || !saved.trim()) return clone(neutralDefaults);
+      return style(JSON.parse(saved));
+    } catch (_) {
+      return clone(neutralDefaults);
+    }
+  }
+  function writePreferredStyle(nextStyle) {
+    try {
+      if (
+        typeof NSUserDefaults === 'undefined' ||
+        !NSUserDefaults ||
+        typeof NSUserDefaults.standardUserDefaults !== 'function'
+      )
+        return;
+      const valid = style(nextStyle);
+      NSUserDefaults.standardUserDefaults().setObjectForKey(JSON.stringify(valid), STYLE_PREF_KEY);
+    } catch (_) {}
+  }
   function requireHost(n) {
     for (const name of [
       'appendRichTextComment',
       'sortCommentsByNewIndices',
       'removeCommentByIndex',
     ])
-      if (typeof n.raw[name] !== 'function') fail('当前 MarginNote 版本不支持原生 HTML 评论编辑');
+      if (typeof n.raw[name] !== 'function') fail('当前 MarginNote 版本不支持原生富文本评论编辑');
     if (
       typeof Database === 'undefined' ||
       typeof Database.sharedInstance !== 'function' ||
@@ -75,7 +123,8 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     )
       fail('当前环境无法提供整批撤销');
   }
-  function access(raw, c) {
+  function access(noteOrRaw, c, commentIndex) {
+    const raw = noteOrRaw && noteOrRaw.note ? noteOrRaw.note : noteOrRaw;
     try {
       if (!c || !['HtmlNote', 'TextNote'].includes(c.type))
         fail('图片、音频和链接评论暂不支持此操作');
@@ -88,8 +137,33 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       // Cocoa's native editor also writes a derived HTML preview beside RTF.
       // RTF remains authoritative; appending rich text regenerates that preview.
       if (c.type === 'HtmlNote' && c.rtf) allowed.push('html', 'htmlSize');
-      if (Object.keys(c).some((k) => !allowed.includes(k)))
-        fail('该评论包含折叠设置或其他附加信息，暂不支持修改');
+      const extraKeys = Object.keys(c).filter((k) => !allowed.includes(k));
+      if (extraKeys.length > 0) {
+        const foldOnly = extraKeys.every((k) => k === 'mnCommentId' || k === 'mnCommentDisplay');
+        if (
+          !foldOnly ||
+          ('mnCommentId' in c && typeof c.mnCommentId !== 'string') ||
+          ('mnCommentDisplay' in c && !validFoldDisplay(c.mnCommentDisplay))
+        ) {
+          fail('该评论包含折叠设置或其他附加信息，暂不支持修改');
+        }
+        const fold = foldHost(noteOrRaw);
+        if (!fold.supported) {
+          fail('该评论包含折叠设置或其他附加信息，暂不支持修改');
+        }
+        const list = Array.from((raw && raw.comments) || []);
+        const idx = Number.isSafeInteger(commentIndex) ? commentIndex : list.indexOf(c);
+        const foldItem = idx >= 0 ? fold.comments[idx] : null;
+        const ownerNoteId = String(
+          (noteOrRaw && noteOrRaw.noteId) || (raw && raw.noteId) || '',
+        );
+        if (
+          !foldItem ||
+          (foldItem.ownerNoteId && ownerNoteId && foldItem.ownerNoteId !== ownerNoteId)
+        ) {
+          fail('跨卡片引用的折叠评论暂不支持直接修改');
+        }
+      }
       if (metadata(c).author) fail('该评论包含作者信息，当前版本无法在修改时完整保留');
       if (c.field != null && typeof raw.setCommentField !== 'function')
         fail('当前版本无法保留该评论的字段信息');
@@ -110,19 +184,32 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       return { supported: false, reason: error.message || String(error), style: null };
     }
   }
-  function descriptor(c) {
+  function collapsedOf(n, c, index) {
+    if (c && validFoldDisplay(c.mnCommentDisplay)) return c.mnCommentDisplay.collapsed === true;
+    const fold = n ? foldHost(n.wrapped) : { supported: false };
+    return !!(
+      fold.supported &&
+      Number.isSafeInteger(index) &&
+      fold.comments[index] &&
+      fold.comments[index].collapsed === true
+    );
+  }
+  function descriptor(c, n, index) {
     return {
       type: c.type,
       text: c.text,
       markdown: c.markdown === true,
       ...metadata(c),
+      collapsed: collapsedOf(n, c, index),
       style: c.type === 'HtmlNote' ? __MN_COMMENT_RICH_FORMAT__.describe(c).style : null,
       body: c.type === 'HtmlNote' ? __MN_COMMENT_RICH_FORMAT__.bodyKey(c) : null,
     };
   }
   function semantic(n) {
     return JSON.stringify(
-      rows(n).map((c) => (access(n.raw, c).supported ? JSON.stringify(descriptor(c)) : stable(c))),
+      rows(n).map((c, idx) =>
+        access(n.wrapped, c, idx).supported ? JSON.stringify(descriptor(c, n, idx)) : stable(c),
+      ),
     );
   }
   function put(plan) {
@@ -174,10 +261,14 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     const n = note(payload.noteId);
     requireHost(n);
     const from = mode === 'brush' ? source(n, payload.sourceIndex) : clipboard && clone(clipboard);
-    if (!from) fail('请先复制一条 HTML 评论的格式');
+    if (!from) fail('请先复制一条富文本评论的格式');
+    const includeConvertible = mode !== 'brush' || payload.includeConvertible === true;
     const targets = rows(n).flatMap((c, index) => {
-      if (mode === 'brush' && (index === payload.sourceIndex || c.type !== 'HtmlNote')) return [];
-      const a = access(n.raw, c);
+      if (mode === 'brush' && index === payload.sourceIndex) return [];
+      if (mode === 'brush' && !includeConvertible && c.type !== 'HtmlNote') return [];
+      if (mode === 'brush' && includeConvertible && !['HtmlNote', 'TextNote'].includes(c.type))
+        return [];
+      const a = access(n.wrapped, c, index);
       const kind =
         c.type === 'HtmlNote'
           ? 'html'
@@ -204,6 +295,18 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       rows(n)[payload.targetIndex]?.text !== payload.expectedText
     )
       fail('目标评论已变化，请刷新后重新选择');
+    const requestedIndices = Array.isArray(payload.selectedIndices)
+      ? payload.selectedIndices
+      : Number.isSafeInteger(payload.targetIndex)
+        ? [payload.targetIndex]
+        : [];
+    const selectedIndices = Array.from(
+      new Set(
+        requestedIndices.filter(
+          (idx) => Number.isSafeInteger(idx) && targets.some((t) => t.index === idx && t.eligible),
+        ),
+      ),
+    );
     const token = put({
       kind: 'format',
       mode,
@@ -218,35 +321,52 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       mode,
       source: from,
       targets,
-      selectedIndices:
-        Number.isSafeInteger(payload.targetIndex) &&
-        targets.some((t) => t.index === payload.targetIndex && t.eligible)
-          ? [payload.targetIndex]
-          : [],
+      selectedIndices,
     };
   }
   function draft(payload) {
     const n = note(payload.noteId);
     requireHost(n);
     const index = payload.index == null ? null : payload.index;
+    const requestedMode = ['rich', 'text', 'markdown'].includes(payload.initialMode)
+      ? payload.initialMode
+      : null;
     let c = null,
       a = null;
     if (index !== null) {
       if (!Number.isSafeInteger(index) || index < 0) fail('评论位置无效');
       c = rows(n)[index];
-      a = access(n.raw, c);
-      if (!a.supported || c.type !== 'HtmlNote')
-        fail(a.reason || '请选择一条可原生编辑的 HTML 评论');
+      a = access(n.wrapped, c, index);
+      if (!a.supported || !['HtmlNote', 'TextNote'].includes(c.type))
+        fail(a.reason || '请选择一条可编辑的评论');
       if (payload.expectedText !== undefined && payload.expectedText !== c.text)
         fail('评论已变化，请刷新后重新打开');
     }
+    const mode =
+      requestedMode ||
+      (c ? (c.type === 'HtmlNote' ? 'rich' : c.markdown === true ? 'markdown' : 'text') : 'rich');
+    const initialText = c
+      ? c.type === 'TextNote' && c.markdown === true && mode === 'rich'
+        ? a.text
+        : c.text
+      : '';
     const token = put({ kind: 'edit', noteId: n.id, index, fingerprint: fingerprint(n) });
     return {
       token,
       noteId: n.id,
       index,
-      text: c ? c.text : '',
-      style: clone(a ? a.style : clipboard ? clipboard.style : defaults),
+      mode,
+      originalKind: c
+        ? c.type === 'HtmlNote'
+          ? 'rich'
+          : c.markdown === true
+            ? 'markdown'
+            : 'text'
+        : null,
+      rawText: c ? c.text : '',
+      plainText: a ? a.text : '',
+      text: initialText,
+      style: clone(a && a.style ? a.style : clipboard ? clipboard.style : readPreferredStyle()),
     };
   }
   function append(n, value) {
@@ -357,27 +477,53 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       throw error;
     }
   }
+  function restoreCollapsedIndices(n, indices) {
+    const unique = Array.from(new Set(indices)).filter((i) => Number.isSafeInteger(i) && i >= 0);
+    if (!unique.length) return;
+    const foldNow = foldHost(n.wrapped);
+    if (!foldNow.supported) fail('无法恢复评论的折叠状态');
+    const toCollapse = unique.filter(
+      (i) => foldNow.comments[i] && foldNow.comments[i].collapsed !== true,
+    );
+    if (!toCollapse.length) return;
+    __MN_COMMENT_FOLD_STATE_MNCommentManagerAddon.setCollapsed(
+      n.wrapped,
+      toCollapse,
+      true,
+      foldNow.revision,
+    );
+  }
   function mutate(n, changes, label) {
     const before = fingerprint(n),
       beforeSemantic = semantic(n),
-      completed = [];
+      completed = [],
+      collapsedTargets = [];
     requireHost(n);
     try {
       __MN_UNDO_GROUPING_MNCommentManagerAddon.run(label, { note: n.wrapped }, () => {
         changes.forEach((change) => {
           const index = change.index === null ? rows(n).length : change.index;
-          const old = change.index === null ? null : descriptor(rows(n)[index]);
+          const old = change.index === null ? null : descriptor(rows(n)[index], n, index);
           if (change.value === null) {
             if (index !== rows(n).length - 1) fail('评论位置已变化，无法撤销此次添加');
             n.raw.removeCommentByIndex(index);
-          } else replace(n, change.index, change.value);
+          } else {
+            const wantCollapsed =
+              change.value.collapsed !== undefined
+                ? change.value.collapsed === true
+                : !!(old && old.collapsed);
+            replace(n, change.index, { ...change.value, collapsed: wantCollapsed });
+            if (wantCollapsed) collapsedTargets.push(index);
+          }
           completed.push({ index, value: old, removed: change.value === null });
         });
         if (typeof Database !== 'undefined') Database.sharedInstance().savedb();
       });
+      restoreCollapsedIndices(n, collapsedTargets);
     } catch (error) {
       if (fingerprint(n) !== before) {
         try {
+          const recoveryCollapsed = [];
           __MN_UNDO_GROUPING_MNCommentManagerAddon.run(
             '恢复未完成的评论修改',
             { note: n.wrapped },
@@ -387,9 +533,13 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
                 .reverse()
                 .forEach((c) => {
                   if (c.value === null) n.raw.removeCommentByIndex(c.index);
-                  else replace(n, c.removed ? null : c.index, c.value);
+                  else {
+                    replace(n, c.removed ? null : c.index, c.value);
+                    if (c.value.collapsed) recoveryCollapsed.push(c.index);
+                  }
                 }),
           );
+          restoreCollapsedIndices(n, recoveryCollapsed);
           if (semantic(n) !== beforeSemantic) fail('恢复校验失败');
           if (typeof Database !== 'undefined') Database.sharedInstance().savedb();
         } catch (_) {
@@ -449,7 +599,7 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     for (const index of indices) {
       const t = p.targets.find((t) => t.index === index),
         old = rows(n)[index],
-        a = access(n.raw, old);
+        a = access(n.wrapped, old, index);
       if (!t || !t.eligible || !a.supported) fail(a.reason || '所选评论暂不支持此操作');
       if (old.type !== 'HtmlNote' || JSON.stringify(a.style) !== JSON.stringify(nextStyle))
         changes.push({
@@ -476,25 +626,76 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     const { p, n } = take(payload, 'edit');
     if (typeof payload.text !== 'string' || !payload.text.trim()) fail('请输入评论正文');
     if (payload.text.length > 50000) fail('评论正文过长，请缩短后再保存');
-    const nextStyle = style(payload.style),
-      old = p.index === null ? null : rows(n)[p.index];
+    const targetMode = ['rich', 'text', 'markdown'].includes(payload.mode)
+      ? payload.mode
+      : 'rich';
+    const old = p.index === null ? null : rows(n)[p.index];
+    if (targetMode !== 'rich') {
+      const isMd = targetMode === 'markdown';
+      const method = isMd ? 'appendMarkdownComment' : 'appendTextComment';
+      if (typeof n.raw[method] !== 'function')
+        fail('当前 MarginNote 版本不支持添加或转换该评论类型');
+      const value = {
+        ...(old ? metadata(old) : { author: '', field: null, fieldLabel: false }),
+        type: 'TextNote',
+        markdown: isMd,
+        text: payload.text,
+        style: null,
+        body: null,
+      };
+      const changed =
+        !old ||
+        old.type !== 'TextNote' ||
+        (old.markdown === true) !== isMd ||
+        old.text !== payload.text;
+      const label = old
+        ? old.type === 'HtmlNote'
+          ? isMd
+            ? '富文本转为 Markdown'
+            : '富文本转为普通文本'
+          : isMd
+            ? '编辑 Markdown 评论'
+            : '编辑普通文本评论'
+        : isMd
+          ? '添加 Markdown 评论'
+          : '添加普通文本评论';
+      const message = old
+        ? '评论已保存'
+        : isMd
+          ? 'Markdown 评论已添加'
+          : '普通文本评论已添加';
+      const result = commit(n, changed ? [{ index: p.index, value }] : [], label, message);
+      plans.delete(payload.token);
+      return result;
+    }
+    const nextStyle = style(payload.style);
     const value = {
       ...(old ? metadata(old) : { author: '', field: null, fieldLabel: false }),
       type: 'HtmlNote',
       text: payload.text,
       style: nextStyle,
-      body: old && old.text === payload.text ? __MN_COMMENT_RICH_FORMAT__.bodyKey(old) : null,
+      body:
+        old && old.type === 'HtmlNote' && old.text === payload.text
+          ? __MN_COMMENT_RICH_FORMAT__.bodyKey(old)
+          : null,
     };
     const changed =
       !old ||
+      old.type !== 'HtmlNote' ||
       old.text !== payload.text ||
       JSON.stringify(__MN_COMMENT_RICH_FORMAT__.describe(old).style) !== JSON.stringify(nextStyle);
-    const result = commit(
-      n,
-      changed ? [{ index: p.index, value }] : [],
-      old ? '编辑 HTML 评论' : '添加 HTML 评论',
-      old ? '评论已保存' : 'HTML 评论已添加',
-    );
+    writePreferredStyle(nextStyle);
+    const label = old
+      ? old.type === 'HtmlNote'
+        ? '编辑富文本评论'
+        : '转为富文本评论'
+      : '添加富文本评论';
+    const message = old
+      ? old.type === 'HtmlNote'
+        ? '评论已保存'
+        : '已转为富文本评论'
+      : '富文本评论已添加';
+    const result = commit(n, changed ? [{ index: p.index, value }] : [], label, message);
     plans.delete(payload.token);
     return result;
   }

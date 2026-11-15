@@ -1,3 +1,4 @@
+import ActionIcon from "./components/ActionIcon";
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MNBridge from './lib/mnBridge';
 import './QuickComment.css';
@@ -13,6 +14,7 @@ export function animationDestination(state, rect, width, height) {
   return { x: x - rect.left - rect.width / 2, y: y - rect.top - rect.height / 2 };
 }
 function Icon({ kind }) {
+  if (kind === "add" || kind === "close") return <ActionIcon name={kind === "add" ? "comment-add" : "close"} size={22} />;
   return <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {kind === 'close' ? <path d="m6 6 12 12M18 6 6 18" /> : kind === 'newline' ? <path d="M19 5v8a3 3 0 0 1-3 3H5m4-4-4 4 4 4" /> : kind === 'add' ? <><path d="M20 11V6a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v11l4-3h5" /><path d="M17 14v8m-4-4h8" /></> : <path d="M12 19V5m-6 6 6-6 6 6" />}
   </svg>;

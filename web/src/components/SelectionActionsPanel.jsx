@@ -1,3 +1,4 @@
+import ActionIcon from "./ActionIcon";
 import { useEffect, useRef } from "react";
 
 export default function SelectionActionsPanel({ open, onClose, children }) {
@@ -59,7 +60,7 @@ export default function SelectionActionsPanel({ open, onClose, children }) {
       {open ? <div className="selection-actions-backdrop" aria-hidden="true" onPointerDown={onClose} onClick={onClose} /> : null}
       <div id="selection-actions-panel" ref={panelRef} className="selection-actions-panel" role={open ? "dialog" : undefined} aria-modal={open ? "true" : undefined} aria-label="更多选区操作" tabIndex={open ? -1 : undefined} hidden={!open}
         onKeyDown={(event) => event.stopPropagation()}>
-        <div className="selection-actions-heading"><strong>更多选区操作</strong><button ref={closeRef} type="button" className="selection-actions-close ghost" aria-label="关闭选区操作" title="关闭（Esc）" onClick={onClose}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div>
+        <div className="selection-actions-heading"><strong>更多选区操作</strong><button ref={closeRef} type="button" className="selection-actions-close ghost" aria-label="关闭选区操作" title="关闭（Esc）" onClick={onClose}><ActionIcon name="close" /></button></div>
         {children}
       </div>
     </>

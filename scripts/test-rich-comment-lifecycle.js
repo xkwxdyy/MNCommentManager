@@ -189,7 +189,7 @@ function setup() {
   const color = { ...blue, textColor: '#123ABC', backgroundColor: null };
   const r = t.api.save({ noteId: 'C', token: d.token, text: '编辑正文\n新行 α', style: color });
   assert.equal(t.b.comments[2].text, '编辑正文\n新行 α');
-  assert.equal(t.api.state('C').undo.label, '撤销编辑 HTML 评论');
+  assert.equal(t.api.state('C').undo.label, '撤销编辑富文本评论');
   t.api.undo({ noteId: 'C', token: r.undoToken });
   assert.deepEqual(t.copy(), before);
   const add = t.api.draft({ noteId: 'C', index: null });
@@ -296,6 +296,173 @@ for (const patch of [
   assert.equal(t.api.state('C').undo, null);
 }
 console.log('Default-valued metadata and continuous undo remain valid after native normalization');
+
+// Style preference persistence via NSUserDefaults & neutral fallback
+{
+  const prefStore = {};
+  const t = setup();
+  // Without NSUserDefaults or clipboard, draft uses neutral colors (null/null)
+  const initialDraft = t.api.draft({ noteId: 'C', index: null });
+  assert.deepEqual(clone(initialDraft.style), {
+    fontName: 'PingFangSC-Regular',
+    fontSize: 16,
+    textColor: null,
+    backgroundColor: null,
+  });
+
+  // With NSUserDefaults available, saving a rich comment persists last-used style
+  const ctxDefaults = {
+    standardUserDefaults: () => ({
+      objectForKey: (k) => prefStore[k] ?? null,
+      setObjectForKey: (v, k) => {
+        prefStore[k] = v;
+      },
+    }),
+  };
+  let apiWithPrefs;
+  const ctx = vm.createContext({
+    console,
+    Map,
+    Date,
+    Math,
+    NSUserDefaults: ctxDefaults,
+    UndoManager: {},
+    Database: { sharedInstance: () => ({ savedb() {} }) },
+    MNUtil: { dataToString: (x) => x.value },
+    __MN_UNDO_GROUPING_MNCommentManagerAddon: { run(_l, _o, fn) { return fn(); } },
+    __MN_COMMENT_MUTATIONS__: { refreshNotebookAfterCommentMutation() {} },
+    __MN_COMMENT_DATA__: {
+      getWrappedNoteById: (id) => ({ A: t.a, C: t.b })[id],
+      getNoteSnapshot: (n) => ({ noteId: n.noteId, comments: clone(n.comments), richText: apiWithPrefs?.state(n.noteId) }),
+    },
+  });
+  for (const name of ['CommentRichFormat', 'CommentMarkdown', 'RichCommentLifecycle']) {
+    vm.runInContext(fs.readFileSync(path.join(runtime, name + '.js'), 'utf8'), ctx);
+  }
+  apiWithPrefs = ctx.__MN_RICH_COMMENTS_MNCommentManagerAddon__;
+  const d1 = apiWithPrefs.draft({ noteId: 'C', index: null });
+  apiWithPrefs.save({ noteId: 'C', token: d1.token, text: '记住样式', style: red });
+  const d2 = apiWithPrefs.draft({ noteId: 'C', index: null });
+  assert.deepEqual(clone(d2.style), red, 'subsequent creation remembers last saved style from NSUserDefaults');
+
+  // Unified composer modes: create Plain Text & Markdown, upgrade TextNote -> Rich, downgrade Rich -> Markdown
+  const dText = apiWithPrefs.draft({ noteId: 'C', index: null, initialMode: 'text' });
+  assert.equal(dText.mode, 'text');
+  const rText = apiWithPrefs.save({ noteId: 'C', token: dText.token, text: '新增纯文本', style: red, mode: 'text' });
+  assert.equal(t.b.comments[t.b.comments.length - 1].type, 'TextNote');
+  assert.equal(t.b.comments[t.b.comments.length - 1].markdown === true, false);
+  apiWithPrefs.undo({ noteId: 'C', token: rText.undoToken });
+
+  const dConvert = apiWithPrefs.draft({ noteId: 'C', index: 2 });
+  const rConvert = apiWithPrefs.save({ noteId: 'C', token: dConvert.token, text: '**转为MD**', style: red, mode: 'markdown' });
+  assert.equal(t.b.comments[2].type, 'TextNote');
+  assert.equal(t.b.comments[2].markdown, true);
+  apiWithPrefs.undo({ noteId: 'C', token: rConvert.undoToken });
+  assert.equal(t.b.comments[2].type, 'HtmlNote');
+
+  // Brush includeConvertible & selectedIndices preselection
+  const pBrush = apiWithPrefs.previewFormat({ noteId: 'C', sourceIndex: 2, includeConvertible: true, selectedIndices: [0, 1, 3] }, 'brush');
+  assert(pBrush.targets.some((x) => x.kind === 'markdown' && x.eligible));
+  assert.deepEqual(clone(pBrush.selectedIndices), [0, 1]);
+}
+
+// Fold metadata (mnCommentId & mnCommentDisplay) compatibility on fold-capable hosts with undoDepth === 0
+{
+  let undoDepth = 0, rev = 1;
+  const card = {
+    noteId: 'FOLD-CARD',
+    notebookId: 'B',
+    noteTitle: '折叠兼容测试',
+    comments: [
+      { type: 'HtmlNote', text: '已折叠富文本', author: '', rtf: rtf('已折叠富文本', blue), mnCommentId: 'id-0', mnCommentDisplay: { v: 1, collapsed: true } },
+      { type: 'HtmlNote', text: '曾折叠已展开', author: '', rtf: rtf('曾折叠已展开', red), mnCommentId: 'id-1', mnCommentDisplay: { v: 1, collapsed: false } },
+    ],
+    refresh() {},
+    appendRichTextComment(text, s) {
+      this.comments.push({ type: 'HtmlNote', text, author: '', rtf: rtf(text, s) });
+    },
+    removeCommentByIndex(i) { this.comments.splice(i, 1); },
+    sortCommentsByNewIndices(map) {
+      const old = this.comments.slice();
+      map.forEach((to, from) => (this.comments[to] = old[from]));
+    },
+    commentState() {
+      return {
+        ok: true,
+        noteid: 'FOLD-CARD',
+        revision: 'r' + rev,
+        comments: this.comments.map((c, idx) => ({
+          index: idx + 1,
+          ownerNoteId: 'FOLD-CARD',
+          collapsed: !!(c.mnCommentDisplay && c.mnCommentDisplay.collapsed === true),
+        })),
+      };
+    },
+    setCommentsCollapsed(targets, collapsed, expectedRevision) {
+      assert.equal(undoDepth, 0, 'setCommentsCollapsed must execute outside plugin Undo groups');
+      assert.equal(expectedRevision, 'r' + rev);
+      rev++;
+      targets.forEach(({ index }) => {
+        const row = this.comments[index - 1];
+        row.mnCommentId = row.mnCommentId || 'id-restored-' + index;
+        row.mnCommentDisplay = { v: 1, collapsed };
+      });
+      return {
+        ok: true,
+        persisted: true,
+        noteid: 'FOLD-CARD',
+        revision: 'r' + rev,
+        collapsed,
+        requestedCount: targets.length,
+        changedCount: targets.length,
+        affectedOwnerNoteIds: ['FOLD-CARD'],
+        comments: this.comments.map((c, idx) => ({
+          index: idx + 1,
+          ownerNoteId: 'FOLD-CARD',
+          collapsed: !!(c.mnCommentDisplay && c.mnCommentDisplay.collapsed === true),
+        })),
+      };
+    },
+  };
+  let foldApi;
+  const ctx = vm.createContext({
+    console,
+    Map,
+    Set,
+    Date,
+    Math,
+    UndoManager: {},
+    Database: { sharedInstance: () => ({ savedb() {} }) },
+    MNUtil: { dataToString: (x) => x.value },
+    __MN_UNDO_GROUPING_MNCommentManagerAddon: {
+      run(_l, _o, fn) {
+        undoDepth++;
+        try { return fn(); } finally { undoDepth--; }
+      },
+    },
+    __MN_COMMENT_MUTATIONS__: { refreshNotebookAfterCommentMutation() {} },
+    __MN_COMMENT_DATA__: {
+      getWrappedNoteById: () => card,
+      getNoteSnapshot: () => ({ noteId: card.noteId, comments: clone(card.comments), richText: foldApi?.state(card.noteId) }),
+    },
+  });
+  for (const name of ['CommentFoldState', 'CommentRichFormat', 'CommentMarkdown', 'RichCommentLifecycle']) {
+    vm.runInContext(fs.readFileSync(path.join(runtime, name + '.js'), 'utf8'), ctx);
+  }
+  foldApi = ctx.__MN_RICH_COMMENTS_MNCommentManagerAddon__;
+  assert.equal(foldApi.access(card, card.comments[0], 0).supported, true);
+  assert.equal(foldApi.access(card, card.comments[1], 1).supported, true);
+
+  const editFolded = foldApi.draft({ noteId: 'FOLD-CARD', index: 0 });
+  const savedFolded = foldApi.save({ noteId: 'FOLD-CARD', token: editFolded.token, text: '折叠后仍可编辑', style: red });
+  assert.equal(card.comments[0].text, '折叠后仍可编辑');
+  assert.equal(card.comments[0].mnCommentDisplay.collapsed, true, 'folded state preserved after edit');
+
+  foldApi.undo({ noteId: 'FOLD-CARD', token: savedFolded.undoToken });
+  assert.equal(card.comments[0].text, '已折叠富文本');
+  assert.equal(card.comments[0].mnCommentDisplay.collapsed, true, 'folded state preserved after undo');
+}
+console.log('Style persistence, unified modes, and fold-capable host compatibility passed');
 
 {
   const { api, a } = setup();

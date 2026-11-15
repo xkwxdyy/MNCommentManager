@@ -6,6 +6,8 @@ export default function RichCommentDialog({
   title,
   busy,
   onClose,
+  onConfirmShortcut,
+  preventBackdropClose = false,
   trigger,
   children,
   footer,
@@ -15,15 +17,23 @@ export default function RichCommentDialog({
 }) {
   const ref = useRef(null),
     busyRef = useRef(busy),
-    closeRef = useRef(onClose);
+    closeRef = useRef(onClose),
+    confirmRef = useRef(onConfirmShortcut);
   busyRef.current = busy;
   closeRef.current = onClose;
+  confirmRef.current = onConfirmShortcut;
   useEffect(() => {
     const previous = trigger || document.activeElement,
       previousRow = previous?.closest('[data-comment-index]')?.id;
     ref.current.querySelector('textarea,button,input')?.focus();
     const key = (e) => {
       if (e.isComposing || e.keyCode === 229) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && confirmRef.current) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!busyRef.current) confirmRef.current();
+        return;
+      }
       if (e.key === 'Escape') {
         if (ref.current.querySelector('[role="listbox"]')) return;
         e.preventDefault();
@@ -68,7 +78,7 @@ export default function RichCommentDialog({
     <div
       className="rich-comment-backdrop"
       onMouseDown={(e) => {
-        if (!busy && e.target === e.currentTarget) onClose();
+        if (!busy && !preventBackdropClose && e.target === e.currentTarget) onClose();
       }}
     >
       <section

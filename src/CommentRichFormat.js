@@ -76,7 +76,7 @@ var __MN_COMMENT_RICH_FORMAT__ = (function () {
       if (state.cf < 0 || state.cb < 0 || state.cf >= colors.length || state.cb >= colors.length) reject('富文本颜色索引无效');
       if (unsupportedColors.has(state.cf) || unsupportedColors.has(state.cb)) reject('暂不支持该富文本颜色空间');
       const style = { fontName: fontWithTraits(fontName), fontSize: state.fs / 2, textColor: colors[state.cf] || null, backgroundColor: colors[state.cb] || null };
-      if (baseline && JSON.stringify(baseline) !== JSON.stringify(style)) reject('混合格式暂不支持格式刷');
+      if (baseline && JSON.stringify(baseline) !== JSON.stringify(style)) reject('含局部混合格式，暂不支持整条编辑或提取格式');
       baseline = style;
       if (character) character(encodedByte ? `b${fontCodePages[state.f] || codePage}:${fontCodePages[state.f] ? 1 : charsets[state.f]}:${value};` : `u${value};`);
     }
@@ -122,7 +122,12 @@ var __MN_COMMENT_RICH_FORMAT__ = (function () {
     return baseline;
   }
   function bytes(comment) {
-    if (!comment || comment.type !== 'HtmlNote' || !comment.rtf) reject('仅支持可原生编辑的 HTML 评论');
+    if (!comment || comment.type !== 'HtmlNote' || !comment.rtf) {
+      if (comment && comment.type === 'HtmlNote' && comment.html) {
+        reject('网页或模板 HTML 评论暂不支持直接编辑样式，可先转为 Markdown');
+      }
+      reject('仅支持可原生编辑的富文本评论');
+    }
     if (typeof MNUtil === 'undefined' || typeof MNUtil.dataToString !== 'function') reject('当前环境无法读取原生富文本');
     const text = MNUtil.dataToString(comment.rtf);
     if (typeof text !== 'string') reject('原生富文本读取失败');

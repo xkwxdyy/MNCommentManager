@@ -1,9 +1,15 @@
-.format-brush-button svg,
+.format-brush-button svg {
+  width: 16px;
+  height: 16px;
+}
 .format-brush-undo svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 .format-brush-button {
+  color: var(--text-secondary);
+}
+.format-brush-button:hover:not(:disabled) {
   color: var(--text-accent);
 }
 .rich-format-preview pre {

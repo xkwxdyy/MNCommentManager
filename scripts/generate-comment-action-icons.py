@@ -54,3 +54,10 @@ for name in ['manager','add','organize','batch','down','edit','multi','select-al
  dark.putalpha(bitmap.getchannel('A'))
  dark.save(ROOT/'dark'/(name+'.png'))
 print('Rendered',len(list(ROOT.rglob('*.png'))),'action icons')
+
+# Approved icon system overrides; preserve native theme colors and 3x geometry.
+import shutil
+for source in (ROOT.parents[1] / "assets/icon-system/native").rglob("*.png"):
+ target = ROOT / source.relative_to(ROOT.parents[1] / "assets/icon-system/native")
+ target.parent.mkdir(parents=True, exist_ok=True)
+ shutil.copy2(source, target)

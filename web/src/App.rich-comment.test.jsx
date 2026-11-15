@@ -44,7 +44,7 @@ afterEach(async () => {
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
 });
 it('keeps editor input on save failure and submits a repeated click only once', async () => {
-  await click(field('编辑 HTML 评论 #0'));
+  await click(field('编辑富文本评论 #0'));
   await fill(field('评论正文'), '尚未保存的正文');
   let reject;
   MNBridge.send.mockImplementation((c, p) =>
@@ -67,7 +67,7 @@ it('keeps editor input on save failure and submits a repeated click only once', 
   expect(store.card.comments[0].text).toBe('证明');
 });
 it('pins editor data through A→B, then returns to the latest A instead of stale B on close', async () => {
-  await click(field('编辑 HTML 评论 #0'));
+  await click(field('编辑富文本评论 #0'));
   await fill(field('评论正文'), '保留输入');
   const a = store.snapshot();
   store.switchCard('demo-definition');
@@ -82,7 +82,7 @@ it('pins editor data through A→B, then returns to the latest A instead of stal
   expect(document.querySelector('.rich-editor-dialog')).toBeNull();
 });
 it('applies a queued B after cancelling an editor pinned to A', async () => {
-  await click(field('编辑 HTML 评论 #0'));
+  await click(field('编辑富文本评论 #0'));
   store.switchCard('demo-definition');
   await sync(store.snapshot());
   await click(document.querySelector('.rich-editor-dialog footer .secondary'));
@@ -151,7 +151,7 @@ it('ignores a draft that resolves after a native card change', async () => {
         })
       : send(c, p),
   );
-  await click(field('编辑 HTML 评论 #0'));
+  await click(field('编辑富文本评论 #0'));
   store.switchCard('demo-definition');
   await sync(store.snapshot());
   await act(async () =>
@@ -171,7 +171,7 @@ it('ignores a draft that resolves after a native card change', async () => {
   expect(document.querySelector('.rich-editor-dialog')).toBeNull();
 });
 it('closes the font menu with Escape while retaining the editor', async () => {
-  await click(field('编辑 HTML 评论 #0'));
+  await click(field('编辑富文本评论 #0'));
   await click(field('字体'));
   expect(document.querySelector('[role="listbox"]')).toBeTruthy();
   await act(async () =>
@@ -179,4 +179,31 @@ it('closes the font menu with Escape while retaining the editor', async () => {
   );
   expect(document.querySelector('[role="listbox"]')).toBeNull();
   expect(document.querySelector('.rich-editor-dialog')).toBeTruthy();
+});
+it('validates invalid hex color on client without calling saveRichComment, and supports mode switching on create', async () => {
+  await click(field('新建评论'));
+  expect(document.querySelector('.rich-editor-dialog')).toBeTruthy();
+  await fill(field('评论正文'), '测试颜色校验');
+  await fill(field('文字颜色'), '#XYZ');
+  await click(document.querySelector('.rich-editor-dialog footer .primary'));
+  expect(MNBridge.send.mock.calls.filter(([c]) => c === 'saveRichComment')).toHaveLength(0);
+  expect(document.querySelector('.rich-editor-error').textContent).toContain('#RRGGBB');
+
+  const mdTab = [...document.querySelectorAll('.rich-editor-mode-tabs button')].find(
+    (el) => el.textContent === 'Markdown',
+  );
+  await click(mdTab);
+  await fill(field('评论正文'), '**新增 Markdown**');
+  await click(document.querySelector('.rich-editor-dialog footer .primary'));
+  expect(
+    MNBridge.send.mock.calls.find(([c]) => c === 'saveRichComment')?.[1]?.mode,
+  ).toBe('markdown');
+  expect(document.querySelector('.rich-editor-dialog')).toBeNull();
+});
+it('preselects main-list selected comments when opening paste preview from RichClipboardBar', async () => {
+  await click(field('复制评论 #0 的格式'));
+  await click(host.querySelector('#comment-1 input[type="checkbox"]'));
+  await click(field('批量粘贴已复制的格式'));
+  expect(document.querySelector('.brush-dialog')).toBeTruthy();
+  expect(document.querySelector('[aria-label="选择目标评论 #1"]').checked).toBe(true);
 });

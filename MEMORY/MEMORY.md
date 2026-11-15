@@ -1,8 +1,15 @@
 # 项目记忆索引
 
+- 2026-11-16｜0.1.43 发版已完成源码回归与生产包校验，GitHub、云盘及更新源核验正在执行。发版技能已改为直接选用可用后台浏览器，见[发布记录](../Resources/releases/v0.1.43.md)。
+
+- 2026-11-16｜双列菜单同类回归已经统一修正：原生 selector 不再按普通属性调用，Toolbar 回到原有原生入口，评论管理器保留取消 handle 身份。离线、原生回调及候选包检查通过；Mac 可见菜单验收未通过，iPad 未验。临时测试插件已移出，现用业务候选未替换。见[验收记录](/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnknowledgebase/dist/双列菜单原生回调-独立候选-20261116/验收记录.md)。 [跨插件回归 #58](https://github.com/xkwxdyy/MNLiterature/issues/58) 保持开放。
 - 2026-11-15｜混合格式改色补查：独立 RTF 改色保粗体通过，但当前宿主缺少已验证的分段 RTF 写回接口，暂未接入。原安装和学习现场已恢复，见[调查记录](../Resources/format-brush-native/混合格式原生接口调查-20261115.md)。
 
+- 2026-11-15｜面板拉长后的底部空白已复现并修复：工作区固定进入弹性网格行。源码与最终包内布局回归通过，CSS 单声明测试包已备份安装并后台重启；真实 iPad／Mac 拖动待验收，见[验证记录](../Resources/panel-height/validation.md)与 [Issue #117](https://github.com/xkwxdyy/MNCommentManager/issues/117)。
+
 - 2026-11-15｜原生富文本生命周期已接入并完成 Mac 插件、真实 WebView 与即时卡片刷新验收。补充修复原生 HTML 缓存、统一粗体、正文编码及 Markdown 标签误判，管理器整批撤销通过；干净测试包已安装，诊断已清理。系统撤销、新粗体系统双击和 iPad/iPhone 继续待验收，见[接入与验收记录](../Resources/format-brush-native/富文本生命周期接入-20261115.md)。
+
+- 2026-11-15｜旧式多级菜单的并排展开源码适配与普通 MNUtils 兼容检查通过；新旧接口按能力选择，窗口空间不足时保留原方式。尚未打包安装，Mac／iPad 待验收，见[跨插件记录](../../../Resources/validation/2026-11-15-cascading-menus/适配与验证.md)。
 
 - 2026-11-15｜原型已获确认并正式接入原生 HTML 格式刷：统一字体、字号、字色及底色，目标多选、预览和管理器内整批撤销。5.1.0（51007）Mac 真实评论批量复制、正文与顺序、字段、未选中项及原始 RTF 撤销恢复通过；干净测试包已安装，正式包未覆盖，未发布。系统撤销与 iPad/iPhone 边界保留；C/D 组的双色和下划线在 Cocoa 可表示，现有插件追加接口尚不支持完整的原生写入。见 [格式刷验收](../Resources/format-brush-native/验收记录.md)与[样式核验](../Resources/format-brush-native/C-D组原生样式核验.md)。此前原型提交 `c6bc33d` 保留。
 
@@ -229,3 +236,5 @@
 - 2026-10-18｜评论管理器已接入通用跟随按钮规则；源码回归与原生构建或压缩校验通过，未归档或安装，Mac/iPad 待验收。见[跨插件实施记录](../../mnpinner/docs/reviews/2026-10-18-follow-button-collision-implementation.md)、[事实](事实.md)和[待办](待办.md)。
 
 - 2026-10-18｜v0.1.28 已完成 GitHub、Arc 网盘及主站和兼容站更新源发布，所有正式包下载和公开文件摘要一致。发布提交 cfbf272；正式源码在独立 release-v0-1-28 工作区，原目录版本与未提交源码保留。设备验收及界面更新检测待完成，见 Resources/releases/v0.1.28.md。
+
+- 2026-11-15｜“评论线框”矢量校准图标已接入，源码、离线候选包、浅深色与窄屏浏览器验证通过，待设备验收；未安装或发布。详情见事实、决策点和待办。

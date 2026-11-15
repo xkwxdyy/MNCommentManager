@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { renderMarkdownToHtml } from "../lib/markdownRenderer";
+import { richTextStyle } from "./RichCommentPresentation";
 
 function FoldIcon({ collapsed }) {
   return (
@@ -52,6 +53,19 @@ export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ c
   const source = linkedDisplay?.title || text;
   const useMarkdown = !!source && !!comment.capabilities?.isMarkdown && !linkedDisplay;
   const html = useMemo(() => useMarkdown ? { __html: renderMarkdownToHtml(source) } : null, [source, useMarkdown]);
+  const richSummaryStyle = useMemo(() => {
+    if (!source || !comment.richFormat?.supported || !comment.richFormat.style) return undefined;
+    const base = richTextStyle(comment.richFormat.style);
+    if (!base) return undefined;
+    const hasBg = base.backgroundColor && base.backgroundColor !== "transparent";
+    return {
+      color: base.color,
+      backgroundColor: hasBg ? base.backgroundColor : undefined,
+      fontWeight: base.fontWeight > 400 ? base.fontWeight : undefined,
+      padding: hasBg ? "1px 6px" : undefined,
+      borderRadius: hasBg ? "4px" : undefined,
+    };
+  }, [comment.richFormat, source]);
   return (
     <div className="comment-fold-preview">
       {mediaSources[0] ? <img className="comment-fold-thumbnail" src={mediaSources[0].src} alt={mediaSources[0].alt} loading="lazy" /> : null}
@@ -66,7 +80,7 @@ export const CollapsedCommentPreview = memo(function CollapsedCommentPreview({ c
           dangerouslySetInnerHTML={html}
         />
       ) : (
-        <p className="comment-fold-summary">{source || (comment.capabilities?.hasAudio ? "音频评论" : comment.drawingPreviewPending ? "手写内容正在转换" : comment.drawingPreviewError || (comment.capabilities?.hasImage ? "图片/手写评论" : "无文本内容"))}</p>
+        <p className="comment-fold-summary" style={richSummaryStyle}>{source || (comment.capabilities?.hasAudio ? "音频评论" : comment.drawingPreviewPending ? "手写内容正在转换" : comment.drawingPreviewError || (comment.capabilities?.hasImage ? "图片/手写评论" : "无文本内容"))}</p>
       )}
     </div>
   );

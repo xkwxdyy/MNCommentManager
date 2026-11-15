@@ -182,17 +182,23 @@ export function createStore(fixtures = FIXTURES) {
       }),
     );
   }
-  function draft(index = null) {
+  function draft(index = null, initialMode = null) {
     const c = index === null ? null : current().comments[index];
-    if (index !== null && (!c || c.kind !== 'html' || !targetState(c).supported))
+    if (index !== null && (!c || !['html', 'text', 'markdown'].includes(c.kind) || !targetState(c).supported))
       throw Error('该评论暂不支持富文本编辑');
+    const mode = initialMode || (c ? (c.kind === 'html' ? 'rich' : c.kind) : 'rich');
+    const plain = c ? targetState(c).text : '';
     return {
       cardId: currentId,
       epoch,
       revision: revisions.get(currentId),
       index,
+      mode,
+      originalKind: c ? (c.kind === 'html' ? 'rich' : c.kind) : null,
+      rawText: c?.text || '',
+      plainText: plain,
       key: c?.key || null,
-      text: c?.text || '',
+      text: c ? (c.kind === 'markdown' && mode === 'rich' ? plain : c.text) : '',
       style: clone(c?.style || clipboard?.style || DEFAULT_STYLE),
     };
   }
@@ -257,6 +263,7 @@ export function createStore(fixtures = FIXTURES) {
           richEditing: { supported: targetState(c).supported, reason: targetState(c).reason },
           capabilities: {
             isHtml: c.kind === 'html',
+            isRichRtf: c.kind === 'html',
             isMarkdown: c.kind === 'markdown',
             canCopyText: true,
             canMove: true,
@@ -294,17 +301,31 @@ export function createStore(fixtures = FIXTURES) {
       return applyPlan(plan, indices, 'brush');
     },
     draft,
-    save(plan, text, style) {
+    save(plan, text, style, mode = 'rich') {
       guard(plan);
       if (typeof text !== 'string' || !text.trim()) throw Error('请填写评论正文');
       if (text.length > 50000) throw Error('评论正文过长');
+      const targetMode = ['rich', 'text', 'markdown'].includes(mode) ? mode : 'rich';
+      if (targetMode !== 'rich') {
+        const nextKind = targetMode;
+        return mutate(plan.index === null ? '撤销新增评论' : '撤销评论编辑', (comments) => {
+          if (plan.index === null) comments.push({ key: 'new-' + ++serial, kind: nextKind, text });
+          else {
+            const c = comments[plan.index];
+            if (c?.key !== plan.key || !targetState(c).supported) throw Error('评论已变化');
+            const copy = { ...c, kind: nextKind, text };
+            delete copy.style;
+            comments[plan.index] = copy;
+          }
+        });
+      }
       const valid = validateStyle(style);
       return mutate(plan.index === null ? '撤销新增富文本' : '撤销富文本编辑', (comments) => {
         if (plan.index === null) comments.push(rich('new-' + ++serial, text, valid));
         else {
           const c = comments[plan.index];
           if (c?.key !== plan.key || !targetState(c).supported) throw Error('评论已变化');
-          comments[plan.index] = { ...c, text, style: valid };
+          comments[plan.index] = { ...c, kind: 'html', text, style: valid };
         }
       });
     },

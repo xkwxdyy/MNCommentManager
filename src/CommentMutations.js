@@ -1292,6 +1292,46 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         const serialized = getSerializedComment(note, index);
         requireCapability(serialized, "isHtml", `#${index} 不是 HTML 评论`);
         const raw = requireComment(note, index);
+        if (raw && !raw.html && raw.rtf && typeof __MN_COMMENT_RICH_FORMAT__ !== "undefined") {
+          const rich = __MN_COMMENT_RICH_FORMAT__.describe(raw);
+          if (!rich.supported) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：" + rich.reason,
+            });
+            continue;
+          }
+          const plainBody = String(raw.text || "").trim();
+          if (!plainBody) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：评论没有可转换的正文",
+            });
+            continue;
+          }
+          const savedField = raw.field != null ? String(raw.field) : null;
+          const savedFieldLabel = raw.fieldLabel === true;
+          const rawNote = getRawNote(note);
+          if (savedField !== null && (!rawNote || typeof rawNote.setCommentField !== "function")) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：当前版本无法保留字段信息",
+            });
+            continue;
+          }
+          replaceCommentWithMarkdown(note, index, plainBody);
+          if (savedField !== null) {
+            rawNote.setCommentField(index, savedField, savedFieldLabel);
+          }
+          stats.convertedComments += 1;
+          continue;
+        }
         const conversion = __MN_COMMENT_HTML__.convert(raw && raw.html);
         if (!conversion.ok) {
           // No mutation has started: unsupported rich content stays intact.

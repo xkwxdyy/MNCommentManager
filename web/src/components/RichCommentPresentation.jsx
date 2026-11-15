@@ -33,6 +33,27 @@ export function RichActionIcon({ name }) {
     </svg>
   );
 }
+function autoContrastColor(backgroundColor) {
+  if (typeof backgroundColor !== 'string' || !/^#[\da-f]{6}$/i.test(backgroundColor)) {
+    return undefined;
+  }
+  const r = parseInt(backgroundColor.slice(1, 3), 16);
+  const g = parseInt(backgroundColor.slice(3, 5), 16);
+  const b = parseInt(backgroundColor.slice(5, 7), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b >= 150 ? '#1d1d1f' : '#f5f5f7';
+}
+export function formatStyleSummary(style) {
+  if (!style) return '';
+  const fontLabel =
+    style.fontName === 'PingFangSC-Semibold'
+      ? '苹方半粗'
+      : style.fontName === 'PingFangSC-Regular'
+        ? '苹方常规'
+        : String(style.fontName || '默认字体').replace(/^PingFangSC-/i, '苹方 ');
+  const parts = [fontLabel];
+  if (Number.isFinite(Number(style.fontSize))) parts.push(`${style.fontSize}px`);
+  return parts.join(' · ');
+}
 export function richTextStyle(style) {
   return style
     ? {
@@ -45,7 +66,7 @@ export function richTextStyle(style) {
             ? 700
             : 400,
         fontSize: style.fontSize,
-        color: style.textColor || undefined,
+        color: style.textColor || autoContrastColor(style.backgroundColor),
         backgroundColor: style.backgroundColor || 'transparent',
       }
     : undefined;

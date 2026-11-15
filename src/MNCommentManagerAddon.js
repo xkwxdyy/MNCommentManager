@@ -286,6 +286,7 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   function disconnectScene(addon) {
+    if (typeof __MN_CASCADING_MENU_MNCommentManagerAddon !== "undefined") __MN_CASCADING_MENU_MNCommentManagerAddon.dismiss(addon);
     runtimeOwners.delete(addon);
     invalidateInitialization(addon);
     __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(addon);
@@ -660,10 +661,7 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     popoverControllerDidDismissPopover: function (controller) {
-      if (self.mncmActionPopover === controller) self.mncmActionPopover = null;
-      if (typeof __MN_BATCH_COMMENT_ACTIONS__.menuDismissed === 'function' && __MN_BATCH_COMMENT_ACTIONS__.menuDismissed(self, controller)) return;
-      if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined" && typeof __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed === "function" && __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed(self, controller)) return;
-      __MN_DYNAMIC_COMMENT_ACTIONS__.handleMenuDismissed(self, controller);
+      return __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.menuDismissed(self, controller);
     },
 
     runSingleKeepFirstContent: async function (sender) { await runSingleMenuAction(self, sender, "runKeepFirstContent", "只保留第一条内容失败"); },

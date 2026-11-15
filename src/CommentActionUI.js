@@ -77,6 +77,13 @@ var __MN_COMMENT_ACTION_UI_MNCommentManagerAddon = (function () {
       height: Math.min(count * 44, Math.max(88, Math.min(Number(safe.height) - 24, verticalRoom))) };
   }
   function present(addon, sender, items, width, position, options) {
+    if (typeof __MN_CASCADING_MENU_MNCommentManagerAddon !== 'undefined') {
+      const handle = __MN_CASCADING_MENU_MNCommentManagerAddon.open(addon, sender, items, width, position);
+      if (handle) {
+        addon.mncmActionPopover = handle;
+        return handle;
+      }
+    }
     if (typeof MenuController === 'undefined' || !addon) return MNUtil.getPopoverAndPresent(sender, items, width, position);
     let popover;
     try {
@@ -141,5 +148,11 @@ var __MN_COMMENT_ACTION_UI_MNCommentManagerAddon = (function () {
       return MNUtil.getPopoverAndPresent(sender, items, width, position);
     }
   }
-  return { icon, image, describe, geometry, present, palette };
+  function menuDismissed(owner, controller) {
+    if (owner.mncmActionPopover === controller) owner.mncmActionPopover = null;
+    if (typeof __MN_BATCH_COMMENT_ACTIONS__.menuDismissed === 'function' && __MN_BATCH_COMMENT_ACTIONS__.menuDismissed(owner, controller)) return;
+    if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined" && typeof __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed === "function" && __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed(owner, controller)) return;
+    __MN_DYNAMIC_COMMENT_ACTIONS__.handleMenuDismissed(owner, controller);
+  }
+  return { icon, image, describe, geometry, present, palette, menuDismissed };
 })();

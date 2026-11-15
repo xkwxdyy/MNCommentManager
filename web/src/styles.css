@@ -412,6 +412,8 @@ button.pressing {
 }
 
 .workspace {
+  /* Keep the flexible content row when navigation or status is hidden. */
+  grid-row: 4;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;

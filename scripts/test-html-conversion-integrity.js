@@ -64,4 +64,46 @@ assert(partial.note.comments.includes(partial.original));
 assert(partial.note.comments.includes(partial.other));
 assert.equal(partial.note.comments[2].text, '_second HTML_');
 assert.equal(run('remove-throw').stats.failed, 1);
-console.log('HTML conversion integrity: verified append/move/delete, failure preservation, status and repeated calls passed');
+
+// Native RTF HtmlNote (no raw.html, uniform raw.rtf) converts cleanly to Markdown and preserves field metadata
+{
+  const rtfStr = '{\\rtf1{\\fonttbl\\f0\\fnil PingFangSC-Regular;}{\\colortbl;\\red23\\green93\\blue98;\\red227\\green242\\blue253;}\\pard\\f0\\fs32\\cf1\\cb2 原生富文本正文}';
+  const nativeRtf = { type: 'HtmlNote', text: '原生富文本正文', rtf: { value: rtfStr }, field: '证明', fieldLabel: true };
+  const card = {
+    noteId: 'RTF-N',
+    notebookId: 'B',
+    comments: [nativeRtf],
+    appendMarkdownComment(text) { this.comments.push({ type: 'TextNote', text, markdown: true }); },
+    moveComment(from, to) { this.comments.splice(to, 0, this.comments.splice(from, 1)[0]); },
+    removeCommentByIndex(index) { this.comments.splice(index, 1); },
+    setCommentField(index, field, fieldLabel) { Object.assign(this.comments[index], { field, fieldLabel }); },
+    refresh() {},
+  };
+  const snapshot = (target) => ({
+    noteId: target.noteId,
+    comments: target.comments.map((c, index) => ({
+      index,
+      originalType: c.type,
+      type: c.type === 'HtmlNote' ? 'HtmlComment' : 'markdownComment',
+      text: c.text,
+      capabilities: { isHtml: c.type === 'HtmlNote', isMarkdown: c.markdown === true },
+    })),
+  });
+  const ctx = vm.createContext({
+    console,
+    MNUtil: { dataToString: (x) => x.value, showHUD() {}, refreshAfterDBChanged() {} },
+    __MN_UNDO_GROUPING_MNCommentManagerAddon: { run(_a, _o, fn) { return fn(); } },
+    __MN_COMMENT_DATA__: { getWrappedNoteById: () => card, getNoteSnapshot: snapshot },
+  });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/CommentRichFormat.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(process.env.MNCM_HTML_SOURCE || path.join(__dirname, '../src/CommentHtmlConversion.js'), 'utf8'), ctx);
+  vm.runInContext(source, ctx);
+  const res = ctx.__MN_COMMENT_MUTATIONS__.convertHtmlCommentsToMarkdown('RTF-N', [0]);
+  assert.equal((res.stats || res).convertedComments, 1);
+  assert.equal(card.comments[0].type, 'TextNote');
+  assert.equal(card.comments[0].markdown, true);
+  assert.equal(card.comments[0].text, '原生富文本正文');
+  assert.equal(card.comments[0].field, '证明');
+  assert.equal(card.comments[0].fieldLabel, true);
+}
+console.log('HTML conversion integrity: verified append/move/delete, failure preservation, native RTF conversion, status and repeated calls passed');
