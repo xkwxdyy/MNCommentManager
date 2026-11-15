@@ -24,7 +24,7 @@ description: MN Comment Manager 完整发版：核对改动、同步日志和版
 
 有半途 staged 改动时保留原状态，暂停依赖其归属的提交步骤；不能擅自 reset。运行 `gh auth status`，核对远端主分支、tags、Release。沙箱网络失败不等于 token 失效。
 
-中断续作时先读取已有回执并沿用该次 NEXT，不因版本已写入而再次升级。锁定 NEXT；检查 `git tag -l vNEXT`、远端同名 tag 和 Release。说明将推送的分支、已有未推送提交、tag 与附件。完整发版请求覆盖对应 GitHub 发布、Arc 上传及清单部署，范围未变时不重复确认；任务含糊时在实际发布前确认范围。
+中断续作时先读取已有回执并沿用该次 NEXT，不因版本已写入而再次升级。锁定 NEXT；检查 `git tag -l vNEXT`、远端同名 tag 和 Release。说明将推送的分支、已有未推送提交、tag 与附件。完整发版请求覆盖对应 GitHub 发布、后台网页上传及清单部署，范围未变时不重复确认；任务含糊时在实际发布前确认范围。
 
 ## 2. 更新版本和日志
 

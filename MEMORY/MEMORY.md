@@ -1,6 +1,6 @@
 # 项目记忆索引
 
-- 2026-11-16｜0.1.43 发版已完成源码回归与生产包校验，GitHub、云盘及更新源核验正在执行。发版技能已改为直接选用可用后台浏览器，见[发布记录](../Resources/releases/v0.1.43.md)。
+- 2026-11-16｜0.1.43 已完整发布：源码分支、标签、GitHub 与云盘正式包、主备用更新清单和双语日志全部核验通过，真实联网更新检测及备用回退通过。本轮未安装或重启，设备边界保留；发版技能直接选用可用后台浏览器，见[发布记录](../Resources/releases/v0.1.43.md)。
 
 - 2026-11-16｜双列菜单同类回归已经统一修正：原生 selector 不再按普通属性调用，Toolbar 回到原有原生入口，评论管理器保留取消 handle 身份。离线、原生回调及候选包检查通过；Mac 可见菜单验收未通过，iPad 未验。临时测试插件已移出，现用业务候选未替换。见[验收记录](/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnknowledgebase/dist/双列菜单原生回调-独立候选-20261116/验收记录.md)。 [跨插件回归 #58](https://github.com/xkwxdyy/MNLiterature/issues/58) 保持开放。
 - 2026-11-15｜混合格式改色补查：独立 RTF 改色保粗体通过，但当前宿主缺少已验证的分段 RTF 写回接口，暂未接入。原安装和学习现场已恢复，见[调查记录](../Resources/format-brush-native/混合格式原生接口调查-20261115.md)。
