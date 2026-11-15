@@ -40,7 +40,8 @@
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major",
-    "test:follow-buttons": "node scripts/test-follow-button-interactions.js"
+    "test:follow-buttons": "node scripts/test-follow-button-interactions.js",
+    "test:format-brush": "node scripts/test-rich-format.js && node scripts/test-format-brush.js && vitest run web/src/App.format-brush.test.jsx"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",

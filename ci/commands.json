@@ -1499,7 +1499,8 @@
         "web/src/components/WorkflowParameters.test.jsx",
         "web/src/lib/contentSelection.test.js",
         "web/src/lib/markdownRenderer.test.js",
-        "web/src/App.drag-overview.test.jsx"
+        "web/src/App.drag-overview.test.jsx",
+        "web/src/App.format-brush.test.jsx"
       ]
     },
     {
@@ -1652,6 +1653,20 @@
       "argv": [
         "node",
         "scripts/test-handwriting-decoder.js"
+      ]
+    },
+    {
+      "name": "test-rich-format",
+      "argv": [
+        "node",
+        "scripts/test-rich-format.js"
+      ]
+    },
+    {
+      "name": "test-format-brush",
+      "argv": [
+        "node",
+        "scripts/test-format-brush.js"
       ]
     }
   ]

@@ -89,7 +89,7 @@ assert(wholeCloseScriptMatch, 'the actual whole-native-close script must be disc
 const wholeCloseScript = JSON.parse(wholeCloseScriptMatch[1]);
 
 function makeBatchOverlayContext(send = async () => []) {
-  const states = { workflow: { name: '旧工作流窗口' }, settings: {}, modules: true, moduleResult: {}, dialog: {}, invalidLinks: {}, selection: true, opening: 'workflow' };
+  const states = { workflow: { name: '旧工作流窗口' }, settings: {}, modules: true, moduleResult: {}, dialog: {}, invalidLinks: {}, formatBrush: {}, selection: true, opening: 'workflow' };
   const recordingDraft = { name: '保留的多卡录制', steps: [{ actionId: 'clearAllComments' }] };
   const context = vm.createContext({
     Promise, JSON, window: { __MNCommentManagerRequestedView: 'workflow' },
@@ -100,6 +100,7 @@ function makeBatchOverlayContext(send = async () => []) {
     setWorkflowManager: value => { states.workflow = value; }, setActionButtonSettings: value => { states.settings = value; },
     setModuleSettingsOpen: value => { states.modules = value; }, setModuleResult: value => { states.moduleResult = value; },
     setDialog: value => { states.dialog = value; }, setInvalidLinkCleanup: value => { states.invalidLinks = value; },
+    setFormatBrush: value => { states.formatBrush = value; },
     setSelectionActionsOpen: value => { states.selection = value; }, setOpeningOverlay: value => { states.opening = value; },
     setBatchEditor: value => { states.batch = value; }, hideBatchEditorRetainingDraft() { states.batch = null; },
   });
@@ -162,7 +163,7 @@ function makeRunContext(send) {
     const { context, states, recordingDraft } = makeBatchOverlayContext();
     const selection = { mode: 'batch', token: 'new-selection', noteIds: ['a', 'b'], cards: [] };
     context.window.__MNCommentManagerBatchNativeSync({ state: selection });
-    for (const key of ['workflow', 'settings', 'moduleResult', 'dialog', 'invalidLinks']) assert.equal(states[key], null, 'entering batch mode must close the old ' + key + ' layer');
+    for (const key of ['workflow', 'settings', 'moduleResult', 'dialog', 'invalidLinks', 'formatBrush']) assert.equal(states[key], null, 'entering batch mode must close the old ' + key + ' layer');
     assert.equal(states.modules, false); assert.equal(states.selection, false); assert.equal(states.opening, '');
     assert.equal(context.window.__MNCommentManagerRequestedView, '');
     assert.equal(states.batch, selection); assert.equal(context.retainedBatchEditorRef.current, selection);

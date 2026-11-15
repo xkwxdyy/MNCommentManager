@@ -14,6 +14,7 @@ const COMMAND_TIMEOUTS = Object.freeze({
   getAddonChangelog: 60000,
   getQuickCommentState: 30000,
   echo: 30000,
+  getFormatBrushPreview: 30000,
   getCurrentNoteComments: 30000,
   refreshCurrentNote: 30000,
   countReverseLinks: 30000,

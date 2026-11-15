@@ -1,3 +1,4 @@
+import FormatBrushDialog, { FormatBrushIcon, richTextStyle } from "./components/FormatBrushDialog";
 import HtmlSelect from "./components/HtmlSelect";
 import HelpVideos from "./components/HelpVideos";
 import AddonUpdate from "./components/AddonUpdate";
@@ -906,7 +907,7 @@ function SelectionCheckbox({ checked, label, onToggle, descriptionId }) {
   );
 }
 
-function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, label }) {
+function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, label, richFormat }) {
   const source = String(text || "");
   const truncated = isTextPreviewTruncated(source, maxLength);
   const contentRef = useRef(null);
@@ -915,9 +916,10 @@ function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, labe
     if (contentRef.current) contentRef.current.scrollTop = 0;
   }, [expanded, source]);
   return (
-    <div className="plain-text-preview" data-expanded={expanded} data-truncated={truncated}>
+    <div className={`plain-text-preview ${richFormat?.supported ? "rich-format-preview" : ""}`} data-expanded={expanded} data-truncated={truncated}>
       <pre
         ref={contentRef}
+        style={richFormat?.supported ? richTextStyle(richFormat.style) : undefined}
         id={contentId}
         role={reading ? "region" : undefined}
         aria-label={reading ? label : undefined}
@@ -978,6 +980,8 @@ function App() {
   const [rangeAnchor, setRangeAnchor] = useState(null);
   const [insertMode, setInsertMode] = useState(false);
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
+  const [formatBrush, setFormatBrush] = useState(null);
+  const [formatBrushUndo, setFormatBrushUndo] = useState(null);
   const selectionModeTriggerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
@@ -1036,23 +1040,24 @@ function App() {
     setModuleResult(null);
     setDialog(null);
     setInvalidLinkCleanup(null);
+    setFormatBrush(null);
     setSelectionActionsOpen(false);
     if (typeof clearAllPressTimers === "function") clearAllPressTimers();
     if (typeof document !== "undefined") {
       document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
     }
   };
-  useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
+  useEffect(() => { setSelectionActionsOpen(false); setFormatBrush(null); setFormatBrushUndo(null); }, [snapshot.noteId]);
   useEffect(() => {
-    if (dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
+    if (formatBrush || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
       setSelectionActionsOpen(false);
     }
-  }, [dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  }, [formatBrush, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
   useEffect(() => {
-    if (dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
+    if (formatBrush || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
       document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
     }
-  }, [dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
+  }, [formatBrush, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
   const closeSelectionActions = () => {
     setSelectionActionsOpen(false);
     document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
@@ -1097,6 +1102,7 @@ function App() {
   const externalCardSwitchStateRef = useRef(null);
   const gestureActiveRef = useRef(() => false);
   externalCardSwitchStateRef.current = {
+    formatBrush,
     dialog,
     workflowManager,
     actionButtonSettings,
@@ -1201,6 +1207,7 @@ function App() {
     [selectedComments],
   );
   const selectedHasHtmlComments = selectedHtmlComments.length > 0;
+  const formatBrushSource = !excerptSelected && hasOneSelection && selectedComments[0]?.capabilities?.isHtml ? selectedComments[0] : null;
   const moveState = useMemo(
     () => getMoveState(contentSelection, excerptPresent, comments.length),
     [comments.length, contentSelection, excerptPresent],
@@ -1230,13 +1237,13 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
+    disabled: loading || !!formatBrush || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
-  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragDisabled = loading || !!formatBrush || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
   const dragOverview = useCommentDragOverview({
     paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
     contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
@@ -2647,6 +2654,32 @@ function App() {
     if (selectionActionsOpen) closeSelectionActions();
   };
 
+  const openFormatBrush = async () => {
+    if (!formatBrushSource?.richFormat?.supported || loading) return;
+    const noteId = snapshot.noteId, sourceIndex = formatBrushSource.index;
+    closeSelectionActions();
+    try {
+      const result = await runCommand("getFormatBrushPreview", { noteId, sourceIndex }, { keepSelection: true, expectedNoteId: noteId });
+      if (appMountedRef.current && currentNoteIdRef.current === noteId && result?.noteId === noteId) setFormatBrush(result);
+    } catch (_) {}
+  };
+  const applyFormatBrush = async indices => {
+    const plan = formatBrush;
+    if (!plan) return;
+    const result = await runCommand("applyFormatBrush", { noteId: plan.noteId, token: plan.token, indices }, { expectedNoteId: plan.noteId, refreshOnError: true });
+    if (currentNoteIdRef.current === plan.noteId) {
+      setFormatBrush(null);
+      setFormatBrushUndo(result.undoToken ? { noteId: plan.noteId, token: result.undoToken } : null);
+    }
+  };
+  const undoFormatBrush = async () => {
+    if (!formatBrushUndo || loading) return;
+    try {
+      await runCommand("undoFormatBrush", formatBrushUndo, { expectedNoteId: formatBrushUndo.noteId, refreshOnError: true });
+      setFormatBrushUndo(null);
+    } catch (_) {}
+  };
+
   const moveActions = [
     { key: "top", label: "移到最上方", visible: canMoveSelectionToTop, onClick: (event) => moveSelection(moveState.topBoundary, "已移到最上方", event.currentTarget) },
     { key: "up", label: "上移", visible: canMoveSelectionUp, onClick: (event) => moveByStep("up", event.currentTarget) },
@@ -2655,6 +2688,7 @@ function App() {
   ].filter((action) => action.visible);
   const hasMoveActions = moveActions.length > 0 || canPickInsertPosition;
   const processActions = [
+    { key: "format-brush", label: "格式刷", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: openFormatBrush },
     { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
@@ -2853,12 +2887,14 @@ function App() {
       {retainedBatchEditorRef.current ? (
         <BatchCommentEditor state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
       ) : null}
+      {formatBrush && <FormatBrushDialog preview={formatBrush} busy={loading} onApply={applyFormatBrush} onClose={() => { if (!loading) setFormatBrush(null); }} />}
       <header className="topbar">
         <div className="topbar-title">
           <h1>评论管理器</h1>
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
+          {formatBrushUndo?.noteId === snapshot.noteId && <Button className="ghost format-brush-undo" disabled={loading} title="撤销整批格式刷" aria-label="撤销格式刷" onClick={undoFormatBrush}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12" /></svg></Button>}
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
@@ -3403,6 +3439,7 @@ function App() {
                         text={commentText(comment)}
                         contentId={`comment-${comment.index}-text-preview`}
                         label={`评论 #${comment.index} 全文`}
+                        richFormat={comment.richFormat}
                         maxLength={360}
                         expanded={expandedPreviews.has(`comment:${comment.index}`)}
                         onToggle={() => togglePreviewExpansion(`comment:${comment.index}`)}
@@ -3454,6 +3491,7 @@ function App() {
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
           {hasSelection ? (
             <div className="right-pane-quick-actions" role="group" aria-label="快捷批量操作">
+              {formatBrushSource && <Button className="secondary quick-batch-btn format-brush-button" disabled={loading || !formatBrushSource.richFormat?.supported} title={formatBrushSource.richFormat?.reason || "格式刷"} aria-label="格式刷" onClick={openFormatBrush}><FormatBrushIcon /></Button>}
               <Button
                 className="secondary quick-batch-btn quick-batch-step"
                 disabled={loading || !canMoveSelectionUp}
@@ -3544,7 +3582,7 @@ function App() {
               <h2>处理</h2>
               <div className="stack">
                 {processActions.map((action) => (
-                  <Button key={action.key} className="secondary" disabled={loading} onClick={action.onClick}>{action.label}</Button>
+                  <Button key={action.key} className="secondary" disabled={loading || action.disabled} title={action.title} onClick={action.onClick}>{action.label}</Button>
                 ))}
               </div>
             </section>

@@ -479,6 +479,7 @@ var __MN_COMMENT_DATA__ = (function () {
       detailedType: type,
       text,
       htmlText: rawComment && rawComment.type === "HtmlNote" ? text : "",
+      richFormat: typeof __MN_COMMENT_RICH_FORMAT__ !== "undefined" && rawComment?.type === "HtmlNote" ? __MN_COMMENT_RICH_FORMAT__.describe(rawComment) : null,
       lifecycleStage: buildLifecycleStage(type, rawComment),
       capabilities,
       imageBase64,
