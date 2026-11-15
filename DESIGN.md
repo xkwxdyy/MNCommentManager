@@ -51,6 +51,7 @@
 - 快速输入：`web/src/QuickComment.jsx`、`web/src/QuickComment.css`。（Agent 推断）
 - 模块与拖动总览：`web/src/components/CommentModules.css`、`web/src/components/CommentDragOverview.css`。（Agent 推断）
 - 演示入口：`web/demos/comment-modules/` 和 `web/demos/comment-move/`。（Agent 推断）
+- 格式刷原型：`web/demos/format-brush/` 复用正式管理器组件，使用隔离的示例数据；单选源评论后通过底栏图标或更多操作选择目标，支持预览、应用与整批撤销。原型不连接实际笔记。（本次交付范围）
 
 ## 验收
 
