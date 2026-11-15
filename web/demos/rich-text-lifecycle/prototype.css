@@ -1,0 +1,539 @@
+/* Prototype chrome uses the same tokens and compact controls as the manager. */
+.rich-demo-shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.rich-demo-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-light);
+}
+.rich-demo-toolbar-title {
+  min-width: 0;
+  margin-right: auto;
+}
+.rich-demo-toolbar-title strong {
+  display: block;
+  font-size: 14px;
+}
+.rich-demo-toolbar-title > span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.rich-demo-tabs,
+.rich-demo-global-actions,
+.rich-demo-clipboard,
+.rich-demo-clipboard > div {
+  display: flex;
+  align-items: center;
+}
+.rich-demo-tabs {
+  gap: 4px;
+}
+.rich-demo-tabs button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-color: transparent;
+  background: transparent;
+  white-space: nowrap;
+}
+.rich-demo-tabs button[aria-selected='true'] {
+  color: var(--text-accent);
+  background: var(--accent-blue-soft);
+}
+.rich-demo-global-actions {
+  gap: 4px;
+}
+.rich-demo-global-actions .rich-demo-add {
+  min-height: 44px;
+  padding: 8px 10px;
+  background: transparent;
+  border-color: transparent;
+}
+.rich-demo-icon {
+  min-height: 44px;
+  min-width: 44px;
+  width: 44px;
+  padding: 10px;
+  flex: 0 0 auto;
+  background: transparent;
+  border-color: transparent;
+}
+.rich-demo-shell svg,
+.rich-demo-dialog svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.rich-demo-clipboard {
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 2px 16px;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+}
+.rich-demo-clipboard > div {
+  min-width: 0;
+  gap: 8px;
+}
+.rich-demo-clipboard > div:first-child {
+  flex: 1 1 200px;
+}
+.rich-demo-clipboard > div:first-child > span:first-of-type {
+  overflow-wrap: anywhere;
+}
+.rich-demo-clipboard .ghost {
+  min-height: 44px;
+  white-space: nowrap;
+}
+.rich-demo-clipboard.has-format > div:first-child > svg {
+  color: var(--text-accent);
+}
+.rich-demo-color-dot {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.rich-demo-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.rich-demo-panel .comment-manager {
+  height: 100%;
+  min-height: 0;
+}
+.rich-demo-panel .format-brush-undo {
+  display: none;
+}
+.rich-demo-row-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0;
+}
+.rich-demo-panel .comment-head > .format-brush-button,
+.rich-demo-panel .rich-demo-row-actions > button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+}
+.rich-demo-panel .rich-format-preview pre[style*='Semibold'] {
+  font-weight: 600;
+}
+.rich-demo-notice {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 5px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-light);
+}
+.rich-demo-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 500;
+}
+.rich-demo-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-dialog);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  font-size: 14px;
+}
+.rich-demo-dialog.is-wide {
+  width: 780px;
+}
+.rich-demo-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px 8px 24px;
+  border-bottom: 1px solid var(--border-light);
+  flex: 0 0 auto;
+}
+.rich-demo-dialog h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.rich-demo-dialog h3 {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rich-demo-dialog-body {
+  padding: 20px 24px 24px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.rich-demo-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 24px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.rich-demo-dialog > footer > div {
+  display: flex;
+  gap: 8px;
+}
+.rich-demo-dialog > footer button {
+  min-height: 44px;
+  padding: 10px 18px;
+}
+.rich-demo-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.rich-demo-dialog textarea {
+  display: block;
+  resize: vertical;
+  width: 100%;
+  min-height: 112px;
+  max-height: 240px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.rich-demo-type-fields {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+.rich-demo-type-fields label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.rich-demo-type-fields input {
+  width: 80px;
+}
+.rich-demo-type-fields select {
+  min-width: 104px;
+}
+.rich-demo-type-fields input,
+.rich-demo-type-fields select,
+.rich-demo-color-field input[type='text'],
+.rich-demo-color-field input:not([type]) {
+  min-width: 0;
+  height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+.rich-demo-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rich-demo-color-field {
+  min-width: 0;
+}
+.rich-demo-color-field > label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.rich-demo-color-field > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rich-demo-color-field input[type='color'] {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.rich-demo-color-field input:not([type='color']) {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.rich-demo-color-field [aria-invalid='true'] {
+  border-color: var(--text-danger);
+}
+.rich-demo-preview {
+  max-height: 240px;
+  padding: 12px;
+  overflow: auto;
+  background: var(--bg-panel);
+  border-radius: var(--radius-sm);
+}
+.rich-demo-sample {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.rich-demo-source {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.rich-demo-source > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.rich-demo-source > div > span {
+  color: var(--text-secondary);
+}
+.rich-demo-target-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.rich-demo-target-heading h3 {
+  margin: 0;
+}
+.rich-demo-target-heading button {
+  min-height: 44px;
+}
+.rich-demo-target {
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.rich-demo-target:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.rich-demo-target > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.rich-demo-target > label input {
+  width: 18px;
+  height: 18px;
+  margin: 0 8px 0 0;
+  accent-color: var(--accent-blue);
+  flex: 0 0 auto;
+}
+.rich-demo-target > label small {
+  margin-left: auto;
+  max-width: 55%;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: right;
+}
+.rich-demo-target.is-selected > label {
+  color: var(--text-accent);
+}
+.rich-demo-target.is-disabled > label {
+  cursor: default;
+}
+.rich-demo-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding-left: 26px;
+}
+.rich-demo-target.is-selected .rich-demo-compare {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.rich-demo-compare > div {
+  min-width: 0;
+}
+.rich-demo-compare-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.rich-demo-compare .markdown-content {
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.rich-demo-compare .markdown-content > :first-child {
+  margin-top: 0;
+}
+.rich-demo-compare .markdown-content > :last-child {
+  margin-bottom: 0;
+}
+.rich-demo-compare .rich-demo-sample {
+  font-size: 14px;
+}
+.rich-demo-error {
+  margin: 16px 0 0;
+  color: var(--text-danger);
+  font-size: 13px;
+}
+.rich-demo-dialog :is(textarea, input, select) {
+  caret-color: var(--text-accent);
+}
+.rich-demo-dialog ::selection {
+  background: var(--focus);
+}
+.rich-demo-dialog :focus-visible,
+.rich-demo-toolbar :focus-visible,
+.rich-demo-clipboard :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (max-width: 820px) {
+  .rich-demo-toolbar {
+    gap: 4px 12px;
+    padding: 4px 12px;
+  }
+  .rich-demo-toolbar-title > span {
+    display: none;
+  }
+  .rich-demo-toolbar-title {
+    flex: 1 1 190px;
+  }
+  .rich-demo-tabs {
+    order: 2;
+    width: 100%;
+  }
+  .rich-demo-tabs button {
+    flex: 1;
+  }
+}
+@media (max-width: 520px) {
+  .rich-demo-toolbar {
+    gap: 0 4px;
+    padding: 4px 8px;
+  }
+  .rich-demo-toolbar-title strong {
+    font-size: 13px;
+  }
+  .rich-demo-toolbar-title {
+    flex-basis: 140px;
+  }
+  .rich-demo-global-actions {
+    gap: 0;
+  }
+  .rich-demo-global-actions .rich-demo-add {
+    padding: 8px;
+    gap: 4px;
+  }
+  .rich-demo-clipboard {
+    padding: 2px 12px;
+    gap: 0;
+  }
+  .rich-demo-clipboard > div:first-child {
+    flex-basis: 100%;
+    min-height: 36px;
+  }
+  .rich-demo-clipboard > div:last-child:not(:first-child) {
+    margin-left: auto;
+  }
+  .rich-demo-notice {
+    padding: 5px 12px;
+  }
+  .rich-demo-backdrop {
+    padding: 8px;
+  }
+  .rich-demo-dialog > header {
+    padding: 6px 8px 6px 16px;
+  }
+  .rich-demo-dialog-body {
+    padding: 16px;
+  }
+  .rich-demo-dialog > footer {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .rich-demo-dialog > footer button {
+    padding: 10px 12px;
+  }
+  .rich-demo-type-fields {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rich-demo-colors {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .rich-demo-target.is-selected .rich-demo-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rich-demo-target > label {
+    flex-wrap: wrap;
+  }
+  .rich-demo-target > label small {
+    flex-basis: 100%;
+    max-width: none;
+    text-align: left;
+    padding-left: 26px;
+  }
+}
+@media (max-height: 450px) and (min-width: 521px) {
+  .rich-demo-toolbar-title {
+    flex-basis: auto;
+  }
+  .rich-demo-toolbar-title strong {
+    font-size: 12px;
+  }
+  .rich-demo-tabs {
+    order: initial;
+    width: auto;
+  }
+  .rich-demo-tabs button {
+    padding-inline: 8px;
+  }
+  .rich-demo-toolbar {
+    gap: 4px;
+  }
+}
