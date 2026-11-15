@@ -2,12 +2,21 @@
   "id": "mncommentmanager",
   "addonid": "marginnote.extension.mncommentmanager",
   "title": "MN Comment Manager",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "channel": "stable",
-  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.41.mnaddon",
-  "filename": "mn-comment-manager-v0.1.41.mnaddon",
-  "updatedAt": "2026-11-11T09:09:35Z",
+  "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.42.mnaddon",
+  "filename": "mn-comment-manager-v0.1.42.mnaddon",
+  "updatedAt": "2026-11-15T04:40:06.165164+00:00",
   "history": [
+    {
+      "version": "0.1.42",
+      "channel": "stable",
+      "url": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.42.mnaddon",
+      "filename": "mn-comment-manager-v0.1.42.mnaddon",
+      "updatedAt": "2026-11-15T04:40:06.165164+00:00",
+      "sha256": "36725d61c06a09ed583530d2a93f4528b13c80a05a017cde90766e3441b0ab5a",
+      "size": 843405
+    },
     {
       "version": "0.1.41",
       "channel": "stable",
@@ -256,6 +265,6 @@
     }
   ],
   "changelogUrl": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
-  "sha256": "1466b179a24b6f813c3c31604ae2edcfb3f0e961a14857793d444545a2ead76e",
-  "size": 836774
+  "sha256": "36725d61c06a09ed583530d2a93f4528b13c80a05a017cde90766e3441b0ab5a",
+  "size": 843405
 }
