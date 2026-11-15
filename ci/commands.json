@@ -1657,6 +1657,13 @@
       ]
     },
     {
+      "name": "test-comment-classification",
+      "argv": [
+        "node",
+        "scripts/test-comment-classification.js"
+      ]
+    },
+    {
       "name": "test-rich-format",
       "argv": [
         "node",

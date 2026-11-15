@@ -278,13 +278,16 @@ var __MN_COMMENT_DATA__ = (function () {
     const source = toStringValue(text);
     const trimmed = source.trim();
     if (!trimmed) return "blankTextComment";
-    if (/^#\S/.test(trimmed)) return "tagComment";
     if (extractPureMarginNoteLink(source)) {
       return /\/summary(?:\/|$)/i.test(source) ? "summaryComment" : "linkComment";
     }
-    if (normalizeMarkdownLinks(source).length > 0) return "markdownComment";
-    if (detailedType === "markdownComment" || detailedType === "markdownLinkComment") return detailedType;
-    if (markdownFlag) return "markdownComment";
+    if (detailedType === "markdownLinkComment") return detailedType;
+    if (markdownFlag || normalizeMarkdownLinks(source).length > 0 || detailedType === "markdownComment") {
+      return "markdownComment";
+    }
+    // A tag consists of complete single-hash tokens. Headings, indented code,
+    // and prose that starts with a hashtag must remain text or Markdown.
+    if (/^#[^\s#]+(?:[ \t]+#[^\s#]+)*[ \t]*$/.test(source)) return "tagComment";
     return "textComment";
   }
 
@@ -316,6 +319,11 @@ var __MN_COMMENT_DATA__ = (function () {
         return "mergedMarkdownComment";
       }
       return "mergedTextComment";
+    }
+    // Older MNUtils labels any /^#\S/ text as a tag before checking markdown.
+    // Reclassify TextNote from its native flag and full body instead.
+    if (rawType === "TextNote") {
+      return classifyTextComment(text, detailedType, rawComment.markdown === true);
     }
     if (detailedType && !["TextNote", "HtmlNote", "LinkNote", "PaintNote", "AudioNote"].includes(detailedType)) {
       return detailedType;
@@ -430,6 +438,7 @@ var __MN_COMMENT_DATA__ = (function () {
       canMove: true,
       isMarkdown: !!(rawComment && rawComment.markdown) || type === "markdownComment" || type === "markdownLinkComment" || type === "mergedMarkdownComment" || type === "summaryComment",
       isHtml: originalType === "HtmlNote" || type === "HtmlComment",
+      isRichRtf: !!(rawComment && originalType === "HtmlNote" && rawComment.rtf),
       isMerged: originalType === "LinkNote",
       isMedia: IMAGE_TYPES.indexOf(type) >= 0 || type === "audioComment" || type === "mergedChildMapComment",
       hasMarkdownLinks: markdownLinks.length > 0,

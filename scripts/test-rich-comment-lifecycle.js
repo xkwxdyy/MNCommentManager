@@ -2,6 +2,7 @@ const assert = require('node:assert/strict'),
   vm = require('node:vm'),
   fs = require('node:fs'),
   path = require('node:path');
+const runtime = path.resolve(process.argv[2] || path.join(__dirname, '../src'));
 const blue = {
   fontName: 'PingFangSC-Regular',
   fontSize: 16,
@@ -136,7 +137,7 @@ function setup() {
   });
   for (const name of ['CommentRichFormat', 'CommentMarkdown', 'RichCommentLifecycle'])
     vm.runInContext(
-      fs.readFileSync(path.join(__dirname, '../src/' + name + '.js'), 'utf8'),
+      fs.readFileSync(path.join(runtime, name + '.js'), 'utf8'),
       context,
     );
   api = context.__MN_RICH_COMMENTS_MNCommentManagerAddon__;
@@ -295,3 +296,20 @@ for (const patch of [
   assert.equal(t.api.state('C').undo, null);
 }
 console.log('Default-valued metadata and continuous undo remain valid after native normalization');
+
+{
+  const { api, a } = setup();
+  const c = a.comments[0];
+  c.html = '<html><body><p>证明</p></body></html>';
+  c.htmlSize = {};
+  assert.equal(api.access(a, c, 0).supported, true, 'native RTF with Cocoa HTML cache remains editable');
+  const d = api.draft({noteId:'A', index:0});
+  const originalText = c.text;
+  const saved = api.save({noteId:'A', token:d.token, text:originalText, style:{...blue,textColor:'#315D92',backgroundColor:'#D7EBFF'}});
+  assert.equal(a.comments[0].text, originalText);
+  assert.equal(a.comments[1].text, '其他标题');
+  api.undo({noteId:'A', token:saved.undoToken});
+  assert.equal(a.comments[0].text, originalText);
+  assert.deepEqual(JSON.parse(JSON.stringify(api.draft({noteId:'A',index:0}).style)), blue);
+
+}

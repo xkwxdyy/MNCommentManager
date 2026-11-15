@@ -85,6 +85,9 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
         fail('该评论包含额外的格式信息，暂不支持修改');
       if (c.field != null && typeof c.field !== 'string') fail('该评论的字段信息暂不支持修改');
       const allowed = ['type', 'text', 'rtf', 'author', 'field', 'fieldLabel', 'markdown'];
+      // Cocoa's native editor also writes a derived HTML preview beside RTF.
+      // RTF remains authoritative; appending rich text regenerates that preview.
+      if (c.type === 'HtmlNote' && c.rtf) allowed.push('html', 'htmlSize');
       if (Object.keys(c).some((k) => !allowed.includes(k)))
         fail('该评论包含折叠设置或其他附加信息，暂不支持修改');
       if (metadata(c).author) fail('该评论包含作者信息，当前版本无法在修改时完整保留');
