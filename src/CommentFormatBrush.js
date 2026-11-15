@@ -106,8 +106,10 @@ var __MN_COMMENT_FORMAT_BRUSH__ = (function () {
         } catch (_) { fail('格式刷未完成，无法确认自动恢复结果；请停止编辑并从版本点恢复'); }
       }
       throw new Error('格式刷未完成，原评论已保留：' + (error.message || String(error)));
+    } finally {
+      try { if (typeof n.wrapped.refresh === 'function') n.wrapped.refresh(); } catch (_) {}
+      __MN_COMMENT_MUTATIONS__.refreshNotebookAfterCommentMutation(n.wrapped);
     }
-    try { if (typeof n.wrapped.refresh === 'function') n.wrapped.refresh(); } catch (_) {}
   }
   function apply(payload) {
     if (!payload || !Array.isArray(payload.indices) || payload.indices.length < 1 || payload.indices.length > 200 || payload.indices.some(i => !Number.isSafeInteger(i) || i < 0) || new Set(payload.indices).size !== payload.indices.length) fail('请选择有效且不重复的目标评论');

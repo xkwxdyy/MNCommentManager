@@ -905,6 +905,19 @@
   font-weight: 650;
   line-height: 1.4;
 }
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .comment-body {
+  max-height: none;
+  overflow: visible;
+}
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .plain-text-preview pre {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .plain-text-preview[data-truncated="false"] pre {
+  overflow: visible;
+  text-overflow: clip;
+}
 .comment-manager .excerpt-card {
   border-left: 3px solid rgba(255, 159, 10, 0.55);
 }

@@ -2654,13 +2654,13 @@ function App() {
     if (selectionActionsOpen) closeSelectionActions();
   };
 
-  const openFormatBrush = async () => {
-    if (!formatBrushSource?.richFormat?.supported || loading) return;
-    const noteId = snapshot.noteId, sourceIndex = formatBrushSource.index;
-    closeSelectionActions();
+  const openFormatBrush = async (source = formatBrushSource) => {
+    if (!source?.richFormat?.supported || loading) return;
+    const noteId = snapshot.noteId, sourceIndex = source.index, returnFocus = document.activeElement;
+    if (selectionActionsOpen) closeSelectionActions();
     try {
       const result = await runCommand("getFormatBrushPreview", { noteId, sourceIndex }, { keepSelection: true, expectedNoteId: noteId });
-      if (appMountedRef.current && currentNoteIdRef.current === noteId && result?.noteId === noteId) setFormatBrush(result);
+      if (appMountedRef.current && currentNoteIdRef.current === noteId && result?.noteId === noteId) setFormatBrush({ ...result, returnFocus });
     } catch (_) {}
   };
   const applyFormatBrush = async indices => {
@@ -2688,7 +2688,7 @@ function App() {
   ].filter((action) => action.visible);
   const hasMoveActions = moveActions.length > 0 || canPickInsertPosition;
   const processActions = [
-    { key: "format-brush", label: "格式刷", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: openFormatBrush },
+    { key: "format-brush", label: "格式刷", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: () => openFormatBrush() },
     { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
@@ -3300,6 +3300,16 @@ function App() {
                     />
                     <span className="comment-index">#{comment.index}</span>
                     <span className={`type-pill type-${meta.filter}`}>{meta.label}</span>
+                    {comment.capabilities?.isHtml && (
+                      <Button
+                        id={`comment-${comment.index}-format-brush`}
+                        className="quick-action-btn format-brush-button"
+                        disabled={loading || !comment.richFormat?.supported}
+                        title={comment.richFormat?.reason || "格式刷"}
+                        aria-label={`使用评论 #${comment.index} 的格式刷`}
+                        onClick={event => { event.stopPropagation(); openFormatBrush(comment); }}
+                      ><FormatBrushIcon /></Button>
+                    )}
                     {isModuleTitleAnchor ? <span className="title-anchor-badge" title="该评论作为当前模块的标题源">标题源</span> : null}
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
@@ -3491,7 +3501,6 @@ function App() {
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
           {hasSelection ? (
             <div className="right-pane-quick-actions" role="group" aria-label="快捷批量操作">
-              {formatBrushSource && <Button className="secondary quick-batch-btn format-brush-button" disabled={loading || !formatBrushSource.richFormat?.supported} title={formatBrushSource.richFormat?.reason || "格式刷"} aria-label="格式刷" onClick={openFormatBrush}><FormatBrushIcon /></Button>}
               <Button
                 className="secondary quick-batch-btn quick-batch-step"
                 disabled={loading || !canMoveSelectionUp}

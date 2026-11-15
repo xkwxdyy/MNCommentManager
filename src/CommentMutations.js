@@ -2534,6 +2534,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   return {
+    refreshNotebookAfterCommentMutation,
     appendQuickTextComment,
     confirmQuickTextComment,
     setCommentsCollapsed,

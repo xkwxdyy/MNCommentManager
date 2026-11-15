@@ -12,7 +12,7 @@ export default function FormatBrushDialog({ preview, busy, onApply, onClose }) {
   const ref = useRef(null), closeRef = useRef(onClose); closeRef.current = onClose;
   const { source, targets } = preview, eligible = targets.filter(c => c.eligible), all = eligible.length > 0 && selected.size === eligible.length;
   useEffect(() => {
-    const previous = document.activeElement;
+    const previous = preview.returnFocus || document.activeElement;
     ref.current.querySelector('button').focus();
     return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, []);

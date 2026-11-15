@@ -17,7 +17,7 @@ beforeEach(async () => {
  preview={noteId:'N',source:original[0],token:'preview',targets:original.slice(1).map(c=>({...c,eligible:c.index!==3,reason:c.index===3?'含有需要保留的标识':''}))};
  MNBridge.send.mockReset();MNBridge.send.mockImplementation(async(command,payload)=>{
   if(['getCurrentNoteComments','refreshCurrentNote'].includes(command))return snapshot;
-  if(command==='getFormatBrushPreview')return preview;
+  if(command==='getFormatBrushPreview')return {...preview,source:original[payload.sourceIndex],targets:original.filter(c=>c.index!==payload.sourceIndex).map(c=>({...c,eligible:c.index!==3,reason:c.index===3?'含有需要保留的标识':''}))};
   if(command==='applyFormatBrush') { if(applyError)throw Error(applyError);snapshot={...snapshot,comments:original.map(c=>payload.indices.includes(c.index)?{...c,richFormat:{supported:true,style:blue}}:c)};return {snapshot,undoToken:'undo-batch',changedCount:payload.indices.length}; }
   if(command==='undoFormatBrush'){snapshot={...snapshot,comments:original};return {snapshot};}
   return {};
@@ -25,7 +25,7 @@ beforeEach(async () => {
  host=document.createElement('div');document.body.append(host);root=createRoot(host);await act(async()=>root.render(<App/>));
 });
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();delete globalThis.IS_REACT_ACT_ENVIRONMENT;});
-async function open(){await click(host.querySelector('#comment-0 input'));await click(host.querySelector('[aria-label="格式刷"]'));expect(host.querySelector('.brush-dialog')).toBeTruthy();}
+async function open(){await click(host.querySelector('#comment-0-format-brush'));expect(host.querySelector('.brush-dialog')).toBeTruthy();}
 it('previews only eligible targets, applies selected styles, and supports a batch undo',async()=>{
  await open();expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);expect(host.querySelector('[aria-label="选择目标评论 #3"]').disabled).toBe(true);
  await click(host.querySelector('[aria-label="选择目标评论 #1"]'));await click(host.querySelector('[aria-label="选择目标评论 #2"]'));expect(button('应用到 2 条评论').disabled).toBe(false);
@@ -38,6 +38,13 @@ it('cancels preview without submitting a mutation',async()=>{await open();await 
 it('retains the target selection and shows a failed mutation in the dialog',async()=>{await open();applyError='评论内容或顺序已变化';await click(host.querySelector('[aria-label="选择目标评论 #1"]'));await click(button('应用到 1 条评论'));expect(host.querySelector('.brush-error').textContent).toContain('顺序已变化');expect(host.querySelector('[aria-label="选择目标评论 #1"]').checked).toBe(true);});
 it('does not reopen a stale preview after changing cards',async()=>{
  let done;MNBridge.send.mockImplementation((command)=>command==='getFormatBrushPreview'?new Promise(resolve=>{done=resolve;}):Promise.resolve(command==='getCurrentNoteComments'?snapshot:{}));
- await click(host.querySelector('#comment-0 input'));await click(host.querySelector('[aria-label="格式刷"]'));
+ await click(host.querySelector('#comment-0 input'));await click(host.querySelector('#comment-0-format-brush'));
  await act(async()=>window.__MNCommentManagerNativeSync({snapshot:{...snapshot,noteId:'OTHER'}}));await act(async()=>done(preview));expect(host.querySelector('.brush-dialog')).toBeNull();
+});
+
+it('opens from the button next to any HTML comment without selecting the row',async()=>{
+ await click(host.querySelector('#comment-1-format-brush'));expect(MNBridge.send).toHaveBeenCalledWith('getFormatBrushPreview',{noteId:'N',sourceIndex:1});expect(host.querySelector('.brush-source').textContent).toContain('目标甲');expect(host.querySelector('#comment-1 input').checked).toBe(false);
+});
+it('disables the nearby brush for unsupported HTML formatting',async()=>{
+ await act(async()=>window.__MNCommentManagerNativeSync({snapshot:{...snapshot,comments:original.map(c=>c.index===1?{...c,richFormat:{supported:false,reason:'混合格式暂不支持格式刷'}}:c)}}));const trigger=host.querySelector('#comment-1-format-brush');expect(trigger.disabled).toBe(true);expect(trigger.title).toContain('混合格式');
 });
