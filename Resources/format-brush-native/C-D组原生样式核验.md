@@ -9,7 +9,7 @@
 | 字重、字体与字号 | 原生接口传入 `fontName: 'PingFangSC-Semibold'` 后，AppKit 回读确为半粗体字体；`fontWeight: 700` 作为额外样式键被忽略。使用具体字体名称可以实现已验证的半粗体效果。 |
 | C 组统一色竖条、括号 | `▍`、`〔〕` 可以作为普通正文字符，配合统一字体、字号与颜色保存为原生 RTF；竖条不是 CSS 边框，字符也会进入正文及导出结果。已实测 `▍证明` 字符及半粗体；括号属于同一普通字符方案。 |
 | C12、C13、C14、C15 的双色分段 | Cocoa HTML 导入器能将竖条、括号与字段文字保存为不同颜色的富文本分段，C12、C13、C15 已独立转换验证；C14 与 C13 结构相同、仅色值不同。现有 `appendRichTextComment(text, style)` 只接受整条统一样式，未提供分段属性入口，完整双色版本尚未写入 MarginNote 原生 RTF。 |
-| D16 基本下划线 | Cocoa 独立导入 D16 后得到 `underlineStyle=1` 和 PingFangSC-Semibold；富文本格式本身能够表示下划线。实际插件向 `appendRichTextComment` 传入 `underline`、`underlineStyle`、`textDecoration` 后，原生 RTF 回读仍为 `underlineStyle=0`，没有下划线。当前公开追加接口未打通该写入能力。 |
+| D16 基本下划线 | Cocoa 独立导入 D16 后得到 `underlineStyle=1` 和 PingFangSC-Semibold；富文本格式本身能够表示下划线。实际插件向 `appendRichTextComment` 传入 `underline`、`underlineStyle`、`textDecoration` 后，原生 RTF 回读仍为 `underlineStyle=0`，没有下划线。当前公开追加接口不支持该写入方式。 |
 | CSS 左边框、间距、圆角与渐变 | 原生追加接口未处理相关键。对 `border-left` 与 `padding-left` 的 Cocoa 独立转换也未得到边框或缩进效果；不能以浏览器预览作为原生实现证据。圆角、渐变未做新的宿主渲染验收。 |
 
 ## 追加路径的实际差异
