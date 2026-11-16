@@ -1153,6 +1153,20 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return text.slice(Math.max(0, Number(startIndex || 0) - 1), Number(startIndex || 0)) === "!";
   }
 
+  function getEmptyMarkdownLinks(text) {
+    const source = String(text || "");
+    const links = [];
+    const pattern = /\[[ \t]*\]\([ \t]*\)/g;
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const preceding = source.slice(0, match.index).match(/\\+$/);
+      if (preceding && preceding[0].length % 2 === 1) continue;
+      links.push({ displayText: "", url: "", startIndex: match.index,
+        endIndex: match.index + match[0].length, empty: true });
+    }
+    return links;
+  }
+
   function scanInvalidLinkCleanup(notes, mode, options) {
     const normalizedMode = normalizeInvalidLinkCleanupMode(mode);
     const targetNotes = Array.isArray(notes) ? notes : [];
@@ -1183,9 +1197,11 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           }
         }
         if (normalizedMode === "markdown" || normalizedMode === "all") {
-          const links = Array.isArray(comment.markdownLinks) ? comment.markdownLinks : [];
+          const links = (Array.isArray(comment.markdownLinks) ? comment.markdownLinks : [])
+            .concat(getEmptyMarkdownLinks(comment.text));
           const invalid = links.filter((link) => {
             if (!link || isMarkdownCodePosition(comment.text, link.startIndex, link.endIndex)) return false;
+            if (link.empty) return true;
             const parsed = __MN_COMMENT_DATA__.extractPureMarginNoteLink(link.url);
             if (!parsed || /\/summary(?:\/|$)/i.test(parsed.url || "")) return false;
             const state = getDatabaseNoteState(parsed.noteId, lookupCache);
@@ -1253,20 +1269,31 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       before.plans.forEach((plan, planIndex) => {
         const note = targetNotes[planIndex];
         try {
+          const removeIndices = plan.cardIndices.slice();
           plan.markdown.slice().sort((a, b) => b.commentIndex - a.commentIndex).forEach((item) => {
             const current = getSerializedComment(note, item.commentIndex);
             if (!current) throw new Error(`评论 #${item.commentIndex} 已不存在`);
             let nextText = String(current.text || "");
             item.links.slice().sort((a, b) => b.startIndex - a.startIndex).forEach((link) => {
-              nextText = nextText.slice(0, link.startIndex) + String(link.displayText || "") + nextText.slice(link.endIndex);
+              let start = link.startIndex, end = link.endIndex;
+              if (link.empty) {
+                const lineStart = nextText.lastIndexOf("\n", start - 1) + 1;
+                const newline = nextText.indexOf("\n", end);
+                const lineEnd = newline === -1 ? nextText.length : newline;
+                if (/^[ \t]*(?:[-+*][ \t]+|\d+[.)][ \t]+)?$/.test(nextText.slice(lineStart, start)) &&
+                    /^[ \t\r]*$/.test(nextText.slice(end, lineEnd))) {
+                  start = lineStart;
+                  end = newline === -1 ? lineEnd : newline + 1;
+                }
+              }
+              nextText = nextText.slice(0, start) + String(link.displayText || "") + nextText.slice(end);
             });
-            replaceCommentText(note, item.commentIndex, nextText, !!(current.capabilities && current.capabilities.isMarkdown));
+            if (!nextText.trim() && item.links.some(link => link.empty)) removeIndices.push(item.commentIndex);
+            else replaceCommentText(note, item.commentIndex, nextText, !!(current.capabilities && current.capabilities.isMarkdown));
             stats.removedMarkdownLinks += item.links.length;
           });
-          if (plan.cardIndices.length > 0) {
-            removeCommentsByIndices(note, plan.cardIndices);
-            stats.removedCardLinks += plan.cardIndices.length;
-          }
+          if (removeIndices.length > 0) removeCommentsByIndices(note, removeIndices);
+          stats.removedCardLinks += plan.cardIndices.length;
           if (plan.cardIndices.length > 0 || plan.markdown.length > 0) {
             refreshNote(note);
             changedNotes.push(note);
@@ -1279,8 +1306,8 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       });
     });
     refreshNotebooksAfterCommentMutation(changedNotes);
-    if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
-      MNUtil.showHUD(`已清除 ${stats.changed}/${stats.total} 张卡片的失效链接（卡片 ${stats.removedCardLinks} 条，Markdown ${stats.removedMarkdownLinks} 条）`);
+    if (stats.failed > 0 && typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
+      MNUtil.showHUD(`失效链接清理失败 ${stats.failed} 处，请检查失败卡片或撤销本次操作`);
     }
     return stats;
   }
