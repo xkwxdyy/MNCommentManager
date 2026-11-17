@@ -1,26 +1,50 @@
 /* Compact surfaces keep the full touch target; this stylesheet is panel-only. */
 .comment-manager {
   --quick-action-visual-size: 26px;
-  --panel-control-hit-size: 44px;
+  --panel-control-hit-size: var(--control-hit-size);
   --panel-control-surface-height: 28px;
   --panel-resize-clearance: 48px;
 }
 
 .comment-manager .topbar {
   gap: 10px;
-  min-height: 48px;
-  padding: 2px 12px;
+  min-height: 44px;
+  padding: 0 12px;
 }
 
-.comment-manager .topbar-title h1 {
-  font-size: 15px;
-  font-weight: 700;
-}
+@media (min-width: 761px) {
+  .comment-manager .topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 0;
+    min-width: 0;
+  }
 
-.comment-manager .topbar-title p {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  .comment-manager .topbar-title h1 {
+    flex: 0 0 auto;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--bg-control-strong);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+
+  .comment-manager .topbar-title p {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .comment-manager .topbar-actions {
@@ -38,7 +62,24 @@
 
 .comment-manager .topbar-selection-actions {
   position: relative;
+  isolation: isolate;
   padding: 0 2px;
+}
+
+/* One shared track reads as a single selection tool instead of four chips. */
+.comment-manager .topbar-selection-actions::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-control);
+  box-shadow: inset 0 0 0 1px var(--border-light);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .comment-manager .topbar-actions button,
@@ -99,19 +140,21 @@
 }
 
 .comment-manager .topbar-selection-actions button::before {
-  background: var(--bg-panel);
-  box-shadow: inset 0 0 0 1px var(--border-light), 0 1px 2px rgba(0, 0, 0, 0.03);
+  left: 1px;
+  right: 1px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .comment-manager .topbar-selection-actions button:disabled::before {
-  background: var(--bg-control);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+  background: transparent;
+  box-shadow: none;
 }
 
 .comment-manager .topbar-utility-actions button::before { background: transparent; }
 .comment-manager .topbar-actions button.active::before,
 .comment-manager .left-pane .segmented button.active::before {
-  background: var(--accent-blue);
+  background: var(--action-primary);
   box-shadow: 0 2px 6px rgba(0, 113, 227, 0.24);
 }
 
@@ -123,12 +166,12 @@
 
 .comment-manager .topbar-selection-actions button:hover:not(:disabled)::before {
   background: var(--bg-panel);
-  box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--border-light);
 }
 
 .comment-manager .topbar-actions button.active:hover:not(:disabled)::before,
 .comment-manager .left-pane .segmented button.active:hover:not(:disabled)::before {
-  background: var(--accent-blue-hover);
+  background: var(--action-primary-hover);
   box-shadow: 0 2px 8px rgba(0, 113, 227, 0.3);
 }
 
@@ -139,10 +182,11 @@
 }
 
 .comment-manager .statusbar {
-  min-height: 28px;
-  padding: 3px 12px;
-  gap: 6px 12px;
+  min-height: 26px;
+  padding: 2px 12px;
+  gap: 5px 10px;
   font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .comment-manager .statusbar > span:not(.status-message):not([role="alert"]) {
@@ -153,15 +197,25 @@
 
 .comment-manager .statusbar > span:not(.status-message):not([role="alert"]) + span:not(.status-message):not([role="alert"])::before {
   content: "·";
-  margin-right: 12px;
+  margin-right: 10px;
   color: var(--text-tertiary);
 }
 
 .comment-manager .statusbar .status-message {
+  flex: 0 1 auto;
+  width: fit-content;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-control);
   font-weight: 600;
+  max-width: 52%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .comment-manager .statusbar .status-message::before {
@@ -179,27 +233,402 @@
 }
 
 .comment-manager .left-pane {
-  padding: 12px 10px;
+  padding: 10px 10px 12px;
+}
+
+.comment-manager .left-pane-bar,
+.comment-manager .sidebar-search-wake,
+.comment-manager .left-outline-section,
+.comment-manager .left-pane .segmented button .filter-icon {
+  display: none;
 }
 
 .comment-manager .left-pane .pane-section {
+  margin-bottom: 0;
   gap: 8px;
 }
 
+.comment-manager .left-pane .search-box {
+  margin-bottom: 8px;
+}
+
+.comment-manager .left-pane .search-box input {
+  padding-right: 36px;
+}
+
 .comment-manager .left-pane .segmented { gap: 2px; }
-@media (min-width: 981px) {
+
+@media (min-width: 521px) {
+  .comment-manager:not([data-sidebar-collapsed="true"]) .quick-nav {
+    display: none;
+  }
+
+  .comment-manager .workspace {
+    grid-template-columns: var(--sidebar-width, 204px) minmax(0, 1fr);
+    transition: grid-template-columns var(--transition);
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .workspace {
+    grid-template-columns: var(--sidebar-rail-width, 48px) minmax(0, 1fr);
+  }
+
+  .comment-manager .left-pane-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 30px;
+    margin: -2px -2px 6px 2px;
+  }
+
+  .comment-manager .left-pane-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .comment-manager .sidebar-collapse-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px;
+    border-radius: 7px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-secondary);
+    transform: none;
+  }
+
+  .comment-manager .sidebar-collapse-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .comment-manager .sidebar-collapse-btn:hover:not(:disabled),
+  .comment-manager .sidebar-collapse-btn:active:not(:disabled) {
+    color: var(--text-primary);
+    border-color: transparent;
+    background: var(--bg-control-strong);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .comment-manager .left-pane .pane-section > h2 {
+    display: none;
+  }
+
+  .comment-manager .left-pane .segmented {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .comment-manager .left-pane .segmented button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    width: 100%;
+    min-height: 34px;
+    padding: 5px 10px;
+  }
+
   .comment-manager .left-pane .segmented button::before {
     left: 0;
     right: 0;
     height: 32px;
     border-radius: 7px;
   }
+
+  .comment-manager .left-pane .segmented button .filter-icon {
+    display: block;
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    opacity: 0.78;
+  }
+
+  .comment-manager .left-pane .segmented button.active .filter-icon {
+    opacity: 1;
+  }
+
+  .comment-manager .left-pane .segmented button b {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-outline-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+    min-width: 0;
+  }
+
+  .comment-manager .left-outline-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 0 2px;
+  }
+
+  .comment-manager .left-outline-head h2 {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .comment-manager .left-outline-edges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .comment-manager .outline-edge-btn {
+    position: relative;
+    min-width: 0;
+    min-height: 22px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-panel);
+    box-shadow: none;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 650;
+    transform: none;
+  }
+
+  .comment-manager .outline-edge-btn:hover:not(:disabled),
+  .comment-manager .outline-edge-btn:active:not(:disabled) {
+    color: var(--text-accent);
+    border-color: var(--status-info-border);
+    background: var(--accent-blue-soft);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .comment-manager .left-outline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .comment-manager .left-outline-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    min-height: 31px;
+    padding: 4px 8px;
+    border-radius: 7px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 550;
+    text-align: left;
+    transform: none;
+  }
+
+  .comment-manager .left-outline-item.depth-1 { padding-left: 16px; }
+  .comment-manager .left-outline-item.depth-2 { padding-left: 24px; }
+  .comment-manager .left-outline-item.depth-3 { padding-left: 32px; }
+
+  .comment-manager .left-outline-item:hover:not(:disabled),
+  .comment-manager .left-outline-item:active:not(:disabled) {
+    color: var(--text-accent);
+    border-color: transparent;
+    background: var(--accent-blue-soft);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .comment-manager .left-outline-name {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .comment-manager .left-outline-count {
+    flex: 0 0 auto;
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--bg-control-strong);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 650;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane {
+    padding: 8px 2px;
+    overflow-x: hidden;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane-bar {
+    justify-content: center;
+    width: 100%;
+    margin: 0 0 4px;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane-title,
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .search-box,
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented button > span,
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented button > b,
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .wide {
+    display: none;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-collapse-btn {
+    width: 44px;
+    height: 40px;
+    min-width: 44px;
+    min-height: 40px;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .pane-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-search-wake {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-width: 44px;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 8px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-secondary);
+    transform: none;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-search-wake:hover:not(:disabled),
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-search-wake:active:not(:disabled) {
+    color: var(--text-primary);
+    border-color: transparent;
+    background: var(--bg-control-strong);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-search-wake.is-active {
+    color: var(--action-primary);
+    background: var(--accent-blue-soft);
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .sidebar-search-wake svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented {
+    align-items: center;
+    width: 100%;
+    gap: 2px;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented button {
+    justify-content: center;
+    width: 44px;
+    min-width: 44px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented button .filter-icon {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+    opacity: 1;
+  }
+
+  .comment-manager[data-sidebar-collapsed="true"] .left-pane .segmented button::before {
+    left: 4px;
+    right: 4px;
+    height: 34px;
+    border-radius: 8px;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 760px) {
+  .comment-manager:not([data-sidebar-collapsed="true"]) .workspace {
+    grid-template-columns: 158px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 521px) and (max-height: 560px) {
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane {
+    padding: 7px 8px 8px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane-bar {
+    min-height: 26px;
+    margin-bottom: 4px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane .search-box {
+    margin-bottom: 5px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane .search-box input {
+    min-height: 32px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane .segmented button {
+    min-height: 30px;
+    padding: 3px 8px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-pane .segmented button::before {
+    height: 28px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-outline-section {
+    margin-top: 6px;
+    padding-top: 6px;
+    gap: 4px;
+  }
+  .comment-manager:not([data-sidebar-collapsed="true"]) .left-outline-item {
+    min-height: 27px;
+    padding: 3px 7px;
+  }
 }
 
 .comment-manager .topbar-utility-actions svg { width: 18px; height: 18px; }
 .comment-manager .quick-nav { min-height: 40px; padding: 0 12px; gap: 8px; }
-.comment-manager .quick-nav-track { padding: 0; gap: 2px; }
+.comment-manager .quick-nav-track {
+  padding: 0 14px 0 0;
+  gap: 2px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+}
 .comment-manager .quick-nav-item { max-width: 168px; padding: 6px 10px; }
+.comment-manager .quick-nav-item:focus-visible { outline-offset: -2px; }
 .comment-manager .quick-nav-item::before {
   height: 26px;
   border-radius: 999px;
@@ -216,13 +645,90 @@
 }
 
 .comment-manager .right-pane {
-  min-height: 48px;
-  padding: 3px var(--panel-resize-clearance) 3px 14px;
-  gap: 4px;
+  min-height: 46px;
+  padding: 2px var(--panel-resize-clearance) 2px 14px;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.comment-manager[data-has-selection="true"] .right-pane {
+  border-top-color: var(--status-info-border);
 }
 .comment-manager .right-pane .selection-summary p {
+  display: inline-block;
+  max-width: 100%;
   font-size: 12.5px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.comment-manager[data-has-selection="true"] .right-pane .selection-summary p {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-blue-soft);
+  color: var(--text-accent);
+}
+.comment-manager .right-pane-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+.comment-manager .right-pane .quick-batch-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: none;
+  transform: none;
+}
+.comment-manager .right-pane button.quick-batch-btn.primary {
+  color: #ffffff;
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+}
+.comment-manager .right-pane button.quick-batch-btn.primary:hover:not(:disabled) {
+  color: #ffffff;
+  border-color: var(--action-primary-hover);
+  background: var(--action-primary-hover);
+}
+.comment-manager .right-pane .quick-batch-delete {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media (max-width: 860px) {
+  .comment-manager .right-pane .quick-batch-desktop {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  .comment-manager .right-pane .quick-batch-step {
+    display: none;
+  }
+  .comment-manager .right-pane .quick-batch-btn {
+    padding: 4px 8px;
+    font-size: 11.5px;
+  }
+}
+@media (max-width: 480px) {
+  .comment-manager[data-has-selection="true"] .right-pane .comment-fold-toolbar {
+    display: none;
+  }
+  .comment-manager[data-has-selection="true"] .right-pane .selection-summary {
+    flex-shrink: 0;
+  }
+  .comment-manager[data-has-selection="true"] .right-pane .selection-summary p {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 359px), (max-height: 400px) {
+  .comment-manager .right-pane-quick-actions {
+    display: none;
+  }
 }
 .comment-manager .comment-fold-toolbar { gap: 0; }
 .comment-manager .right-pane .comment-fold-toolbar button,
@@ -268,7 +774,7 @@
   color: #ffffff;
 }
 .comment-manager .right-pane .selection-actions-toggle[aria-expanded="true"]::before {
-  background: var(--accent-blue);
+  background: var(--action-primary);
   box-shadow: 0 2px 6px rgba(0, 113, 227, 0.28);
 }
 .comment-manager .right-pane .comment-fold-toolbar button:hover:not(:disabled)::before,
@@ -281,25 +787,127 @@
 }
 .comment-manager .comment-fold-toolbar svg,
 .comment-manager .selection-actions-toggle svg { width: 18px; height: 18px; }
-.comment-manager .selection-actions-panel { bottom: 56px; max-height: min(480px, calc(100vh - 68px)); }
+.comment-manager .selection-actions-panel {
+  right: max(8px, calc(var(--panel-resize-clearance) - 4px));
+  bottom: 52px;
+  width: min(308px, calc(100vw - 20px));
+  padding: 10px 12px 14px;
+  scroll-padding-bottom: 14px;
+  max-height: min(536px, calc(100vh - 64px));
+  max-height: min(536px, calc(100dvh - 64px));
+}
+.comment-manager .right-pane .selection-actions-panel .selection-actions-heading {
+  margin-bottom: 6px;
+}
+.comment-manager .right-pane .selection-actions-panel .pane-section {
+  margin-bottom: 8px;
+}
+.comment-manager .right-pane .selection-actions-panel .pane-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 2px;
+}
+.comment-manager .right-pane .selection-actions-panel .pane-section h2 {
+  margin-bottom: 4px;
+}
+.comment-manager .right-pane .selection-actions-panel .button-grid,
+.comment-manager .right-pane .selection-actions-panel .stack {
+  gap: 5px;
+}
+.comment-manager .right-pane .selection-actions-panel button:not(.selection-actions-close) {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+.comment-manager .right-pane .selection-actions-panel .wide {
+  margin-top: 5px;
+}
+.comment-manager .right-pane .selection-actions-panel .danger-zone p {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
 
 .comment-manager .comment-list {
-  padding: 12px;
+  padding: 10px 12px 14px;
   gap: 8px;
 }
 .comment-manager .comment-card {
-  padding: 10px 12px 12px;
-  gap: 6px;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  padding: 9px 12px 11px;
+  gap: 5px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
 }
 .comment-manager .comment-card:hover {
   border-color: var(--border-strong);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
+.comment-manager[data-range-picking="true"] .comment-card:not(.excerpt-card):not(.range-anchor):hover {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 1px rgba(255, 149, 0, 0.25), 0 3px 10px rgba(255, 149, 0, 0.08);
+}
 .comment-manager .comment-card.selected {
-  border-color: rgba(0, 113, 227, 0.45);
+  border-color: var(--border-selected-strong, rgba(0, 113, 227, 0.45));
   box-shadow: 0 0 0 1px rgba(0, 113, 227, 0.16), 0 4px 12px rgba(0, 113, 227, 0.07);
+}
+.comment-manager .comment-card.comment-is-module-title-anchor {
+  min-height: 46px;
+  padding: 5px 12px 6px;
+  gap: 2px;
+  background: var(--surface-title-anchor, rgba(0, 113, 227, 0.032));
+  border-style: dashed;
+  border-color: var(--border-title-anchor, rgba(0, 113, 227, 0.18));
+  box-shadow: none;
+}
+.comment-manager .comment-card.comment-is-module-title-anchor.has-drag-handle {
+  padding-right: 56px;
+}
+.comment-manager .comment-card.comment-is-module-title-anchor.selected {
+  border-style: solid;
+  border-color: var(--border-selected-strong, rgba(0, 113, 227, 0.52));
+  background: var(--accent-blue-soft);
+}
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-head {
+  min-height: 28px;
+  margin: -3px -2px 0;
+}
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body {
+  padding-left: 10px;
+  max-height: 20px;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body p,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body pre,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h1,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h2,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h3,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h4,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h5,
+.comment-manager .comment-card.comment-is-module-title-anchor .comment-body h6 {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .comment-body {
+  max-height: none;
+  overflow: visible;
+}
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .plain-text-preview pre {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comment-manager .comment-is-module-title-anchor.comment-kind-html .plain-text-preview[data-truncated="false"] pre {
+  overflow: visible;
+  text-overflow: clip;
 }
 .comment-manager .excerpt-card {
   border-left: 3px solid rgba(255, 159, 10, 0.55);
@@ -313,11 +921,73 @@
   gap: 0;
   margin-right: -4px;
 }
+.comment-manager .comment-body {
+  padding-left: 10px;
+}
 .comment-manager .link-summary {
-  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 10px 7px 11px;
   border-radius: 8px;
   background: var(--bg-panel-soft);
   border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent-green);
+}
+
+@media (prefers-color-scheme: dark) {
+  .comment-manager .type-pill,
+  .comment-manager .direction-pill {
+    background: rgba(255, 255, 255, 0.085);
+  }
+  .comment-manager .type-text {
+    background: rgba(10, 132, 255, 0.16);
+  }
+  .comment-manager .type-link,
+  .comment-manager .direction-both {
+    background: rgba(48, 209, 88, 0.15);
+  }
+  .comment-manager .type-image,
+  .comment-manager .direction-one-way {
+    background: rgba(255, 159, 10, 0.16);
+  }
+  .comment-manager .type-html {
+    background: rgba(191, 90, 242, 0.16);
+  }
+}
+.comment-manager .link-summary-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 620;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comment-manager .link-summary-url {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.78;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mouse layouts: keep every card action visible, but drop the circular
+   surfaces until the card is hovered, focused or selected. Touch layouts
+   keep the full resting surfaces because they have no hover preview. */
+@media (hover: hover) and (pointer: fine) {
+  .comment-manager .comment-card:not(:hover):not(:focus-within):not(.selected) .quick-action-btn:not(.pressing)::before {
+    background: transparent;
+    box-shadow: none;
+  }
+  .comment-manager .comment-card:not(:hover):not(:focus-within):not(.selected) .quick-action-btn.danger:not(.pressing) {
+    color: var(--text-secondary);
+  }
 }
 
 @media (max-width: 760px) {
@@ -327,7 +997,7 @@
     flex-wrap: wrap;
     align-items: center;
     min-height: 0;
-    padding: 2px 8px 4px;
+    padding: 0 8px;
     gap: 0 6px;
   }
   .comment-manager .topbar-title {
@@ -338,7 +1008,7 @@
     align-items: center;
     width: auto;
     min-width: 0;
-    height: 40px;
+    height: 44px;
     padding-left: 4px;
   }
   .comment-manager .topbar-title h1 {
@@ -362,15 +1032,15 @@
     flex: 0 0 auto;
     justify-content: flex-end;
     width: auto;
-    height: 40px;
+    height: 44px;
     gap: 0;
   }
   .comment-manager .topbar-utility-actions button,
   .comment-manager .topbar-utility-actions .help-videos > summary {
-    flex: 0 0 40px;
-    width: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 4px;
     font-size: 11.5px;
   }
@@ -385,23 +1055,26 @@
   }
   .comment-manager .topbar-selection-actions button {
     width: 100%;
-    min-height: 36px;
+    min-height: 44px;
     padding: 4px 6px;
   }
   .comment-manager .statusbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    min-height: 26px;
+    min-height: 28px;
     padding: 3px 12px;
     gap: 4px 10px;
   }
-  .comment-manager .statusbar > span:nth-of-type(4) {
+  .comment-manager .statusbar > span.status-count.status-visible {
     display: none;
   }
   .comment-manager .statusbar .status-message {
     grid-column: auto;
     margin-left: auto;
+    flex: 0 1 auto;
+    width: fit-content;
+    max-width: 58%;
   }
   .comment-manager .statusbar > [role="alert"] {
     max-width: 100%;
@@ -410,16 +1083,37 @@
   }
   .comment-manager .quick-nav { padding: 0 8px; min-height: 38px; }
   .comment-manager .right-pane { padding-left: 12px; }
+
+  /* Narrow comment cards: keep fold, checkbox, index, and type pills on a
+     consistent left-aligned anchor row; short action sets share the row
+     while 5-button cards wrap actions cleanly onto a right-aligned second row. */
+  .comment-manager .comment-card:not(.excerpt-card) .comment-head {
+    row-gap: 2px;
+  }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-inline-actions {
+    flex: 0 0 auto;
+    margin: -6px -4px -6px auto;
+  }
+  .comment-manager .comment-body {
+    padding-left: 4px;
+  }
 }
 
 @media (max-width: 520px) {
-  .comment-manager .statusbar > span:not(.status-message):not([role="alert"]):not(:nth-of-type(2)):not(:nth-of-type(3)) {
+  /* Specificity matches the separator rules above so the phone summary
+     keeps only the comment total and selection count. */
+  .comment-manager .statusbar > span.status-count.status-excerpt,
+  .comment-manager .statusbar > span.status-count.status-visible {
     display: none;
   }
-  .comment-manager .statusbar > span:nth-of-type(2)::before {
+  .comment-manager .statusbar > span:not(.status-message):not([role="alert"]) + span.status-count.status-total::before {
     display: none;
   }
-  .comment-manager .left-pane { padding: 2px 8px; }
+  .comment-manager .left-pane {
+    padding: 2px 14px 2px 8px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  }
   .comment-manager .left-pane .pane-section { gap: 4px; }
   .comment-manager .left-pane .pane-section h2 { display: none; }
   .comment-manager .left-pane .search-box { flex-basis: 136px; }
@@ -428,13 +1122,120 @@
   .comment-manager .left-pane .segmented { gap: 0; }
   .comment-manager .left-pane .segmented button { min-width: 60px; padding: 6px 8px; }
   .comment-manager .comment-list { padding: 8px; }
-  .comment-manager .comment-fold-status { font-size: 10px; }
+  .comment-manager .comment-card { padding: 10px 10px 11px; }
+  .comment-manager .comment-card.comment-is-module-title-anchor {
+    padding: 4px 10px 5px 8px;
+    gap: 1px;
+  }
+  .comment-manager .comment-card.comment-is-module-title-anchor.has-drag-handle {
+    padding-right: 54px;
+  }
+  .comment-manager .comment-card.comment-is-module-title-anchor .comment-head {
+    margin: -5px 0 -2px;
+    gap: 1px 2px;
+  }
+  .comment-manager .comment-card.comment-is-module-title-anchor .type-pill {
+    padding: 1px 4px;
+    font-size: 10px;
+  }
+  .comment-manager .comment-card.comment-is-module-title-anchor .comment-inline-actions {
+    margin-right: 0;
+  }
+  .comment-manager .comment-card.comment-is-module-title-anchor .comment-inline-actions .quick-action-btn {
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-head { gap: 2px 4px; }
+  .comment-manager .comment-fold-button { margin-left: -4px; margin-right: -4px; }
+  .comment-manager .selection-checkbox { margin-left: -2px; margin-right: -2px; }
+  .comment-manager .comment-card:not(.excerpt-card) .comment-inline-actions { gap: 0; margin-right: -6px; margin-left: auto; }
+  .comment-manager .comment-fold-status { display: none; }
+  .comment-manager .selection-actions-panel { right: 8px; }
 }
 
+/* Wide but short floating panels: the chrome (title, status, quick nav and
+   footer) used to keep its full height and leave little room for comments.
+   Compress it while keeping every entry reachable and the 44px hit areas on
+   the actual buttons. */
+@media (min-width: 761px) and (max-height: 480px) {
+  .comment-manager .topbar { min-height: 40px; padding-top: 0; padding-bottom: 0; }
+  .comment-manager .topbar-title { display: flex; flex: 1 1 0; min-width: 120px; align-items: center; gap: 10px; }
+  .comment-manager .topbar-title h1 { flex: none; font-size: 13.5px; }
+  .comment-manager .topbar-title p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .comment-manager .topbar-actions button,
+  .comment-manager .topbar-utility-actions .help-videos > summary { min-height: 40px; }
+  .comment-manager .statusbar { min-height: 24px; padding-top: 1px; padding-bottom: 1px; }
+  .comment-manager .quick-nav { min-height: 32px; }
+  .comment-manager .quick-nav-item { min-height: 32px; padding-top: 2px; padding-bottom: 2px; }
+  .comment-manager .left-pane { padding-top: 8px; padding-bottom: 8px; }
+  .comment-manager .left-pane .pane-section h2 { display: none; }
+  .comment-manager .comment-list { padding: 8px 12px; gap: 6px; }
+  .comment-manager .right-pane { min-height: 42px; }
+  .comment-manager .right-pane .comment-fold-toolbar button,
+  .comment-manager .right-pane .selection-actions-toggle { padding: 11px; }
+  .comment-manager .right-pane .comment-fold-toolbar button::before,
+  .comment-manager .right-pane .selection-actions-toggle::before { inset: 5px; }
+  .comment-manager .selection-actions-panel { bottom: 48px; max-height: calc(100vh - 56px); max-height: calc(100dvh - 56px); }
+}
 @media (max-width: 760px) and (max-height: 480px) {
+  .comment-manager .topbar { min-height: 38px; padding: 0 8px; }
   .comment-manager .topbar-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
-  .comment-manager .topbar-actions { display: flex; flex-direction: row; justify-content: flex-start; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .comment-manager .topbar-selection-actions { display: flex; flex: 0 0 auto; width: auto; gap: 0; }
-  .comment-manager .topbar-selection-actions button { flex: 0 0 auto; width: auto; min-width: 52px; }
-  .comment-manager .topbar-utility-actions { order: 0; flex: 0 0 auto; width: auto; }
+  .comment-manager .topbar-actions { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .comment-manager .topbar-actions::-webkit-scrollbar { display: none; }
+  .comment-manager .topbar-selection-actions { order: 1; display: flex; flex: 0 0 auto; width: auto; gap: 0; }
+  .comment-manager .topbar-selection-actions button { flex: 0 0 auto; width: auto; min-width: 50px; min-height: 36px; }
+  .comment-manager .topbar-utility-actions { order: 2; margin-left: auto; flex: 0 0 auto; width: auto; height: 38px; }
+  .comment-manager .topbar-utility-actions button,
+  .comment-manager .topbar-utility-actions .help-videos > summary { min-height: 38px; height: 38px; }
+  .comment-manager .statusbar:not([data-has-alert="true"]) { display: none; }
+  .comment-manager .quick-nav { min-height: 30px; padding: 0 8px; }
+  .comment-manager .quick-nav-item { min-height: 28px; padding: 2px 8px; }
+  .comment-manager .left-pane { padding: 6px; }
+  .comment-manager .left-pane .pane-section h2 { display: none; }
+  .comment-manager .left-pane .search-box { margin-bottom: 6px; }
+  .comment-manager .left-pane .search-box input { min-height: 32px; padding-top: 4px; padding-bottom: 4px; font-size: 13px; }
+  .comment-manager .comment-list { padding: 6px 8px; gap: 6px; }
+  .comment-manager .excerpt-card { margin-bottom: 6px; padding: 6px 10px 8px; gap: 3px; }
+  .comment-manager .comment-card { padding: 7px 10px 8px; gap: 4px; }
+  .comment-manager .right-pane { min-height: 36px; padding-top: 0; padding-bottom: 0; }
+  .comment-manager .right-pane .comment-fold-toolbar button,
+  .comment-manager .right-pane .selection-actions-toggle { min-height: 36px; height: 36px; padding: 9px; }
+  .comment-manager .right-pane .comment-fold-toolbar button::before,
+  .comment-manager .right-pane .selection-actions-toggle::before { inset: 4px; }
+}
+@media (pointer: coarse) {
+  .comment-manager .topbar-utility-actions { height: auto; }
+  .comment-manager .topbar-actions button,
+  .comment-manager .topbar-utility-actions .help-videos > summary,
+  .comment-manager .quick-nav-item,
+  .comment-manager .left-pane .search-box input,
+  .comment-manager .sidebar-collapse-btn,
+  .comment-manager .sidebar-search-wake,
+  .comment-manager .left-outline-item,
+  .comment-manager .right-pane .comment-fold-toolbar button,
+  .comment-manager .right-pane .selection-actions-toggle,
+  .comment-manager .right-pane .selection-actions-panel button:not(.selection-actions-close) {
+    min-height: var(--control-hit-size);
+    height: auto;
+  }
+  .comment-manager .right-pane .quick-batch-btn {
+    min-height: 32px;
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .comment-manager .right-pane .quick-batch-btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px -2px;
+  }
+  .comment-manager .sidebar-collapse-btn,
+  .comment-manager .sidebar-search-wake {
+    min-width: var(--control-hit-size);
+  }
+  .comment-manager .outline-edge-btn::after {
+    content: "";
+    position: absolute;
+    inset: -11px -4px;
+  }
 }

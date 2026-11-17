@@ -44,6 +44,7 @@ const context = vm.createContext({
   },
 });
 
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/NoteAccess.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentFoldState.js"), "utf8"), context);
 vm.runInContext(source, context, { filename: "CommentData.js" });
 
@@ -160,6 +161,7 @@ const editContext = vm.createContext({
     },
   },
 });
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/NoteAccess.js"), "utf8"), editContext);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentFoldState.js"), "utf8"), editContext);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentData.js"), "utf8"), editContext, { filename: "CommentData.js" });
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../src/CommentMutations.js"), "utf8"), editContext, { filename: "CommentMutations.js" });

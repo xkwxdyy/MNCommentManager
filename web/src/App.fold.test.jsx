@@ -22,7 +22,7 @@ beforeEach(async () => {
     comments: [
       { index: 0, type: "textComment", text: "完整正文与末尾搜索标记", collapsed: false, capabilities: { canSetCollapsed: true } },
       { index: 1, type: "markdownComment", text: "## 收敛条件\n\n**证据**与完整正文的搜索标记", collapsed: true, capabilities: { canSetCollapsed: true, isMarkdown: true } },
-      { index: 2, type: "imageComment", text: "图片说明", imageBase64: "data:image/png;base64,preview", collapsed: true, capabilities: { canSetCollapsed: true, hasImage: true } },
+      { index: 2, type: "imageComment", text: "图片说明", imageBase64: "data:image/png;base64,preview", drawingPreviewOnly: true, drawingPreviewDataURI: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", collapsed: true, capabilities: { canSetCollapsed: true, hasImage: true } },
     ],
   };
   MNBridge.send.mockReset();
@@ -282,4 +282,13 @@ it("hides disclosure controls and reports unsupported hosts without enabling loc
   expect(host.querySelector(".comment-fold-toolbar")).toBeNull();
   expect(host.querySelector(".comment-fold-unavailable").textContent).toContain("暂不支持折叠或展开评论");
   expect(MNBridge.send).not.toHaveBeenCalled();
+});
+
+
+it("keeps a restricted drawing warning visible in folded and expanded comments", async () => {
+  expect(card(2).querySelector(".media-warning").textContent).toContain("仅供近似预览");
+  expect(card(0).querySelector(".media-warning")).toBeNull();
+  await click(foldButton(2));
+  expect(card(2).querySelector(".media-warning").getAttribute("role")).toBe("status");
+  expect(card(2).querySelectorAll(".comment-media-previews img").length).toBe(2);
 });

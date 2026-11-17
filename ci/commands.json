@@ -1499,7 +1499,9 @@
         "web/src/components/WorkflowParameters.test.jsx",
         "web/src/lib/contentSelection.test.js",
         "web/src/lib/markdownRenderer.test.js",
-        "web/src/App.drag-overview.test.jsx"
+        "web/src/App.drag-overview.test.jsx",
+        "web/src/App.format-brush.test.jsx",
+        "web/src/App.rich-comment.test.jsx"
       ]
     },
     {
@@ -1634,10 +1636,91 @@
       ]
     },
     {
+      "name": "Cascading menu and legacy MNUtils compatibility",
+      "argv": [
+        "node",
+        "scripts/test-cascading-menu.js"
+      ]
+    },
+    {
       "name": "Candidate payload export safety",
       "argv": [
         "node",
         "ci/test-build-payload-export.js"
+      ]
+    },
+    {
+      "name": "Read-only note access regression",
+      "argv": [
+        "node",
+        "scripts/test-note-access.js"
+      ]
+    },
+    {
+      "name": "Bounded handwriting decoder regression",
+      "argv": [
+        "node",
+        "scripts/test-handwriting-decoder.js"
+      ]
+    },
+    {
+      "name": "test-comment-classification",
+      "argv": [
+        "node",
+        "scripts/test-comment-classification.js"
+      ]
+    },
+    {
+      "name": "test-rich-format",
+      "argv": [
+        "node",
+        "scripts/test-rich-format.js"
+      ]
+    },
+    {
+      "name": "test-format-brush",
+      "argv": [
+        "node",
+        "scripts/test-format-brush.js"
+      ]
+    },
+    {
+      "name": "Syntax src/RichCommentLifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/RichCommentLifecycle.js"
+      ]
+    },
+    {
+      "name": "Syntax src/CommentMarkdown.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/CommentMarkdown.js"
+      ]
+    },
+    {
+      "name": "Syntax scripts/sync-rich-markdown.mjs",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/sync-rich-markdown.mjs"
+      ]
+    },
+    {
+      "name": "Syntax scripts/test-rich-comment-lifecycle.js",
+      "argv": [
+        "node",
+        "--check",
+        "scripts/test-rich-comment-lifecycle.js"
+      ]
+    },
+    {
+      "name": "test-rich-comment-lifecycle",
+      "argv": [
+        "node",
+        "scripts/test-rich-comment-lifecycle.js"
       ]
     }
   ]

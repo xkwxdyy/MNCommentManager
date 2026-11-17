@@ -5,7 +5,7 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const cssPath = process.env.MNCM_STYLES_PATH || path.join(root, "web", "src", "styles.css");
 const appPath = process.env.MNCM_APP_PATH || path.join(root, "web", "src", "App.jsx");
-const styles = fs.readFileSync(cssPath, "utf8");
+const styles = fs.readFileSync(cssPath, "utf8").replace('@import "./theme.css";', () => fs.readFileSync(path.join(path.dirname(cssPath), "theme.css"), "utf8"));
 const app = fs.readFileSync(appPath, "utf8");
 
 function matchingBrace(text, openIndex) {
@@ -88,7 +88,7 @@ assert.ok(hoverVisual.includes("background: var(--accent-blue-soft);"), "hover f
 const danger = extractBlock(styles, "\n.quick-action-btn.danger::before {\n");
 assert.ok(danger.includes("background: rgba(255, 59, 48, 0.1);"), "danger affordance must remain on the compact visual circle");
 const dangerActive = extractBlock(styles, "\n.quick-action-btn.danger:hover:not(:disabled)::before,\n");
-assert.ok(dangerActive.includes("background: var(--accent-red);"), "danger hover/press feedback must remain red");
+assert.ok(dangerActive.includes("background: var(--action-danger);"), "danger hover/press feedback must remain red");
 
 assert.ok(extractBlock(styles, "\n.locate-action {\n").includes("font-size: 15px;"), "locate icon size must stay 15px");
 assert.ok(extractBlock(styles, "\n.update-link-action {\n").includes("font-size: 17px;"), "update icon size must stay 17px");

@@ -440,7 +440,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const excerpt = __MN_COMMENT_DATA__.getExcerptState(note);
     const excerptType = excerpt && excerpt.type || getExcerptType(note);
     if (!excerpt || !excerpt.present) return { eligible: false, reason: "noExcerpt", excerptType };
-    if (!note.parentNote) return { eligible: false, reason: "noParent", excerptType };
+    if (!__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(note)) return { eligible: false, reason: "noParent", excerptType };
     if (excerptType === "image") return { eligible: true, reason: "image", excerptType };
     if (allowTextExcerpt && excerptType === "text" && String(excerpt.text || "").trim()) {
       return { eligible: true, reason: "text", excerptType };
@@ -459,7 +459,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const rawNote = getRawNote(note);
     return {
       commentCount: getCommentCount(note),
-      childCount: note && Array.isArray(note.childNotes) ? note.childNotes.length : 0,
+      childCount: __MN_NOTE_ACCESS_MNCommentManagerAddon.children(note).length,
       hasExcerptText: !!String(note && note.excerptText || rawNote && rawNote.excerptText || "").trim(),
       hasExcerptPic: !!(note && note.excerptPic || rawNote && rawNote.excerptPic),
     };
@@ -479,7 +479,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       if (typeof MNNote !== "undefined" && MNNote && typeof MNNote.detachMergedSourceFromParent === "function") {
         if (MNNote.detachMergedSourceFromParent(sourceNote, targetNote, expectedParentNote)) return true;
       }
-      const sourceParent = sourceNote && sourceNote.parentNote;
+      const sourceParent = sourceNote && __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(sourceNote);
       if (!sourceParent || !targetNote) return false;
       if (expectedParentNote && getNoteId(sourceParent) !== getNoteId(expectedParentNote)) return false;
       if (String(sourceNote.groupNoteId || "") !== getNoteId(targetNote)) return false;
@@ -506,10 +506,10 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const state = getNoExcerptConversionState(note, opts.allowTextExcerpt === true);
     if (!state.eligible) return { changed: false, reason: state.reason, note };
 
-    const parentNote = note.parentNote;
+    const parentNote = __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(note);
     const sourceNoteId = getNoteId(note);
     const sourceTitle = getNoteTitle(note);
-    const sourceIndex = Number(note.indexInBrotherNotes);
+    const sourceIndex = Number(__MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(note));
     const target = createBlankChildNoteOrThrow(parentNote, sourceTitle, note.colorIndex, note);
     const targetInitialSnapshot = getNotePayloadSnapshot(target);
     const affectedNotes = [];
@@ -524,17 +524,17 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     }
 
     const sourceDetached = detachMergedSourceFromParent(note, target, parentNote);
-    if (!sourceDetached && note.parentNote && getNoteId(note.parentNote) === getNoteId(parentNote)) {
+    if (!sourceDetached && __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(note) && getNoteId(__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(note)) === getNoteId(parentNote)) {
       throw new Error("摘录已合并，但源卡片仍残留在原父卡片下，请撤销后重试");
     }
     if (Number.isFinite(sourceIndex) && typeof target.moveTo === "function") {
       target.moveTo(sourceIndex);
     }
-    if (parentNote && target.parentNote && getNoteId(target.parentNote) !== getNoteId(parentNote)) {
+    if (parentNote && __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(target) && getNoteId(__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(target)) !== getNoteId(parentNote)) {
       throw new Error("转换后的卡片父节点发生变化，请撤销后重试");
     }
-    if (Number.isFinite(sourceIndex) && Number.isFinite(Number(target.indexInBrotherNotes)) &&
-      Number(target.indexInBrotherNotes) !== sourceIndex) {
+    if (Number.isFinite(sourceIndex) && Number.isFinite(Number(__MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(target))) &&
+      Number(__MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(target)) !== sourceIndex) {
       throw new Error("转换后的卡片位置无法恢复，请撤销后重试");
     }
     setNoteTitle(target, sourceTitle);
@@ -746,7 +746,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   function removeClonedChildren(note, sourceNote) {
-    if (!note.childNotes || !note.childNotes.length) return;
+    if (!__MN_NOTE_ACCESS_MNCommentManagerAddon.children(note) || !__MN_NOTE_ACCESS_MNCommentManagerAddon.children(note).length) return;
     const collect = root => {
       const ids = new Set(), pending = [root];
       while (pending.length) {
@@ -754,7 +754,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         if (!id) throw new Error("副本子卡片缺少稳定标识，已停止提取");
         if (ids.has(id)) continue;
         ids.add(id);
-        (item.childNotes || []).forEach(child => pending.push(child));
+        (__MN_NOTE_ACCESS_MNCommentManagerAddon.children(item) || []).forEach(child => pending.push(child));
       }
       return ids;
     };
@@ -765,7 +765,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     if (typeof note.deleteDescendants !== "function") throw new Error("当前版本无法清理副本子卡片，已停止提取");
     // Detaching descendants promotes them to top-level cards; remove only the verified clones.
     note.deleteDescendants();
-    if (note.childNotes && note.childNotes.length) throw new Error("副本子卡片清理未完成，已停止提取");
+    if (__MN_NOTE_ACCESS_MNCommentManagerAddon.children(note) && __MN_NOTE_ACCESS_MNCommentManagerAddon.children(note).length) throw new Error("副本子卡片清理未完成，已停止提取");
   }
 
   function cloneNoteOrThrow(note) {
@@ -938,7 +938,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     try {
       setNoteTitle(clone, childTitle);
       removeClonedChildren(clone, sourceNote);
-      if (clone.childNotes && clone.childNotes.length) throw new Error("副本仍包含未选择的子卡片，源评论未删除");
+      if (__MN_NOTE_ACCESS_MNCommentManagerAddon.children(clone) && __MN_NOTE_ACCESS_MNCommentManagerAddon.children(clone).length) throw new Error("副本仍包含未选择的子卡片，源评论未删除");
       removeCommentsByIndices(clone, getInverseCommentIndices(clone, normalizedSelection.commentIndices));
       verify(clone);
       if (!normalizedSelection.excerptSelected && noteHasExcerpt(clone)) {
@@ -947,7 +947,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           child = clone;
           throw new Error("未创建独立空白子卡片，源评论未删除");
         }
-        if (noteHasExcerpt(child) || getCommentCount(child) || child.childNotes && child.childNotes.length) {
+        if (noteHasExcerpt(child) || getCommentCount(child) || __MN_NOTE_ACCESS_MNCommentManagerAddon.children(child) && __MN_NOTE_ACCESS_MNCommentManagerAddon.children(child).length) {
           throw new Error("新子卡片并非空白卡片，源评论未删除");
         }
         const copied = __MN_COMMENT_DATA__.getNoteSnapshot(clone);
@@ -957,13 +957,13 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         else throw new Error("当前版本无法保留完整评论内容，源评论未删除");
         validateConvertedCommentMapping(copied, child, getNoteId(clone), { excerptSelected: false, commentIndices: [] });
         // Keep the host's merged record, as in excerpt conversion; only detach its visible card.
-        if (clone.parentNote && !detachMergedSourceFromParent(clone, child, clone.parentNote)) throw new Error("无法收起中间副本，源评论未删除");
+        if (__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(clone) && !detachMergedSourceFromParent(clone, child, __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(clone))) throw new Error("无法收起中间副本，源评论未删除");
         removeCommentsByIndices(child, [0]);
         if (noteHasExcerpt(child)) throw new Error("子卡片仍有未选择的主摘录，源评论未删除");
         verify(child);
       }
-      if (getNoteId(child.parentNote) !== getNoteId(sourceNote)) attachClonedChildOrThrow(sourceNote, child);
-      if (getNoteId(child.parentNote) !== getNoteId(sourceNote)) throw new Error("子卡片挂载未通过核对，源评论未删除");
+      if (getNoteId(__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(child)) !== getNoteId(sourceNote)) attachClonedChildOrThrow(sourceNote, child);
+      if (getNoteId(__MN_NOTE_ACCESS_MNCommentManagerAddon.parent(child)) !== getNoteId(sourceNote)) throw new Error("子卡片挂载未通过核对，源评论未删除");
       if (JSON.stringify(getSerializedComments(sourceNote).map(getExtractionFingerprint)) !== JSON.stringify(sourceSnapshot.comments.map(getExtractionFingerprint))) {
         throw new Error("源评论已变化，已停止提取");
       }
@@ -1153,6 +1153,20 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     return text.slice(Math.max(0, Number(startIndex || 0) - 1), Number(startIndex || 0)) === "!";
   }
 
+  function getEmptyMarkdownLinks(text) {
+    const source = String(text || "");
+    const links = [];
+    const pattern = /\[[ \t]*\]\([ \t]*\)/g;
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const preceding = source.slice(0, match.index).match(/\\+$/);
+      if (preceding && preceding[0].length % 2 === 1) continue;
+      links.push({ displayText: "", url: "", startIndex: match.index,
+        endIndex: match.index + match[0].length, empty: true });
+    }
+    return links;
+  }
+
   function scanInvalidLinkCleanup(notes, mode, options) {
     const normalizedMode = normalizeInvalidLinkCleanupMode(mode);
     const targetNotes = Array.isArray(notes) ? notes : [];
@@ -1183,9 +1197,11 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
           }
         }
         if (normalizedMode === "markdown" || normalizedMode === "all") {
-          const links = Array.isArray(comment.markdownLinks) ? comment.markdownLinks : [];
+          const links = (Array.isArray(comment.markdownLinks) ? comment.markdownLinks : [])
+            .concat(getEmptyMarkdownLinks(comment.text));
           const invalid = links.filter((link) => {
             if (!link || isMarkdownCodePosition(comment.text, link.startIndex, link.endIndex)) return false;
+            if (link.empty) return true;
             const parsed = __MN_COMMENT_DATA__.extractPureMarginNoteLink(link.url);
             if (!parsed || /\/summary(?:\/|$)/i.test(parsed.url || "")) return false;
             const state = getDatabaseNoteState(parsed.noteId, lookupCache);
@@ -1253,20 +1269,31 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       before.plans.forEach((plan, planIndex) => {
         const note = targetNotes[planIndex];
         try {
+          const removeIndices = plan.cardIndices.slice();
           plan.markdown.slice().sort((a, b) => b.commentIndex - a.commentIndex).forEach((item) => {
             const current = getSerializedComment(note, item.commentIndex);
             if (!current) throw new Error(`评论 #${item.commentIndex} 已不存在`);
             let nextText = String(current.text || "");
             item.links.slice().sort((a, b) => b.startIndex - a.startIndex).forEach((link) => {
-              nextText = nextText.slice(0, link.startIndex) + String(link.displayText || "") + nextText.slice(link.endIndex);
+              let start = link.startIndex, end = link.endIndex;
+              if (link.empty) {
+                const lineStart = nextText.lastIndexOf("\n", start - 1) + 1;
+                const newline = nextText.indexOf("\n", end);
+                const lineEnd = newline === -1 ? nextText.length : newline;
+                if (/^[ \t]*(?:[-+*][ \t]+|\d+[.)][ \t]+)?$/.test(nextText.slice(lineStart, start)) &&
+                    /^[ \t\r]*$/.test(nextText.slice(end, lineEnd))) {
+                  start = lineStart;
+                  end = newline === -1 ? lineEnd : newline + 1;
+                }
+              }
+              nextText = nextText.slice(0, start) + String(link.displayText || "") + nextText.slice(end);
             });
-            replaceCommentText(note, item.commentIndex, nextText, !!(current.capabilities && current.capabilities.isMarkdown));
+            if (!nextText.trim() && item.links.some(link => link.empty)) removeIndices.push(item.commentIndex);
+            else replaceCommentText(note, item.commentIndex, nextText, !!(current.capabilities && current.capabilities.isMarkdown));
             stats.removedMarkdownLinks += item.links.length;
           });
-          if (plan.cardIndices.length > 0) {
-            removeCommentsByIndices(note, plan.cardIndices);
-            stats.removedCardLinks += plan.cardIndices.length;
-          }
+          if (removeIndices.length > 0) removeCommentsByIndices(note, removeIndices);
+          stats.removedCardLinks += plan.cardIndices.length;
           if (plan.cardIndices.length > 0 || plan.markdown.length > 0) {
             refreshNote(note);
             changedNotes.push(note);
@@ -1279,8 +1306,8 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
       });
     });
     refreshNotebooksAfterCommentMutation(changedNotes);
-    if (typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
-      MNUtil.showHUD(`已清除 ${stats.changed}/${stats.total} 张卡片的失效链接（卡片 ${stats.removedCardLinks} 条，Markdown ${stats.removedMarkdownLinks} 条）`);
+    if (stats.failed > 0 && typeof MNUtil !== "undefined" && MNUtil && typeof MNUtil.showHUD === "function") {
+      MNUtil.showHUD(`失效链接清理失败 ${stats.failed} 处，请检查失败卡片或撤销本次操作`);
     }
     return stats;
   }
@@ -1292,6 +1319,46 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
         const serialized = getSerializedComment(note, index);
         requireCapability(serialized, "isHtml", `#${index} 不是 HTML 评论`);
         const raw = requireComment(note, index);
+        if (raw && !raw.html && raw.rtf && typeof __MN_COMMENT_RICH_FORMAT__ !== "undefined") {
+          const rich = __MN_COMMENT_RICH_FORMAT__.describe(raw);
+          if (!rich.supported) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：" + rich.reason,
+            });
+            continue;
+          }
+          const plainBody = String(raw.text || "").trim();
+          if (!plainBody) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：评论没有可转换的正文",
+            });
+            continue;
+          }
+          const savedField = raw.field != null ? String(raw.field) : null;
+          const savedFieldLabel = raw.fieldLabel === true;
+          const rawNote = getRawNote(note);
+          if (savedField !== null && (!rawNote || typeof rawNote.setCommentField !== "function")) {
+            stats.failed += 1;
+            stats.errors.push({
+              noteId: String(note.noteId || ""),
+              index,
+              message: "已保留原富文本：当前版本无法保留字段信息",
+            });
+            continue;
+          }
+          replaceCommentWithMarkdown(note, index, plainBody);
+          if (savedField !== null) {
+            rawNote.setCommentField(index, savedField, savedFieldLabel);
+          }
+          stats.convertedComments += 1;
+          continue;
+        }
         const conversion = __MN_COMMENT_HTML__.convert(raw && raw.html);
         if (!conversion.ok) {
           // No mutation has started: unsupported rich content stays intact.
@@ -2462,8 +2529,8 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
     const orderedNotes = targetNotes.map((note, order) => ({
       note,
       order,
-      parentId: getNoteId(note && note.parentNote),
-      siblingIndex: Number(note && note.indexInBrotherNotes),
+      parentId: getNoteId(note && __MN_NOTE_ACCESS_MNCommentManagerAddon.parent(note)),
+      siblingIndex: Number(note && __MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(note)),
     })).sort((left, right) => {
       if (left.parentId !== right.parentId) return left.order - right.order;
       const leftIndex = Number.isFinite(left.siblingIndex) ? left.siblingIndex : -1;
@@ -2534,6 +2601,7 @@ var __MN_COMMENT_MUTATIONS__ = (function () {
   }
 
   return {
+    refreshNotebookAfterCommentMutation,
     appendQuickTextComment,
     confirmQuickTextComment,
     setCommentsCollapsed,

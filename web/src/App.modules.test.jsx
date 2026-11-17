@@ -155,3 +155,88 @@ it('dismisses open module menus on outside click, Escape, or opening another men
   await act(async()=>modal.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
   expect(host.querySelector('[role=dialog]')).toBeNull();
 });
+
+it('preserves unsaved global and card module drafts across scope switches without polluting cardOverrides',async()=>{
+  await click(named('模块划分设置'));
+  const selects=()=>host.querySelectorAll('[role=dialog] [role=combobox]');
+  await change(selects()[0],'card');
+  await change(selects()[1],'nested');
+  await click(host.querySelector('[role=dialog] input[type=checkbox]'));
+  await change(selects()[0],'global');
+  expect(selects()[1].textContent).not.toContain('HTML＋Markdown');
+  await change(selects()[0],'card');
+  expect(selects()[1].textContent).toContain('HTML＋Markdown');
+  expect(host.querySelector('[role=dialog] input[type=checkbox]').checked).toBe(false);
+  await change(selects()[0],'global');
+  await change(selects()[1],'markdown');
+  await click(btn('保存'));
+  expect(MNBridge.send).toHaveBeenLastCalledWith('saveCommentModuleSettings',expect.objectContaining({
+    settings:expect.objectContaining({defaultProfileId:'markdown',cardOverrides:{}}),
+  }));
+});
+
+it('gates card switching and focus on active module action modals rather than persistent extract banners, and keeps toolbar/filter state coherent when modules are hidden',async()=>{
+  const summary=section(2).querySelector('.module-menu summary');
+  await click(section(2).querySelectorAll('.module-menu button')[1]);
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
+  document.body.focus();
+  await act(async()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
+  expect(host.querySelector('[role=dialog]')).toBeNull();
+  await vi.waitFor(()=>expect(document.activeElement).toBe(summary));
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(true);
+
+  await click(section(2).querySelectorAll('.module-menu button')[1]);
+  await click(btn('确认'));
+  expect(btn('查看提取结果')).toBeTruthy();
+  expect(window.__MNCommentManagerCanSwitchCard()).toBe(true);
+  expect(card(0).querySelector('.comment-drag-handle').disabled).toBe(false);
+
+  for(const icon of host.querySelectorAll('.module-icon')) await click(icon);
+  expect(btn('全选').disabled).toBe(false);
+  await click(btn('全选'));
+  expect(host.querySelector('.status-selected').textContent).toContain('7 条评论');
+  await click([...host.querySelectorAll('.segmented button')].find(n=>n.textContent.startsWith('文本')));
+  expect(host.querySelector('.list-context-summary strong').textContent).toBe('4 / 7 条评论');
+  expect(host.querySelector('.status-visible').textContent).toBe('匹配 4 条（显示 0 条）');
+});
+
+it('supports collapsible sidebar rail with search wake, lossless module title anchors, and contextual selection quick actions',async()=>{
+  const rootShell=host.querySelector('.comment-manager');
+  expect(rootShell.getAttribute('data-sidebar-collapsed')).toBeNull();
+  expect(rootShell.getAttribute('data-has-selection')).toBeNull();
+  expect(host.querySelector('.right-pane-quick-actions')).toBeNull();
+
+  const outline=host.querySelector('section[aria-label="大纲定位"]');
+  expect(outline).not.toBeNull();
+  expect([...outline.querySelectorAll('button')].map(n=>n.textContent)).toEqual(
+    expect.arrayContaining(['顶部','底部'])
+  );
+
+  expect(card(2).classList.contains('comment-is-module-title-anchor')).toBe(true);
+  expect(card(2).querySelector('.title-anchor-badge')).toBeNull();
+  expect(card(3).classList.contains('comment-is-module-title-anchor')).toBe(false);
+
+  snapshot={...snapshot,moduleSettings:{...snapshot.moduleSettings,defaultProfileId:'nested'},comments:snapshot.comments.map(c=>({...c,capabilities:{...c.capabilities,canMergeText:c.type!=='HtmlComment'}}))};
+  await click(btn('刷新'));
+  expect(section(3)).not.toBeNull();
+  expect(card(3).classList.contains('comment-is-module-title-anchor')).toBe(false);
+  expect(card(3).textContent).toContain('结构评论保持完整');
+
+  await click(named('收起侧边栏'));
+  expect(rootShell.getAttribute('data-sidebar-collapsed')).toBe('true');
+  const wakeSearch=named('展开并搜索评论');
+  expect(wakeSearch).not.toBeNull();
+  await click(wakeSearch);
+  expect(rootShell.getAttribute('data-sidebar-collapsed')).toBeNull();
+  await vi.waitFor(()=>expect(document.activeElement?.id).toBe('comment-search'));
+
+  await click(card(4).querySelector('input[type="checkbox"]'));
+  expect(rootShell.getAttribute('data-has-selection')).toBe('true');
+  const quickBar=host.querySelector('.right-pane-quick-actions');
+  expect(quickBar).not.toBeNull();
+  expect(quickBar.textContent).toContain('编辑所选');
+  expect(quickBar.textContent).toContain('删除所选');
+
+  await click(card(6).querySelector('input[type="checkbox"]'));
+  expect(host.querySelector('.right-pane-quick-actions')?.textContent).toContain('合并所选');
+});

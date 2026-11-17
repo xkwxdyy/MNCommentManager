@@ -1,8 +1,158 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-10-30T15:09:50+08:00",
+  "updatedAt": "2026-11-15T17:19:38.050604+00:00",
   "entries": [
+    {
+      "version": "0.1.43",
+      "channel": "stable",
+      "date": "2026-11-16",
+      "items": [
+        {
+          "zh": "新增原生富文本编辑、跨卡片复制格式、多选粘贴与格式刷预览，支持普通文本和 Markdown 类型转换。",
+          "en": "Add native rich-text editing, cross-card format copying, multi-selection pasting and format-brush previews, with plain-text and Markdown conversion."
+        },
+        {
+          "zh": "统一功能图标，完善编辑器、窄屏布局与多级菜单，并保留评论折叠状态和整批撤销。",
+          "en": "Unify action icons and refine the editor, narrow layouts and cascading menus while preserving comment folding and batch undo."
+        },
+        {
+          "zh": "修复原生预览缓存、统一粗体、Markdown 分类、正文核对及面板拉长后底部空白问题。",
+          "en": "Fix native preview-cache and uniform-bold compatibility, Markdown classification, body validation and blank space after extending the panel."
+        },
+        {
+          "zh": "复杂结构和局部混合格式仍受保护；系统撤销、双列菜单实际交互及 iPad/iPhone 继续待验收。",
+          "en": "Keep complex content and mixed formatting protected; system undo, live cascading-menu interaction and iPad/iPhone acceptance remain pending."
+        }
+      ]
+    },
+    {
+      "version": "0.1.42",
+      "channel": "stable",
+      "date": "2026-11-15",
+      "items": [
+        {
+          "zh": "完善评论选择、插入、快捷移动和长按操作，保留模式与焦点。",
+          "en": "Improve comment selection, insertion, quick movement and long presses while preserving mode and focus."
+        },
+        {
+          "zh": "优化模块、帮助、下拉菜单与快速输入的窄屏、深浅主题及键盘操作。",
+          "en": "Refine narrow layouts, light and dark themes, and keyboard interaction across modules, help, selects and quick input."
+        }
+      ]
+    },
+    {
+      "version": "0.1.41",
+      "channel": "stable",
+      "date": "2026-11-11",
+      "items": [
+        {
+          "zh": "改善评论、模块与快速输入的深浅主题、触屏操作和焦点显示。",
+          "en": "Improve light and dark themes, touch controls and focus feedback across comments, modules and quick input."
+        },
+        {
+          "zh": "帮助和下拉菜单随页面滚动调整位置，行内合并支持单次插入。",
+          "en": "Keep help and select menus positioned while scrolling, and add single-tap insertion to inline merging."
+        }
+      ]
+    },
+    {
+      "version": "0.1.40",
+      "channel": "stable",
+      "date": "2026-11-08",
+      "items": [
+        {
+          "zh": "修复文档视图关闭摘录菜单后，评论管理器浮动按钮未自动隐藏的问题。",
+          "en": "Fix floating comment controls remaining visible after the excerpt menu closes in document view."
+        },
+        {
+          "zh": "修复连续切换摘录时，新出现的评论管理器按钮被错误清理的问题。",
+          "en": "Keep newly displayed comment controls visible when switching directly between excerpts."
+        }
+      ]
+    },
+    {
+      "version": "0.1.39",
+      "channel": "stable",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "zh": "简化重复评论状态，整理窄屏标题栏、选择工具和拖动手柄，改善触摸与键盘焦点显示。",
+          "en": "Reduce repeated comment status labels and refine narrow headers, selection tools, drag handles, touch controls and keyboard focus."
+        }
+      ]
+    },
+    {
+      "version": "0.1.38",
+      "channel": "stable",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "zh": "改善新版 MNUtils 下的评论列表读取；可选状态不可用时保留正常评论，折叠操作继续核对版本及保存结果。",
+          "en": "Improve comment-list reading with newer MNUtils versions. Retain readable comments when optional state is unavailable, while preserving revision and persistence checks for folding."
+        }
+      ]
+    },
+    {
+      "version": "0.1.37",
+      "channel": "stable",
+      "date": "2026-11-02",
+      "items": [
+        {
+          "zh": "改善评论管理器和快速输入的深浅主题、窄屏正文及操作区布局，保留图标提示与键盘焦点。",
+          "en": "Improve light/dark themes, narrow-screen content and controls in the manager and quick input, retaining icon labels and keyboard focus."
+        },
+        {
+          "zh": "窗口断开或插件卸载后取消失效初始化和依赖重试，避免旧回调重新创建界面。",
+          "en": "Cancel stale initialization and dependency retries when a window disconnects or the addon unloads, preventing old callbacks from recreating the interface."
+        }
+      ]
+    },
+    {
+      "version": "0.1.36",
+      "channel": "stable",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "zh": "修正评论操作按钮的事件兼容性，保留原有点击、长按与键盘操作。",
+          "en": "Correct event compatibility for comment action buttons while preserving click, long-press and keyboard behavior."
+        }
+      ]
+    },
+    {
+      "version": "0.1.35",
+      "channel": "stable",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "zh": "手写预览兼容更多旧版点布局，并说明兼容显示中的笔色和笔触样式差异。",
+          "en": "Preview more legacy handwriting point layouts and explain possible color and stroke-style differences in compatibility previews."
+        },
+        {
+          "zh": "修复评论拖动手柄覆盖正文和操作的问题，改善窄屏与触屏布局。",
+          "en": "Keep comment drag handles clear of text and actions, including narrow and touch layouts."
+        }
+      ]
+    },
+    {
+      "version": "0.1.34",
+      "channel": "stable",
+      "date": "2026-10-30",
+      "items": [
+        {
+          "zh": "评论管理器自行处理焦点、选区及父子卡片读取，避免旧版 MNUtils 在读取不完整摘录对象时意外创建空卡。",
+          "en": "Handle focus, selection and card relationships locally to avoid accidental empty cards when older MNUtils versions read incomplete excerpt objects."
+        },
+        {
+          "zh": "手写预览支持更多归档与笔画布局，保留笔色、透明度和笔宽；受限格式显示近似预览说明。",
+          "en": "Support more handwriting archives and stroke layouts, preserving color, opacity and width, with an approximate-preview notice for restricted formats."
+        },
+        {
+          "zh": "改善更新检查的网络兼容性，并通过通知组件提示新版。",
+          "en": "Improve network compatibility for update checks and show new-version notices through the notification component."
+        }
+      ]
+    },
     {
       "version": "0.1.33",
       "channel": "stable",

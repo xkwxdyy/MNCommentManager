@@ -41,7 +41,7 @@ var __MN_COMMENT_DATA__ = (function () {
   function getWrappedNoteById(noteId) {
     if (!noteId) return null;
     try {
-      return MNNote.new(String(noteId), false) || null;
+      return __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(noteId);
     } catch (error) {
       return null;
     }
@@ -49,7 +49,7 @@ var __MN_COMMENT_DATA__ = (function () {
 
   function getCurrentNote() {
     try {
-      return MNNote.getFocusNote(true) || null;
+      return __MN_NOTE_ACCESS_MNCommentManagerAddon.current();
     } catch (error) {
       return null;
     }
@@ -57,15 +57,24 @@ var __MN_COMMENT_DATA__ = (function () {
 
   function getRawComments(note) {
     if (!note) return [];
-    if (Array.isArray(note.comments)) return note.comments;
-    if (note.note && Array.isArray(note.note.comments)) return note.note.comments;
-    return [];
+    const direct = note.comments;
+    if (Array.isArray(direct)) return direct.slice();
+    const raw = note.note && note.note.comments;
+    return Array.isArray(raw) ? raw.slice() : [];
   }
 
-  function getDetailedComments(note) {
+  function getDetailedComments(note, rawComments) {
     if (!note) return [];
-    if (Array.isArray(note.MNComments)) return note.MNComments;
-    return [];
+    if (typeof MNComment !== "undefined" && typeof MNComment.new === "function") {
+      return rawComments.map((comment, index) => {
+        try { return MNComment.new(comment, index, note.note || note) || null; }
+        catch (_) { return null; } // The serializer retains the raw comment at this index.
+      });
+    }
+    try {
+      const comments = note.MNComments;
+      return Array.isArray(comments) && comments.length === rawComments.length ? comments.slice() : [];
+    } catch (_) { return []; }
   }
 
   function getMNCommentType(rawComment) {
@@ -188,7 +197,7 @@ var __MN_COMMENT_DATA__ = (function () {
     );
     let conversionReason = "noExcerpt";
     let conversionEligible = false;
-    if (present && !note.parentNote) {
+    if (present && !__MN_NOTE_ACCESS_MNCommentManagerAddon.parentId(note)) {
       conversionReason = "noParent";
     } else if (present && (type === "text" || type === "image")) {
       conversionEligible = true;
@@ -269,13 +278,16 @@ var __MN_COMMENT_DATA__ = (function () {
     const source = toStringValue(text);
     const trimmed = source.trim();
     if (!trimmed) return "blankTextComment";
-    if (/^#\S/.test(trimmed)) return "tagComment";
     if (extractPureMarginNoteLink(source)) {
       return /\/summary(?:\/|$)/i.test(source) ? "summaryComment" : "linkComment";
     }
-    if (normalizeMarkdownLinks(source).length > 0) return "markdownComment";
-    if (detailedType === "markdownComment" || detailedType === "markdownLinkComment") return detailedType;
-    if (markdownFlag) return "markdownComment";
+    if (detailedType === "markdownLinkComment") return detailedType;
+    if (markdownFlag || normalizeMarkdownLinks(source).length > 0 || detailedType === "markdownComment") {
+      return "markdownComment";
+    }
+    // A tag consists of complete single-hash tokens. Headings, indented code,
+    // and prose that starts with a hashtag must remain text or Markdown.
+    if (/^#[^\s#]+(?:[ \t]+#[^\s#]+)*[ \t]*$/.test(source)) return "tagComment";
     return "textComment";
   }
 
@@ -307,6 +319,11 @@ var __MN_COMMENT_DATA__ = (function () {
         return "mergedMarkdownComment";
       }
       return "mergedTextComment";
+    }
+    // Older MNUtils labels any /^#\S/ text as a tag before checking markdown.
+    // Reclassify TextNote from its native flag and full body instead.
+    if (rawType === "TextNote") {
+      return classifyTextComment(text, detailedType, rawComment.markdown === true);
     }
     if (detailedType && !["TextNote", "HtmlNote", "LinkNote", "PaintNote", "AudioNote"].includes(detailedType)) {
       return detailedType;
@@ -355,6 +372,9 @@ var __MN_COMMENT_DATA__ = (function () {
       return {
         drawingHash,
         dataURI: preview && preview.dataURI ? String(preview.dataURI) : "",
+        approximate: !!(preview && preview.approximate),
+        previewOnly: !!(preview && preview.previewOnly),
+        diagnostics: preview && Array.isArray(preview.diagnostics) ? preview.diagnostics : [],
         error: "",
         pending: false,
       };
@@ -418,6 +438,8 @@ var __MN_COMMENT_DATA__ = (function () {
       canMove: true,
       isMarkdown: !!(rawComment && rawComment.markdown) || type === "markdownComment" || type === "markdownLinkComment" || type === "mergedMarkdownComment" || type === "summaryComment",
       isHtml: originalType === "HtmlNote" || type === "HtmlComment",
+      isRichRtf: !!(rawComment && originalType === "HtmlNote" && rawComment.rtf),
+      isHtmlMarkup: !!(rawComment && originalType === "HtmlNote" && rawComment.html && !rawComment.rtf),
       isMerged: originalType === "LinkNote",
       isMedia: IMAGE_TYPES.indexOf(type) >= 0 || type === "audioComment" || type === "mergedChildMapComment",
       hasMarkdownLinks: markdownLinks.length > 0,
@@ -467,6 +489,8 @@ var __MN_COMMENT_DATA__ = (function () {
       detailedType: type,
       text,
       htmlText: rawComment && rawComment.type === "HtmlNote" ? text : "",
+      richFormat: typeof __MN_COMMENT_RICH_FORMAT__ !== "undefined" && rawComment?.type === "HtmlNote" ? __MN_COMMENT_RICH_FORMAT__.describe(rawComment) : null,
+      richEditing: typeof __MN_RICH_COMMENTS_MNCommentManagerAddon__ !== "undefined" ? __MN_RICH_COMMENTS_MNCommentManagerAddon__.access(note, rawComment, index) : null,
       lifecycleStage: buildLifecycleStage(type, rawComment),
       capabilities,
       imageBase64,
@@ -476,6 +500,9 @@ var __MN_COMMENT_DATA__ = (function () {
       drawingPreviewDataURI: drawingPreview.dataURI,
       drawingPreviewError: drawingPreview.error,
       drawingPreviewPending: drawingPreview.pending === true,
+      drawingPreviewApproximate: drawingPreview.approximate === true,
+      drawingPreviewOnly: drawingPreview.previewOnly === true,
+      drawingPreviewDiagnostics: drawingPreview.diagnostics || [],
       mediaKind: capabilities.hasImage ? "image" : (capabilities.hasAudio ? "audio" : ""),
       audioHash,
       linkedNoteId: linked ? linked.noteId : "",
@@ -500,7 +527,7 @@ var __MN_COMMENT_DATA__ = (function () {
     }
 
     const rawComments = getRawComments(note);
-    const detailedComments = getDetailedComments(note);
+    const detailedComments = getDetailedComments(note, rawComments);
     const comments = rawComments.map((comment, index) => (
       serializeComment(note, comment, detailedComments[index] || null, index)
     ));
@@ -526,6 +553,7 @@ var __MN_COMMENT_DATA__ = (function () {
       ...(typeof __MN_COMMENT_MODULE_STORE__ !== "undefined" ? __MN_COMMENT_MODULE_STORE__.snapshot() : {}),
       commentFold: { supported: foldState.supported, revision: foldState.revision, code: foldState.code || "", error: foldState.error || "", details: foldState.details },
       handwritingPendingCount,
+      richText: typeof __MN_RICH_COMMENTS_MNCommentManagerAddon__ !== "undefined" ? __MN_RICH_COMMENTS_MNCommentManagerAddon__.state(toStringValue(note.noteId)) : null,
       error: "",
     };
   }

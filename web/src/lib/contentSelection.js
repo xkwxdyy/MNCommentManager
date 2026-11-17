@@ -52,7 +52,7 @@ export function getMoveState(selection, excerptPresent, commentCount) {
     canMoveToTop: selectedCount > 0 && first > topBoundary,
     canMoveUp: continuous && first > topBoundary,
     canMoveDown: continuous && last < totalCount - 1,
-    canMoveToBottom: selectedCount > 0 && last < totalCount - 1,
+    canMoveToBottom: selectedCount > 0 && (last < totalCount - 1 || (!continuous && selectedCount < totalCount)),
     canPickInsertPosition: selectedCount > 0 && selectedCount < totalCount,
   };
 }

@@ -48,14 +48,19 @@
   transform: translateY(-50%) scale(0.96);
 }
 .help-videos[open] > summary {
-  color: var(--accent-blue);
+  color: var(--text-accent);
+  border-color: transparent;
 }
 .help-videos[open] > summary::before {
   background: var(--accent-blue-soft);
-  box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.22);
+  box-shadow: inset 0 0 0 1px var(--status-info-border);
 }
 .help-videos > summary svg { width: 18px; height: 18px; }
-.help-videos > summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
+.help-videos > summary:focus:not(:focus-visible) { outline: none; }
+.help-videos > summary:focus-visible {
+  outline: 2.5px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 .help-videos-resources {
   position: fixed;
   z-index: 30;
@@ -63,15 +68,16 @@
   right: 12px;
   display: grid;
   gap: 8px;
-  width: min(328px, calc(100vw - 24px));
+  width: min(336px, calc(100vw - 24px));
   max-height: calc(100vh - 72px);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 14px;
   box-sizing: border-box;
-  background: var(--bg-panel);
+  background: var(--bg-elevated, var(--bg-panel));
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -95,31 +101,35 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--accent-blue-soft);
-  color: var(--accent-blue);
-  font-size: 10.5px;
+  color: var(--text-accent);
+  font-size: 11px;
   font-weight: 650;
   white-space: nowrap;
 }
+.comment-manager .topbar .help-videos-resources p,
 .help-videos-resources p {
   margin: 2px 0 0;
   font-size: 11.5px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text-secondary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 .help-videos-resources p.help-videos-status {
   padding: 6px 9px;
   border-left: 3px solid var(--accent-blue);
   border-radius: 6px;
-  background: var(--accent-blue-soft);
-  color: var(--accent-blue);
+  background: var(--status-info-bg);
+  color: var(--text-accent);
   font-weight: 600;
 }
 .help-videos-resources p[role="alert"] {
   padding: 7px 9px;
   border-left: 3px solid var(--accent-red);
   border-radius: 6px;
-  background: rgba(255, 59, 48, 0.1);
-  color: var(--accent-red);
+  background: var(--status-danger-bg);
+  color: var(--text-danger);
   font-weight: 600;
 }
 .help-videos:not([open]) > .help-videos-resources { display: none; }
@@ -167,9 +177,9 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent-blue-soft);
-  color: var(--accent-blue);
+  color: var(--text-accent);
   flex-shrink: 0;
 }
 .comment-manager .topbar-utility-actions .help-videos-resources .help-video-icon svg,
@@ -203,6 +213,6 @@
 }
 .help-videos-resources button.help-video-button:hover:not(:disabled) .help-video-trailing,
 .help-videos-resources button.help-video-button.is-opening .help-video-trailing {
-  color: var(--accent-blue);
+  color: var(--text-accent);
   transform: translate(1px, -1px);
 }

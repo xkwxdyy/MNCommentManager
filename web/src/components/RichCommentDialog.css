@@ -1,0 +1,338 @@
+.rich-comment-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+}
+.rich-comment-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-dialog);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  font-size: 14px;
+}
+.rich-comment-dialog.is-wide {
+  width: 780px;
+}
+.rich-comment-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px 8px 24px;
+  border-bottom: 1px solid var(--border-light);
+  flex: none;
+}
+.rich-comment-dialog h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.rich-comment-dialog h3 {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rich-comment-icon {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+}
+.rich-comment-dialog svg,
+.rich-format-clipboard svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.rich-comment-actions svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.rich-comment-dialog-body {
+  padding: 20px 24px 24px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.rich-comment-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 24px;
+  flex: none;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.rich-comment-dialog > footer > div {
+  display: flex;
+  gap: 8px;
+}
+.rich-comment-dialog > footer button {
+  min-height: 44px;
+  padding: 10px 18px;
+}
+.rich-editor-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-control);
+}
+.rich-editor-mode-tabs button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+.rich-editor-mode-tabs button.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+.rich-editor-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.rich-editor-dialog textarea {
+  display: block;
+  resize: vertical;
+  width: 100%;
+  min-height: 112px;
+  max-height: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.rich-editor-type-fields {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+.rich-editor-type-fields label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.rich-editor-type-fields input {
+  width: 80px;
+}
+.rich-editor-type-fields input,
+.rich-editor-color-field input:not([type='color']) {
+  min-width: 0;
+  height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.rich-editor-type-fields .html-select-trigger {
+  min-height: 44px;
+  min-width: 130px;
+}
+.rich-editor-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rich-editor-color-field {
+  min-width: 0;
+}
+.rich-editor-color-field > label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.rich-editor-color-field > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rich-editor-color-field input[type='color'] {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  cursor: pointer;
+  flex: none;
+}
+.rich-editor-color-field input:not([type='color']) {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.rich-editor-color-field .rich-editor-icon {
+  width: 44px;
+  min-height: 44px;
+  flex: none;
+  padding: 10px;
+  border-color: transparent;
+  background: transparent;
+}
+.rich-editor-color-field [aria-invalid='true'] {
+  border-color: var(--text-danger);
+}
+.rich-editor-preview {
+  max-height: 240px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+}
+.rich-editor-sample,
+.rich-comment-sample {
+  margin: 0;
+  display: block;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  max-width: 100%;
+}
+.rich-editor-error,
+.brush-error {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-xs, 6px);
+  border-left: 3px solid var(--accent-red);
+  background: var(--status-danger-bg);
+  color: var(--text-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rich-comment-dialog :is(textarea, input) {
+  caret-color: var(--text-accent);
+}
+.rich-comment-dialog ::selection {
+  background: var(--focus);
+}
+.rich-comment-dialog :is(textarea, input:not([type='color'])):focus-visible {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+.rich-comment-dialog :is(button, input[type='color'], [tabindex='0']):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.rich-comment-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+.rich-format-clipboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 16px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+}
+.rich-format-clipboard > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.rich-format-clipboard > div:first-child {
+  flex: 1;
+}
+.rich-format-clipboard .rich-clipboard-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.rich-format-clipboard .rich-clipboard-swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  flex: none;
+}
+.rich-format-clipboard .ghost {
+  min-height: 44px;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .rich-comment-backdrop {
+    padding: 8px;
+  }
+  .rich-comment-dialog > header {
+    padding: 6px 8px 6px 16px;
+  }
+  .rich-comment-dialog-body {
+    padding: 16px;
+  }
+  .rich-comment-dialog > footer {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .rich-comment-dialog > footer button {
+    padding: 10px 12px;
+  }
+  .rich-editor-type-fields {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rich-editor-colors {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .rich-format-clipboard {
+    padding-inline: 12px;
+  }
+  .rich-format-clipboard .rich-clipboard-swatch {
+    display: none;
+  }
+  .rich-format-clipboard .ghost {
+    width: 44px;
+    padding: 10px;
+    font-size: 0;
+    gap: 0;
+  }
+}

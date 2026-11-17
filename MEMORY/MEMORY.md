@@ -1,5 +1,62 @@
 # 项目记忆索引
 
+- 2026-11-16｜空 Markdown 占位 `- []()` 已纳入失效链接的 Markdown／全部范围清理；成功静默，代码与正文保护回归通过。本地提交 `2536bdc`，0.1.43 候选包与包内回归通过。已备份本机 0.1.42 原安装；正常退出因应用处于前台而拒绝，文件未替换。Mac／iPad 待验，GitHub 登记已在持续授权后[发送并回读核验](https://github.com/xkwxdyy/MNCommentManager/issues/118)。见[记录](../../../../MarginNote%20Template/projects/research-workflow/docs/所需知识链接与空链接清理-20261116.md)。
+
+- 2026-11-16｜0.1.43 已完整发布：源码分支、标签、GitHub 与云盘正式包、主备用更新清单和双语日志全部核验通过，真实联网更新检测及备用回退通过。本轮未安装或重启，设备边界保留；发版技能直接选用可用后台浏览器，见[发布记录](../Resources/releases/v0.1.43.md)。
+
+- 2026-11-16｜双列菜单同类回归已经统一修正：原生 selector 不再按普通属性调用，Toolbar 回到原有原生入口，评论管理器保留取消 handle 身份。离线、原生回调及候选包检查通过；Mac 可见菜单验收未通过，iPad 未验。临时测试插件已移出，现用业务候选未替换。见[验收记录](/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnknowledgebase/dist/双列菜单原生回调-独立候选-20261116/验收记录.md)。 [跨插件回归 #58](https://github.com/xkwxdyy/MNLiterature/issues/58) 保持开放。
+- 2026-11-15｜混合格式改色补查：独立 RTF 改色保粗体通过，但当前宿主缺少已验证的分段 RTF 写回接口，暂未接入。原安装和学习现场已恢复，见[调查记录](../Resources/format-brush-native/混合格式原生接口调查-20261115.md)。
+
+- 2026-11-15｜面板拉长后的底部空白已复现并修复：工作区固定进入弹性网格行。源码与最终包内布局回归通过，CSS 单声明测试包已备份安装并后台重启；真实 iPad／Mac 拖动待验收，见[验证记录](../Resources/panel-height/validation.md)与 [Issue #117](https://github.com/xkwxdyy/MNCommentManager/issues/117)。
+
+- 2026-11-15｜原生富文本生命周期已接入并完成 Mac 插件、真实 WebView 与即时卡片刷新验收。补充修复原生 HTML 缓存、统一粗体、正文编码及 Markdown 标签误判，管理器整批撤销通过；干净测试包已安装，诊断已清理。系统撤销、新粗体系统双击和 iPad/iPhone 继续待验收，见[接入与验收记录](../Resources/format-brush-native/富文本生命周期接入-20261115.md)。
+
+- 2026-11-15｜旧式多级菜单的并排展开源码适配与普通 MNUtils 兼容检查通过；新旧接口按能力选择，窗口空间不足时保留原方式。尚未打包安装，Mac／iPad 待验收，见[跨插件记录](../../../Resources/validation/2026-11-15-cascading-menus/适配与验证.md)。
+
+- 2026-11-15｜原型已获确认并正式接入原生 HTML 格式刷：统一字体、字号、字色及底色，目标多选、预览和管理器内整批撤销。5.1.0（51007）Mac 真实评论批量复制、正文与顺序、字段、未选中项及原始 RTF 撤销恢复通过；干净测试包已安装，正式包未覆盖，未发布。系统撤销与 iPad/iPhone 边界保留；C/D 组的双色和下划线在 Cocoa 可表示，现有插件追加接口尚不支持完整的原生写入。见 [格式刷验收](../Resources/format-brush-native/验收记录.md)与[样式核验](../Resources/format-brush-native/C-D组原生样式核验.md)。此前原型提交 `c6bc33d` 保留。
+
+- 2026-11-15｜0.1.42 固定生产包已完成后台网页上传、完整下载及主备用清单和双语日志发布。公开字节、源码及生产包更新模块主源与备用回退核验通过；未安装或重启，普通分支未推送，实际更新界面及设备验收保留。见[分发记录](../Resources/releases/v0.1.42.md)。
+
+- 2026-11-11｜0.1.41 固定生产包已完成后台网页上传、完整下载及主备用更新源核验。真实源码与包内更新模块联网检测及回退通过，普通分支未推送，未安装或重启，设备验收继续保留。工作区回执为 `Archive/Releases/2026-11-11-full/release-report.md`。
+
+- 2026-11-08｜0.1.40 完整分发已完成：修复已提交并推送，GitHub 与云盘完整下载摘要一致，主站和兼容站清单、双语日志逐字节核验通过。源码及固定正式包更新模块的真实网络检测与回退通过；原设备验收待办保留，见[发布记录](../Resources/releases/v0.1.40.md)。
+
+- 2026-11-08｜#111 已完成 Mac 最终无诊断修正版实测：摘录 A→B→A→B→A→B 连续点选、关闭后延迟检查及再次打开关闭均通过，未见残留或新入口误清理。原阅读状态全部字段与摘录清单、原文、元数据已核对恢复；前台等待已解除。源码及包内回归通过，最终包已备份安装，iPad/iPhone 等设备边界保留；[Issue #111](https://github.com/xkwxdyy/MNCommentManager/issues/111) 保持开放，见[实测记录](../Resources/document-popup-close/README.md)。
+
+- 2026-11-04｜0.1.39 固定生产包已完成后台网页上传、完整下载及主备用更新清单和双语日志核验；构建日期为 11 月 3 日，原字节保持。正式 GitHub Release 与源码标签、附件完整下载摘要一致；旧 Release 和附件保留。未安装、重启或推送普通分支；实际设备与更新界面待验收。工作区回执：`Archive/Releases/2026-11-03-full-late/release-report.md`。
+
+- 2026-11-03｜0.1.38 正式 GitHub Release 与附件完整下载核验完成，源码标签确切；云盘与配套更新源等待后台浏览器连接。普通分支未推送，未安装或重启。正式发布和附件核验见[技术日志](../CHANGELOG.md)。
+
+- 2026-11-03｜本轮评论 API 适配完成；普通 MNUtils 1029／1101 与维护版的源码及确切候选包联合回归通过，既有项目检查通过。版本保持，未安装或发布，设备交互待验收。见[实施与验证](../../../Resources/validation/2026-11-03-mnutils-api-adaptation/实施与验证.md)。
+
+- 2026-11-03｜后续明确允许将正式 README 配套 PNG 纳入 Git；截图区已恢复，正式资源一并保存。试验截图与原始报告继续仅留本地，替代本日此前提交版移除截图区的临时处理。
+
+- 2026-11-03｜全量提交按现行图片保管规则保存首页正文、SVG 与资源摘要；PNG 和完整预览版继续本地保留，提交版移除仅本地截图区。运行代码及真实下载备用清单未纳入本次文档提交。
+
+- 2026-11-02｜README 美化已按明确授权正式应用：获批中文正文与配套 SVG、桌面和窄屏截图已放入正式路径，原版完整保留。900 像素内容宽度、360 像素窄屏、明暗主题及资源检查通过；源码和既有备用元数据保持，未暂存、提交或发布。见[应用验收](../Resources/readme-beautify-trial-2026-11-02/applied/验收记录.md)。
+
+- 2026-11-02｜HTML 界面统一精修已按确认方案完成：共享主题、文字对比度、图标工具栏、快速输入与演示页面已统一；模块窄屏正文和低高度首屏问题已修正。213 项相关前端检查、布局专项、浏览器操作及独立视觉评审完成；未打包或安装，真实宿主与设备待验收。见[验收记录](../Resources/html-ui-polish/validation.md)与 [Issue #109](https://github.com/xkwxdyy/MNCommentManager/issues/109)。
+
+- 2026-11-01｜生命周期修复：评论管理器已取消失效依赖重试，并在等待及 await 返回后校验场景代次；场景与卸载复用清理。依赖隔离、主入口、原生入口及跨插件竞态专项通过；原有更新备用元数据修改未动。未打包、安装、发布或改版本，iPad 待验收，见[修复记录](</Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnpinner/docs/reviews/2026-11-01-cross-addon-lifecycle-fix.md>)。
+
+- 2026-11-01｜评论管理器 0.1.36 已通过 Chrome 上传至 MNCommentManager，云盘及正式 GitHub 附件完整下载均与固定生产包摘要一致。主备用正式清单与双语日志已备份部署，公开字节核验及源码／生产更新模块联网回退检查通过；真实下载清单仅本地维护、不纳入本次提交。实际设备与更新界面仍待验收，本轮没有安装、重启或普通分支推送。
+
+- 2026-11-01｜0.1.35 已正式发布，源码标签 6860295；GitHub 完整附件 SHA-256 为 0be93f77e5f7475373b78c5afec01af4c1bacd338645c4ecca4bad87c49b35ad，与冻结生产包一致。完整源码 CI、227 项合成解码断言与 14 组布局检查通过，108 文件一致。123 云盘及更新源待连接；本轮没有安装或重启。见工作区 Archive/Releases/2026-11-01-full/。
+
+- 2026-10-31｜经明确授权，两份缺陷记录已同步并回读逐字核对：遮挡新建 [MNCommentManager #107](https://github.com/xkwxdyy/MNCommentManager/issues/107)；手写追加至[内部工具 #22](https://github.com/xkwxdyy/MarginNote-Addon-Internal-Tools/issues/22#issuecomment-6543946054)。两个问题保持开放，iPad 等待验收边界保留。先前外部写入受阻已解除。
+
+- 2026-10-31｜手写显示回归与手柄遮挡已修复并安装本机测试包，版本保持 0.1.34。历史重放确认 20bfaab 严格白名单导致旧版可显示笔迹报字段 8；现保留严格转换并恢复有界阅读兼容。手柄预留间距覆盖已修复，14 组浏览器几何与 Mac 常规面板／重开通过。108 文件与净包一致，未提交／推送／发布；iPad 未验收。GitHub 写入被自动审批拒绝，草稿暂存知识库对应验收目录。
+
+- 2026-10-30｜评论管理器 0.1.34 已提交并正式发布，源码标签 b7880c6、回执 721b637；GitHub 与人工上传的云盘包完整下载一致，主备用更新源及实际更新器联网检测通过。本机 108 文件一致、正常重启，MNUtils 未变。真实摘录与笔迹仍待设备验收，#106 保持开放。见[发布记录](../../../Archive/Releases/2026-10-30-comment-manager/README.md)。
+
+- 2026-10-30｜#106 已采用插件内部只读适配，普通 MNUtils 无需更换。相关回归 43 项、历史依赖与包内联合重放通过；0.1.33 已备份安装并正常重启，108 个文件一致，MNUtils 摘要保持。真实摘录与移动设备继续待验收。见[兼容修复记录](../../../Resources/validation/2026-10-30-empty-excerpt-card/commentmanager-local/README.md)。
+
+- 2026-10-30｜空卡反馈 #106 深入排查已确认 MNUtils 只读笔记访问存在误创建分支；实际快照与真实菜单延迟回调的安装版代码隔离重放可复现，修复后源码及包内为零次创建。评论管理器运行时未改，依赖尚未安装，设备条件仍待核验。见[工作区深入记录](../../../Resources/validation/2026-10-30-empty-excerpt-card/deep-readonly/README.md)。
+
+- 2026-10-30｜按钮左侧灰点已取得截图，Comment Mover 单评论灰点为优先调查方向，尚未通过停用对照确认。已更新 [Issue #103](https://github.com/xkwxdyy/MNCommentManager/issues/103)，业务源码未改动，见[截图调查](../Resources/button-grey-dot/screenshot-followup.md)。
+
+- 2026-10-30｜[v0.1.33 发布复核](../Resources/releases/v0.1.33-review-2026-10-30.json)通过：GitHub、网盘及主备用更新源一致；远端 main 尚未包含发布提交，新增版本范围待确认，设备验收保留。
+
 - 2026-10-29｜用户确认拖动总览并授权接入。正式列表、原生顺序校验与撤销已完成，项目完整检查及浏览器模拟验收通过；0.1.32 测试包 106 文件核验一致，已备份安装并正常重启。真实卡片移动和移动设备触摸仍待验收，见[记录](../Resources/comment-move-integration/manager-overview/validation.md)与 [Issue #102](https://github.com/xkwxdyy/MNCommentManager/issues/102)。
 
 - 2026-10-29｜拖动总览原型的评论／手柄纵向错位已修正为共用中心线；回归及宽屏浏览器中间、首尾对齐通过。原网络故障草稿现已补录至 Issue #102，用户体验已确认；真实触摸待验收。
@@ -181,3 +238,5 @@
 - 2026-10-18｜评论管理器已接入通用跟随按钮规则；源码回归与原生构建或压缩校验通过，未归档或安装，Mac/iPad 待验收。见[跨插件实施记录](../../mnpinner/docs/reviews/2026-10-18-follow-button-collision-implementation.md)、[事实](事实.md)和[待办](待办.md)。
 
 - 2026-10-18｜v0.1.28 已完成 GitHub、Arc 网盘及主站和兼容站更新源发布，所有正式包下载和公开文件摘要一致。发布提交 cfbf272；正式源码在独立 release-v0-1-28 工作区，原目录版本与未提交源码保留。设备验收及界面更新检测待完成，见 Resources/releases/v0.1.28.md。
+
+- 2026-11-15｜“评论线框”矢量校准图标已接入，源码、离线候选包、浅深色与窄屏浏览器验证通过，待设备验收；未安装或发布。详情见事实、决策点和待办。

@@ -1,0 +1,73 @@
+{
+  "reviewedAt": "2026-10-30T00:47:21.689265+08:00",
+  "version": "0.1.33",
+  "mode": "read-only verification of existing publication",
+  "releaseUrl": "https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.33",
+  "tagCommit": "164ef5531ec7313e2dc5489961e6d46547a35db3",
+  "localHead": "f94de776188026cdc13580b6a158c537d4157ffa",
+  "remoteMain": "cb3bf6bdbcd844ee2ff9efa6d017cc2a65e6d4a6",
+  "remoteMainContainsRelease": false,
+  "package": {
+    "filename": "mn-comment-manager-v0.1.33.mnaddon",
+    "size": 824458,
+    "sha256": "1c30299dd6c973ea407124c8f18030c353a71e460b47c1010c45ce2b9a87723b",
+    "files": 106,
+    "zipValid": true,
+    "requiredResourcesPresent": true,
+    "forbiddenDirectoriesAbsent": true
+  },
+  "githubFullDownloadMatches": true,
+  "panFullDownloadMatches": true,
+  "panUrl": "https://1826456163.cdn.123clouddisk.com/1826456163/MNCommentManager/mn-comment-manager-v0.1.33.mnaddon",
+  "manifestRegression": "passed",
+  "publicFiles": [
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager.json",
+      "status": 200,
+      "version": "0.1.33",
+      "bytes": 8573,
+      "sha256": "b947a6d2e6c284fb342fb7d27de73f628a35244fa5ab69b4d70afc0c37b646c9",
+      "localBytesMatch": true
+    },
+    {
+      "url": "https://api.xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "status": 200,
+      "version": "0.1.33",
+      "bytes": 50529,
+      "sha256": "aa6a9f8ed9ddf97daa12fd8d7cdc3e6e147f7c0d750385da2890b7d1fafc395d",
+      "localBytesMatch": true
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager.json",
+      "status": 200,
+      "version": "0.1.33",
+      "bytes": 8573,
+      "sha256": "b947a6d2e6c284fb342fb7d27de73f628a35244fa5ab69b4d70afc0c37b646c9",
+      "localBytesMatch": true
+    },
+    {
+      "url": "https://xkwxdyy.cn/update/mncommentmanager_changelog.json",
+      "status": 200,
+      "version": "0.1.33",
+      "bytes": 50529,
+      "sha256": "aa6a9f8ed9ddf97daa12fd8d7cdc3e6e147f7c0d750385da2890b7d1fafc395d",
+      "localBytesMatch": true
+    }
+  ],
+  "sourceChangesSinceTag": [
+    "src/update-fallback/mncommentmanager.json"
+  ],
+  "actions": {
+    "rebuild": false,
+    "upload": false,
+    "deploy": false,
+    "push": false,
+    "install": false,
+    "restart": false
+  },
+  "pending": [
+    "用户尚未确认复核现有发布或另发 v0.1.34。",
+    "远端 main 尚未包含发布提交；本轮未改变远端分支。",
+    "真实宿主和移动设备验收继续保留，本次未执行。"
+  ]
+}

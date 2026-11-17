@@ -69,6 +69,7 @@ const sandbox = {
 };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(path.join(path.join(__dirname, "../src"), "NoteAccess.js"), "utf8"), sandbox);
 
 const source = fs.readFileSync(path.join(__dirname, "..", "src", "BatchCommentActions.js"), "utf8");
 vm.runInContext(source, sandbox, { filename: "BatchCommentActions.js" });

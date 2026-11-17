@@ -145,7 +145,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
         if (candidate && candidate.noteId && (Array.isArray(candidate.comments) || typeof candidate.removeCommentByIndex === "function")) {
           note = candidate;
         } else {
-          note = MNNote.new(noteId, false);
+          note = __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(noteId);
         }
       } catch (error) {
         note = null;
@@ -160,7 +160,7 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
 
     if (!selected.available) {
       try {
-        const focusNotes = MNNote && typeof MNNote.getFocusNotes === "function" ? MNNote.getFocusNotes() : [];
+        const focusNotes = __MN_NOTE_ACCESS_MNCommentManagerAddon.selected() || [];
         toArrayLike(focusNotes).forEach(pushNote);
       } catch (error) {
         // no selection fallback

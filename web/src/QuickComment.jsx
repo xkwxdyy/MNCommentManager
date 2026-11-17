@@ -1,3 +1,4 @@
+import ActionIcon from "./components/ActionIcon";
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MNBridge from './lib/mnBridge';
 import './QuickComment.css';
@@ -13,6 +14,7 @@ export function animationDestination(state, rect, width, height) {
   return { x: x - rect.left - rect.width / 2, y: y - rect.top - rect.height / 2 };
 }
 function Icon({ kind }) {
+  if (kind === "add" || kind === "close") return <ActionIcon name={kind === "add" ? "comment-add" : "close"} size={22} />;
   return <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {kind === 'close' ? <path d="m6 6 12 12M18 6 6 18" /> : kind === 'newline' ? <path d="M19 5v8a3 3 0 0 1-3 3H5m4-4-4 4 4 4" /> : kind === 'add' ? <><path d="M20 11V6a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v11l4-3h5" /><path d="M17 14v8m-4-4h8" /></> : <path d="M12 19V5m-6 6 6-6 6 6" />}
   </svg>;
@@ -111,7 +113,31 @@ export default function QuickComment() {
   useEffect(() => {
     // Focus after React has enabled the textarea, rather than racing its commit.
     if (phase === 'editing' && state && !locked.current) focus();
+    else if (['load-error', 'uncertain', 'save-close-error'].includes(phase)) {
+      (panel.current?.querySelector('.quick-error button:not(:disabled)') || panel.current?.querySelector('button:not(:disabled)'))?.focus({ preventScroll: true });
+    }
   }, [phase, state]);
+
+  useEffect(() => {
+    if (phase === 'closed') return;
+    const handleDocumentKeyDown = event => {
+      if (event.defaultPrevented || composing.current || event.isComposing || event.keyCode === 229) return;
+      if (panel.current?.contains(event.target)) return;
+      const isBusy = ['saving', 'saved', 'closing'].includes(livePhase.current);
+      if (event.key === 'Escape' && !isBusy) {
+        event.preventDefault();
+        closeLatest.current(confirmed.current);
+      } else if (event.key === 'Tab' && panel.current) {
+        const controls = [...panel.current.querySelectorAll('button:not(:disabled),textarea:not(:disabled)')];
+        if (controls.length) {
+          event.preventDefault();
+          controls[event.shiftKey ? controls.length - 1 : 0].focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
+  }, [phase]);
 
   useLayoutEffect(() => {
     if (cursor.current === null || !input.current) return;
@@ -298,10 +324,12 @@ export default function QuickComment() {
           if (event.target === panel.current && confirmed.current && !closing.current && ['quick-flight', 'quick-fade', 'quick-text-out'].includes(event.animationName)) close(true);
         }}
         onKeyDown={event => {
-          if (event.key === 'Escape' && !busy && !composing.current && !event.nativeEvent.isComposing) { event.preventDefault(); close(confirmed.current); }
-          if (event.key === 'Tab') {
+          const ime = composing.current || event.isComposing || event.nativeEvent?.isComposing || event.keyCode === 229 || event.nativeEvent?.keyCode === 229;
+          if (event.key === 'Escape' && !busy && !ime) { event.preventDefault(); close(confirmed.current); }
+          if (event.key === 'Tab' && !ime) {
             const controls = [...panel.current.querySelectorAll('button:not(:disabled),textarea:not(:disabled)')];
-            const next = (controls.indexOf(document.activeElement) + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+            const index = controls.indexOf(document.activeElement);
+            const next = index < 0 ? (event.shiftKey ? controls.length - 1 : 0) : (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
             if (controls.length) { event.preventDefault(); controls[next].focus(); }
           }
         }}>
@@ -324,7 +352,7 @@ export default function QuickComment() {
             cursor.current = start + value.length;
             change(`${text.slice(0, start)}${value}${text.slice(element.selectionEnd)}`);
           }} />
-        {error && <div className="quick-error" role="alert">{error}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</div>}
+        {error && <div className="quick-error" role="alert">{error}{phase === 'load-error' && <button type="button" onClick={() => { setPhase('loading'); setError(''); loadState(); }}>重新读取</button>}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</div>}
         <footer><span className="quick-hint">回车提交<span> · Shift＋回车换行</span></span><div className="quick-actions">
           <button className="quick-icon quick-markdown" role="switch" aria-label="Markdown 评论" aria-checked={markdown} title={markdown ? 'Markdown 已开启：保存为 Markdown 评论' : 'Markdown 已关闭：保存为普通文本评论'} disabled={!state || locked.current}
             onClick={() => {

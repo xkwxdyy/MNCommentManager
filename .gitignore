@@ -15,3 +15,11 @@ images/
 patches/
 reviews/
 .ci-output/
+
+# Local release and native-device evidence
+/Archive/
+/artifacts/
+/Resources/document-popup-close/candidate/
+/Resources/document-popup-close/native-test/
+/Resources/document-popup-close/local-install-report.json
+/Resources/document-popup-close/issue.md

@@ -1,13 +1,16 @@
 .html-select { display:block; position:relative; width:100%; min-width:0; }
-.html-select .html-select-trigger { display:flex; justify-content:space-between; width:100%; min-height:44px; padding:8px 10px; background:var(--bg-control,var(--bg-app)); border:1px solid var(--border-light); border-radius:var(--radius-sm,6px); color:var(--text-primary); text-align:left; transform:none; box-shadow:none; }
+.html-select .html-select-trigger { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-height:44px; padding:8px 11px; background:var(--bg-control,var(--bg-app)); border:1px solid var(--border-light); border-radius:var(--radius-md,8px); color:var(--text-primary); text-align:left; transform:none; box-shadow:none; transition:background-color var(--transition), border-color var(--transition), box-shadow var(--transition); }
 .html-select .html-select-trigger:hover:not(:disabled) { border-color:var(--border-strong); background:var(--bg-control-strong,var(--bg-app)); box-shadow:none; transform:none; }
-.html-select .html-select-trigger:active:not(:disabled) { transform:none; }
-.html-select-trigger svg { flex-shrink:0; transition:transform var(--transition); }
-.html-select-trigger[aria-expanded="true"] svg { transform:rotate(180deg); }
+.html-select .html-select-trigger:active:not(:disabled) { transform:none; background:var(--bg-control-strong,var(--bg-app)); }
+.html-select .html-select-trigger[aria-expanded="true"] { border-color:var(--focus-ring,var(--accent-blue)); background:var(--bg-panel); box-shadow:0 0 0 3px var(--focus); }
+.html-select-trigger svg { flex-shrink:0; color:var(--text-secondary); transition:transform var(--transition), color var(--transition); }
+.html-select-trigger[aria-expanded="true"] svg { transform:rotate(180deg); color:var(--text-accent); }
 .html-select-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.html-select .html-select-trigger:focus { border-color:var(--accent-blue); box-shadow:0 0 0 3px var(--focus); outline:none; }
-.html-select .html-select-list { display:block; position:absolute; left:0; right:0; z-index:120; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:4px; border:1px solid var(--border-strong); border-radius:var(--radius-sm,6px); box-shadow:var(--shadow-lg); background:var(--bg-panel); color:var(--text-primary); }
-.html-select .html-select-list button { display:flex; justify-content:flex-start; width:100%; min-height:44px; padding:8px; border:0; border-radius:6px; background:transparent; box-shadow:none; transform:none; text-align:left; font-weight:400; white-space:normal; }
-.html-select .html-select-list button[aria-selected="true"] { font-weight:600; color:var(--accent-blue); }
+.html-select .html-select-trigger:focus { outline:none; }
+.html-select .html-select-trigger:focus-visible { border-color:var(--focus-ring,var(--accent-blue)); outline:2.5px solid var(--focus-ring,var(--text-accent)); outline-offset:2px; box-shadow:none; }
+.html-select .html-select-list { display:block; position:absolute; left:0; right:0; z-index:120; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:5px; border:1px solid var(--border-strong); border-radius:var(--radius-md,8px); box-shadow:var(--shadow-lg); background:var(--bg-elevated,var(--bg-panel)); color:var(--text-primary); }
+.html-select .html-select-list button { display:flex; align-items:center; justify-content:flex-start; gap:6px; width:100%; min-height:44px; padding:8px 10px; border:0; border-radius:6px; background:transparent; box-shadow:none; transform:none; text-align:left; font-weight:450; white-space:normal; transition:background-color var(--transition), color var(--transition); }
+.html-select .html-select-list button[aria-selected="true"] { font-weight:600; color:var(--text-accent); }
 .html-select .html-select-list button.is-active,.html-select .html-select-list button:hover:not(:disabled) { background:var(--accent-blue-soft); box-shadow:none; transform:none; }
-.html-select-check { flex:0 0 18px; color:var(--accent-blue); font-weight:700; }
+.html-select .html-select-list button:active:not(:disabled) { background:var(--bg-control-strong); }
+.html-select-check { flex:0 0 16px; color:var(--text-accent); font-weight:700; text-align:center; }

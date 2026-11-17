@@ -46,3 +46,14 @@ it('Tab and focus leaving close options without committing a draft selection', a
   expect(host.querySelector('output').textContent).toBe('a');
   expect(host.querySelector('[role=listbox]')).toBeNull();
 });
+it('safely closes without throwing or firing onChange when there are no options', async () => {
+  let called = false;
+  await act(async () => root.render(<HtmlSelect aria-label="空列表" value="" onChange={() => { called = true; }} />));
+  await act(async () => trigger().click());
+  expect(host.querySelector('[role=listbox]')).not.toBeNull();
+  expect(trigger().getAttribute('aria-activedescendant')).toBeNull();
+  await key('Enter');
+  expect(called).toBe(false);
+  expect(host.querySelector('[role=listbox]')).toBeNull();
+  expect(document.activeElement).toBe(trigger());
+});

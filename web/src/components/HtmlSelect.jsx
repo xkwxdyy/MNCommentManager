@@ -12,24 +12,30 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
   collect(children);
   const id = useId(), root = useRef(null), trigger = useRef(null), list = useRef(null);
   const touchGesture = useRef(null);
-  const [open, setOpen] = useState(false), [active, setActive] = useState(0), [layout, setLayout] = useState({});
+  const [open, setOpen] = useState(false), [active, setActive] = useState(0), [layout, setLayout] = useState({}), [placement, setPlacement] = useState('bottom');
   const selected = options.findIndex(option => option.value === String(value));
   const close = () => { touchGesture.current = null; setOpen(false); };
-  const show = () => {
-    if (disabled || trigger.current.matches(':disabled')) return;
+  const measureLayout = () => {
+    if (!trigger.current || !root.current) return;
     const rect = trigger.current.getBoundingClientRect();
     const bounds = root.current.closest('[role="dialog"]')?.getBoundingClientRect();
     const bottom = Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight) - rect.bottom - 12;
     const top = rect.top - Math.max(0, bounds?.top ?? 0) - 12;
     const above = bottom < 160 && top > bottom;
+    setPlacement(above ? 'top' : 'bottom');
     setLayout({ [above ? 'bottom' : 'top']: 'calc(100% + 4px)', maxHeight: Math.max(44, Math.min(240, above ? top : bottom)) });
+  };
+  const show = () => {
+    if (disabled || trigger.current.matches(':disabled')) return;
+    measureLayout();
     setActive(selected >= 0 && !options[selected].disabled ? selected : Math.max(0, options.findIndex(option => !option.disabled)));
     setOpen(true);
   };
   const choose = index => {
+    if (!options.length) { close(); trigger.current?.focus({ preventScroll: true }); return; }
     const option = options[index];
     if (!option || option.disabled || disabled || trigger.current.matches(':disabled')) return;
-    close(); trigger.current.focus();
+    close(); trigger.current.focus({ preventScroll: true });
     onChange?.({ target: { value: option.value } });
   };
   const cancelOptionTouch = () => {
@@ -83,21 +89,33 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
         trigger.current?.focus();
       } else if (event.key === 'Tab') close();
     };
+    const onAncestorScroll = event => {
+      if (list.current?.contains(event.target)) return;
+      measureLayout();
+    };
     document.addEventListener('keydown', dismissKey, true);
     document.addEventListener('pointerdown', outside);
     document.addEventListener('touchstart', outside);
     if (!window.PointerEvent) document.addEventListener('mousedown', outside);
     window.addEventListener('resize', hide);
+    window.addEventListener('scroll', onAncestorScroll, true);
     return () => {
       document.removeEventListener('keydown', dismissKey, true);
       document.removeEventListener('pointerdown', outside);
       document.removeEventListener('touchstart', outside);
       if (!window.PointerEvent) document.removeEventListener('mousedown', outside);
       window.removeEventListener('resize', hide);
+      window.removeEventListener('scroll', onAncestorScroll, true);
     };
   }, [open]);
   useEffect(() => { if (disabled) close(); }, [disabled]);
-  useEffect(() => { if (open) list.current?.children[active]?.scrollIntoView?.({ block: 'nearest' }); }, [open, active]);
+  useEffect(() => {
+    const menu = list.current, item = menu?.children[active];
+    if (!open || !menu || !item) return;
+    const itemTop = item.offsetTop, itemBottom = itemTop + item.offsetHeight;
+    if (itemTop < menu.scrollTop) menu.scrollTop = itemTop;
+    else if (itemBottom > menu.scrollTop + menu.clientHeight) menu.scrollTop = itemBottom - menu.clientHeight;
+  }, [open, active]);
   return <span className="html-select" ref={root} onBlur={event => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
     // Catalyst can report a null focus target while an option touch is still active.
@@ -108,7 +126,7 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
     }
     close();
   }}>
-    <button {...props} ref={trigger} type="button" className={`html-select-trigger ${props.className || ''}`} role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-activedescendant={open ? `${id}-${active}` : undefined} disabled={disabled} onKeyUp={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); open ? close() : show(); }} onKeyDown={event => {
+    <button {...props} ref={trigger} type="button" className={`html-select-trigger ${props.className || ''}`} role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined} disabled={disabled} onKeyUp={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); open ? close() : show(); }} onKeyDown={event => {
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault(); event.stopPropagation();
         if (!open) { show(); return; }
@@ -125,7 +143,7 @@ export default function HtmlSelect({ children, value, onChange, disabled = false
       <span className="html-select-value">{options[selected]?.children || options[0]?.children || '暂无选项'}</span>
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
-    {open ? <span ref={list} className="html-select-list" role="listbox" id={`${id}-list`} aria-label={props['aria-label'] || '选项'} style={layout}>
+    {open ? <span ref={list} className="html-select-list" data-placement={placement} role="listbox" id={`${id}-list`} aria-label={props['aria-label'] || '选项'} style={layout}>
       {options.map((option, index) => <button type="button" role="option" id={`${id}-${index}`} key={option.value} data-value={option.value} aria-selected={index === selected} className={index === active ? 'is-active' : ''} disabled={option.disabled} tabIndex={-1} onTouchStart={event => beginOptionTouch(index, event)} onTouchMove={moveOptionTouch} onTouchEnd={event => endOptionTouch(index, event)} onTouchCancel={cancelOptionTouch} onPointerMove={() => !option.disabled && setActive(index)} onMouseDown={event => event.preventDefault()} onClick={event => { event.stopPropagation(); choose(index); }}>
         <span className="html-select-check" aria-hidden="true">{index === selected ? '✓' : ''}</span><span>{option.children}</span>
       </button>)}

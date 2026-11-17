@@ -195,7 +195,6 @@ for (const [label, section] of [["up", upSource], ["down", downSource], ["delete
   assert.ok(section.includes('onClick={(event) => event.stopPropagation()}'), `${label} click must remain isolated from card selection`);
   assert.ok(section.includes("onContextMenu={(event) => event.preventDefault()}"), `${label} long-press context menu protection must remain`);
   assert.ok(section.includes("onDragStart={(event) => event.preventDefault()}"), `${label} drag suppression must remain`);
-  assert.ok(section.includes("onSelectStart={(event) => event.preventDefault()}"), `${label} text-selection suppression must remain`);
 }
 
 assert.ok(upSource.includes('onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}'));
@@ -229,5 +228,7 @@ assert.ok(source.includes("}, 520);"), "quick move long-press threshold must rem
 assert.ok(source.includes("}, 560);"), "single delete long-press threshold must remain 560ms");
 assert.ok(styles.includes(".quick-action-btn:focus-visible"), "existing visible keyboard focus treatment must remain");
 assert.ok(styles.includes("touch-action: none"), "existing pointer gesture isolation must remain");
+
+assert.match(styles, /button\s*\{[^}]*user-select:\s*none;[^}]*-webkit-user-select:\s*none;/, "button text selection is disabled by CSS supported by the WebView");
 
 console.log("comment quick-action keyboard regression passed");

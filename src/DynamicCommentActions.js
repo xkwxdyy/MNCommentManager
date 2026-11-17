@@ -191,12 +191,12 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       let noteId = extractNoteId(userInfo.note || userInfo.noteid || userInfo.noteId);
       if (!noteId) {
         try {
-          const focusNote = MNNote && typeof MNNote.getFocusNote === "function" ? MNNote.getFocusNote(true) : null;
+          const focusNote = __MN_NOTE_ACCESS_MNCommentManagerAddon.current();
           noteId = extractNoteId(focusNote);
         } catch (_) {}
       }
       if (!noteId) { debug("context.no-note-id", { hasUserInfo: !!userInfo }); return null; }
-      const note = MNNote.new(noteId, false);
+      const note = __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(noteId);
       if (!note || !note.noteId) { debug("context.note-create-failed", { noteId }); return null; }
       const hostView = getHostView(addon);
       const eventRect = validRect(userInfo.winRect);
@@ -839,7 +839,7 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
       throw new Error("单选卡片已变化，请重新打开菜单");
     }
     if (context && context.note && String(context.noteId) === expectedId) return context.note;
-    const note = MNNote.new(expectedId, false);
+    const note = __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(expectedId);
     if (!note || !note.noteId) throw new Error("菜单绑定的卡片不存在或已被删除");
     return note;
   }

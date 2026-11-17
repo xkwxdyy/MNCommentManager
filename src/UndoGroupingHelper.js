@@ -83,6 +83,12 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
     ids.forEach(pushNotebookId);
     depth += 1;
     let result;
+    let callbackError;
+    let callbackFailed = false;
+    const invoke = () => {
+      try { result = fn(); }
+      catch (error) { callbackFailed = true; callbackError = error; }
+    };
     let undoMode = "direct";
     const startedAt = Date.now();
     try {
@@ -91,9 +97,7 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
         typeof MNUtil.undoGroupingNotRefresh === "function") {
         undoMode = "no-global-refresh";
         MNUtil.undoGroupingNotRefresh(
-          function () {
-            result = fn();
-          },
+          invoke,
           primaryNotebookId,
           { feature: `mncommentmanager.${String(actionName || "mutation")}.noGlobalDBRefresh` },
         );
@@ -102,13 +106,13 @@ var __MN_UNDO_GROUPING_MNCommentManagerAddon = (function () {
         UndoManager.sharedInstance().undoGrouping(
           actionName || "MN Comment Manager",
           primaryNotebookId,
-          function () {
-            result = fn();
-          }
+          invoke
         );
       } else {
-        result = fn();
+        invoke();
       }
+      // Native JSValue callbacks may swallow JS exceptions at the Objective-C boundary.
+      if (callbackFailed) throw callbackError;
     } finally {
       depth = Math.max(0, depth - 1);
       pendingNotebookIds = startedIds;

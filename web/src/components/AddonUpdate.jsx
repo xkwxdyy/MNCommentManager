@@ -56,7 +56,7 @@ export default function AddonUpdate() {
   const canInstall = !busy && state?.result?.updateAvailable && !state?.result?.offline && !state?.installedVersion;
   return (
     <section className="settings-section addon-update" aria-label="插件更新" aria-busy={busy}>
-      <div className="settings-section-header"><h3>插件更新</h3><span>正式版更新与版本说明</span></div>
+      <div className="settings-section-header"><h3>插件更新</h3></div>
       <dl className="addon-update-versions">
         <div><dt>当前运行版本</dt><dd>{state?.currentVersion ? `v${state.currentVersion}` : "尚未读取"}</dd></div>
         <div><dt>{state?.result?.offline ? "离线资料版本" : "最新版本"}</dt><dd>{latest ? `v${latest}` : "尚未检查"}</dd></div>

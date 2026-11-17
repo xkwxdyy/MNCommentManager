@@ -8,6 +8,10 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
     return addon.mncmNativeCardMenuState || (addon.mncmNativeCardMenuState = { generation: 0, noteId: '', bindings: [], timers: [] });
   }
   function active(addon) { return addon && addon.mnCommentManagerSceneActive !== false && addon.window === MNUtil.currentWindow; }
+  function hasNativeCommands(menu) {
+    return (menu.items || []).some(item => commands.some(command =>
+      String(item.actionString || '') === prefix + command.id + ':' && String(item.title || '') === command.title));
+  }
   function schedule(seconds, callback) {
     const timer = NSTimer.scheduledTimerWithTimeInterval(seconds, false, callback);
     try { if (typeof NSRunLoop !== 'undefined') NSRunLoop.mainRunLoop().addTimerForMode(timer, 'kCFRunLoopCommonModes'); }
@@ -58,9 +62,8 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
   function actionContextMatches(addon, state, noteId) {
     try {
       const origin = state.actionOrigin, scope = actionScope();
-      // MN Utils exposes currentNotebookId and getFocusNotes(); the latter
-      // returns the current map selection, including floating map selections.
-      const selected = typeof MNNote !== 'undefined' && typeof MNNote.getFocusNotes === 'function' ? MNNote.getFocusNotes() : null;
+      // Read native selection locally; older MNUtils focus helpers can create notes.
+      const selected = __MN_NOTE_ACCESS_MNCommentManagerAddon.selected();
       const selectedIds = [];
       if (!Array.isArray(selected) || !selected.length) throw new Error('当前选择不可用');
       for (const note of selected) {
@@ -88,9 +91,13 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
   function attach(addon, state) {
     try {
       if (!active(addon) || !state.noteId) return;
+      const menu = PopupMenu.currentMenu();
+      if (menu && menu.visible && !hasNativeCommands(menu) && !state.bindings.length && !state.holdActive) {
+        primaryCommands(addon, state, menu);
+        return;
+      }
       if (!actionContextMatches(addon, state, state.noteId)) return;
       if (state.holdActive || addon.quickCommentController || addon.mncmWorkflowPanelOwnsEntries || addon.dynamicMoveRailView || addon.dynamicCommentMenuPopoverController) return;
-      const menu = PopupMenu.currentMenu();
       if (!menu || !menu.visible) { unbind(state); return; }
       primaryCommands(addon, state, menu);
       const command = commands[0];
@@ -120,6 +127,7 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
     try {
       const state = stateFor(addon), menu = PopupMenu.currentMenu();
       if (!active(addon) || addon.mnCommentManagerInitialized === false || !context || !state.noteId || state.noteId !== context.noteId || !Database.sharedInstance().getNoteById(state.noteId) || !menu || !menu.visible) return result;
+      if (!hasNativeCommands(menu)) { primaryCommands(addon, state, menu); return result; }
       if (!actionContextMatches(addon, state, context.noteId)) return result;
       const primary = primaryCommands(addon, state, menu);
       if (!primary) return result;

@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "web", "index.html"), "utf8");
 const build = fs.readFileSync(path.join(root, "scripts", "web-build.js"), "utf8");
 const manifestTest = fs.readFileSync(path.join(root, "scripts", "test-update-manifest.js"), "utf8");
-const css = fs.readFileSync(path.join(root, "web", "src", "styles.css"), "utf8");
+const css = fs.readFileSync(path.join(root, "web", "src", "styles.css"), "utf8").replace('@import "./theme.css";', () => fs.readFileSync(path.join(root, "web", "src", "theme.css"), "utf8"));
 const app = fs.readFileSync(path.join(root, "web", "src", "App.jsx"), "utf8");
 const metadata = JSON.parse(fs.readFileSync(path.join(root, "src", "mnaddon.json"), "utf8"));
 
@@ -37,7 +37,7 @@ assert.ok(!css.includes("var(--surface"));
 
 assert.ok(css.includes("@media (pointer: coarse)"));
 assert.ok(/button:not\(\.quick-action-btn\)\s*\{[^}]*min-height:\s*44px;/s.test(css));
-assert.ok(/input:not\(\[type="checkbox"\]\),\s*select\s*\{[^}]*min-height:\s*44px;/s.test(css));
+assert.ok(/input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\),\s*select\s*\{[^}]*min-height:\s*44px;/s.test(css));
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"));
 assert.ok(app.includes('window.matchMedia("(prefers-reduced-motion: reduce)")'));
 

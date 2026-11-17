@@ -1,3 +1,8 @@
+import RichCommentEditor from './components/RichCommentEditor';
+import RichClipboardBar from './components/RichClipboardBar';
+import {RichActionIcon} from './components/RichCommentPresentation';
+import ActionIcon from "./components/ActionIcon";
+import FormatBrushDialog, { FormatBrushIcon, richTextStyle } from "./components/FormatBrushDialog";
 import HtmlSelect from "./components/HtmlSelect";
 import HelpVideos from "./components/HelpVideos";
 import AddonUpdate from "./components/AddonUpdate";
@@ -12,7 +17,7 @@ import WorkflowParameters from "./components/WorkflowParameters";
 import { CommentFoldButton, CommentFoldStatus, CommentFoldToolbar, CollapsedCommentPreview } from "./components/CommentFoldControls";
 import SelectionActionsPanel from "./components/SelectionActionsPanel";
 import { ModuleCommentList, ModuleSettingsDialog } from "./components/CommentModules";
-import { buildModules, effectiveSettings, structureSignature, validateSettings } from "./lib/commentModules.mjs";
+import { buildModules, effectiveSettings, plainText, structureSignature, validateSettings } from "./lib/commentModules.mjs";
 import {
   getMoveState,
   getVirtualPositionForComment,
@@ -88,9 +93,17 @@ function getLongPressDelay(event, baseMs) {
   return isPencil ? Math.min(Number(baseMs) + 220, 760) : Number(baseMs);
 }
 
+const RICH_COMMENT_META = { label: "富文本", filter: "html" };
+
 function getTypeMeta(comment) {
   if (comment?.type === "textComment" && comment?.capabilities?.isMarkdown) {
     return TYPE_META.markdownComment;
+  }
+  if (
+    comment?.type === "HtmlComment" &&
+    (comment?.capabilities?.isRichRtf || (comment?.richFormat && !comment?.capabilities?.isHtmlMarkup))
+  ) {
+    return RICH_COMMENT_META;
   }
   return TYPE_META[comment?.type] || TYPE_META.unknownComment;
 }
@@ -497,17 +510,14 @@ function sortedSetValues(set) {
   return Array.from(set).sort((a, b) => a - b);
 }
 
+function formatSelectionCount(excerptSelected, commentCount) {
+  if (excerptSelected && commentCount === 0) return "已选 摘录";
+  return `已选 ${excerptSelected ? "摘录 + " : ""}${commentCount} 条评论`;
+}
+
 function suppressPressDefaults(event) {
   event.preventDefault();
   event.stopPropagation();
-  const target = event.currentTarget;
-  if (target?.setPointerCapture && event.pointerId !== undefined) {
-    try {
-      target.setPointerCapture(event.pointerId);
-    } catch (_) {
-      // Some WebViews throw if capture is already released.
-    }
-  }
   window.getSelection?.()?.removeAllRanges?.();
 }
 
@@ -523,6 +533,17 @@ function releasePressCapture(event) {
     }
   }
   window.getSelection?.()?.removeAllRanges?.();
+}
+
+function isPointerOutsideTarget(event) {
+  const rect = event?.currentTarget?.getBoundingClientRect?.();
+  if (!rect || (rect.width === 0 && rect.height === 0)) return false;
+  return Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (
+    event.clientX < rect.left ||
+    event.clientX > rect.right ||
+    event.clientY < rect.top ||
+    event.clientY > rect.bottom
+  );
 }
 
 function handleQuickActionKeyboardEvent(event, action) {
@@ -736,7 +757,7 @@ function buildFieldGroups(comments) {
 
   comments.forEach((comment) => {
     if (comment.type === "HtmlComment") {
-      if (current && current.comments.length > 0) {
+      if (current && (current.comments.length > 0 || current.id !== "field-default")) {
         groups.push(current);
       }
       current = {
@@ -750,7 +771,7 @@ function buildFieldGroups(comments) {
     ensureCurrent().comments.push(comment);
   });
 
-  if (current && current.comments.length > 0) {
+  if (current && (current.comments.length > 0 || current.id !== "field-default")) {
     groups.push(current);
   }
   if (groups.length === 0 && comments.length > 0) {
@@ -762,6 +783,80 @@ function buildFieldGroups(comments) {
     });
   }
   return groups;
+}
+
+function renderFilterRailIcon(filterKey) {
+  switch (filterKey) {
+    case "all":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="4.2" height="4.2" rx="1" />
+          <rect x="9.3" y="2.5" width="4.2" height="4.2" rx="1" />
+          <rect x="2.5" y="9.3" width="4.2" height="4.2" rx="1" />
+          <rect x="9.3" y="9.3" width="4.2" height="4.2" rx="1" />
+        </svg>
+      );
+    case "text":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 4h10M3 8h10M3 12h6.5" />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2.5" y="3" width="11" height="10" rx="1.8" />
+          <circle cx="5.8" cy="6.2" r="1" />
+          <path d="M3.5 11.5l3.2-3 2.2 2 1.8-1.6 2.1 2.6" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6.4 9.6l3.2-3.2M5.5 11.2l-1 1a2.1 2.1 0 1 1-3-3l1.4-1.4a2.1 2.1 0 0 1 3 0M10.5 4.8l1-1a2.1 2.1 0 1 1 3 3l-1.4 1.4a2.1 2.1 0 0 1-3 0" />
+        </svg>
+      );
+    case "html":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5.5 4.5L2.5 8l3 3.5M10.5 4.5l3 3.5-3 3.5" />
+        </svg>
+      );
+    case "audio":
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 6.5v3M6.3 4v8M9.7 5.2v5.6M13 6.5v3" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="5" />
+          <path d="M8 5.5v3M8 10.8h.01" />
+        </svg>
+      );
+  }
+}
+
+function normalizeTitleAnchorText(raw) {
+  const firstLine = String(raw || "").trim();
+  if (!firstLine) return "";
+  return plainText(
+    firstLine
+      .replace(/^-\s+/, "")
+      .replace(/^(#{1,6})\s+(.+?)\s*#*$/, "$2"),
+  ).replace(/\s+/g, " ").trim();
+}
+
+function isLosslessModuleTitleAnchor(comment, presentation, expectedTitle) {
+  if (expectedTitle === undefined || comment?.collapsed === true) return false;
+  if (!presentation || presentation.mediaSources.length > 0 || presentation.linkedDisplay || presentation.markdownLinks.length > 0) return false;
+  if (comment?.drawingPreviewPending || comment?.drawingPreviewError || comment?.capabilities?.hasImage || comment?.capabilities?.hasAudio) return false;
+  const raw = String(commentText(comment) || "").trim();
+  if (!raw || /[\r\n]/.test(raw)) return false;
+  const normalizedExpected = String(expectedTitle || "").replace(/\s+/g, " ").trim();
+  if (!normalizedExpected) return false;
+  return normalizeTitleAnchorText(raw) === normalizedExpected;
 }
 
 function makeEmptySnapshot() {
@@ -824,7 +919,7 @@ function SelectionCheckbox({ checked, label, onToggle, descriptionId }) {
   );
 }
 
-function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, label }) {
+function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, label, richFormat }) {
   const source = String(text || "");
   const truncated = isTextPreviewTruncated(source, maxLength);
   const contentRef = useRef(null);
@@ -833,9 +928,10 @@ function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, labe
     if (contentRef.current) contentRef.current.scrollTop = 0;
   }, [expanded, source]);
   return (
-    <div className="plain-text-preview" data-expanded={expanded} data-truncated={truncated}>
+    <div className={`plain-text-preview ${richFormat?.supported ? "rich-format-preview" : ""}`} data-expanded={expanded} data-truncated={truncated}>
       <pre
         ref={contentRef}
+        style={richFormat?.supported ? richTextStyle(richFormat.style) : undefined}
         id={contentId}
         role={reading ? "region" : undefined}
         aria-label={reading ? label : undefined}
@@ -880,6 +976,7 @@ function App() {
   const [excerptSelected, setExcerptSelected] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const searchInputRef = useRef(null);
   const commentPaneRef = useRef(null);
   const dragSessionRef = useRef(null);
@@ -895,6 +992,11 @@ function App() {
   const [rangeAnchor, setRangeAnchor] = useState(null);
   const [insertMode, setInsertMode] = useState(false);
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
+  const [formatBrush, setFormatBrush] = useState(null);
+  const [formatBrushUndo, setFormatBrushUndo] = useState(null);
+  const [richEditor, setRichEditor] = useState(null);
+  const richEditorRef = useRef(null), pendingRichNoteSync = useRef(null);
+  richEditorRef.current = richEditor;
   const selectionModeTriggerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [mergeToExcerptDefault, setMergeToExcerptDefault] = useState(false);
@@ -909,6 +1011,7 @@ function App() {
   const singleDeleteLongPressFired = useRef(false);
   const didInitialLoad = useRef(false);
   const quickMoveTimers = useRef({});
+  const [quickMovePressing, setQuickMovePressing] = useState(null);
   const linkFocusTimers = useRef({});
   const linkFocusLongPressFired = useRef({});
   const [inlineLinkPressing, setInlineLinkPressing] = useState(null);
@@ -916,6 +1019,8 @@ function App() {
   const actionButtonSettingsSessionRef = useRef(0);
   const [workflowManager, setWorkflowManager] = useState(null);
   const [moduleSettingsOpen, setModuleSettingsOpen] = useState(false);
+  const [moduleActionModalOpen, setModuleActionModalOpen] = useState(false);
+  const [moduleResetSeq, setModuleResetSeq] = useState(0);
   const [hiddenModules, setHiddenModules] = useState(() => new Set());
   const [moduleResult, setModuleResult] = useState(null);
   const [batchEditor, setBatchEditor] = useState(null);
@@ -945,15 +1050,30 @@ function App() {
     setWorkflowManager(null);
     setActionButtonSettings(null);
     setModuleSettingsOpen(false);
+    if (typeof setModuleActionModalOpen === "function") setModuleActionModalOpen(false);
+    if (typeof setModuleResetSeq === "function") setModuleResetSeq((value) => value + 1);
     setModuleResult(null);
     setDialog(null);
     setInvalidLinkCleanup(null);
+    setFormatBrush(null);
+    setRichEditor(null); richEditorRef.current=null; pendingRichNoteSync.current=null;
     setSelectionActionsOpen(false);
+    if (typeof clearAllPressTimers === "function") clearAllPressTimers();
+    if (typeof document !== "undefined") {
+      document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
+    }
   };
-  useEffect(() => { setSelectionActionsOpen(false); }, [snapshot.noteId]);
+  useEffect(() => { setSelectionActionsOpen(false); setFormatBrush(null); setRichEditor(null); setFormatBrushUndo(null); }, [snapshot.noteId]);
   useEffect(() => {
-    if (dialog || moduleSettingsOpen || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) setSelectionActionsOpen(false);
-  }, [dialog, moduleSettingsOpen, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel) {
+      setSelectionActionsOpen(false);
+    }
+  }, [formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  useEffect(() => {
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || workflowManager || actionButtonSettings || batchEditor || invalidLinkCleanup || openingOverlay || closingPanel || selectionActionsOpen) {
+      document.querySelectorAll?.(".help-videos[open]")?.forEach?.((node) => node.removeAttribute("open"));
+    }
+  }, [formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, workflowManager, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, selectionActionsOpen]);
   const closeSelectionActions = () => {
     setSelectionActionsOpen(false);
     document.getElementById("selection-actions-toggle")?.focus({ preventScroll: true });
@@ -965,10 +1085,18 @@ function App() {
   const moduleSettings = snapshot.moduleSettings || null;
   const moduleEffective = useMemo(() => moduleSettings ? effectiveSettings(moduleSettings, snapshot.noteId) : null, [moduleSettings, snapshot.noteId]);
   const moduleTree = useMemo(() => moduleEffective ? buildModules(comments, moduleEffective.profile) : null, [comments, moduleEffective]);
+  const moduleTitleByCommentIndex = useMemo(() => {
+    const map = new Map();
+    if (!moduleTree?.flat) return map;
+    moduleTree.flat.forEach((node) => {
+      if (Number.isInteger(node.titleId)) map.set(node.titleId, node.title || "");
+    });
+    return map;
+  }, [moduleTree]);
   const moduleStructure = useMemo(() => structureSignature(comments), [comments]);
   const moduleViewKey = `${snapshot.noteId}:${moduleStructure}:${JSON.stringify(moduleEffective)}`;
   useEffect(() => { setHiddenModules(new Set()); }, [moduleViewKey]);
-  useEffect(() => { setModuleSettingsOpen(false); setModuleResult(null); }, [snapshot.noteId]);
+  useEffect(() => { setModuleSettingsOpen(false); setModuleActionModalOpen(false); setModuleResult(null); }, [snapshot.noteId]);
   const excerpt = snapshot.excerpt || makeEmptySnapshot().excerpt;
   const excerptPresent = excerpt.present === true;
   const allIndices = useMemo(() => comments.map((comment) => comment.index), [comments]);
@@ -988,11 +1116,32 @@ function App() {
   );
   currentViewRef.current = { snapshot, selection: contentSelection };
   const externalCardSwitchStateRef = useRef(null);
-  externalCardSwitchStateRef.current = { dialog, workflowManager, actionButtonSettings, moduleSettingsOpen, moduleResult, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel, loading };
+  const gestureActiveRef = useRef(() => false);
+  externalCardSwitchStateRef.current = {
+    formatBrush,
+    richEditor,
+    dialog,
+    workflowManager,
+    actionButtonSettings,
+    moduleSettingsOpen,
+    moduleActionModalOpen,
+    selectionActionsOpen,
+    rangePicking,
+    insertMode,
+    deletePressing,
+    singleDeletePressing: singleDeletePressing !== null,
+    quickMovePressing: quickMovePressing !== null,
+    inlineLinkPressing: inlineLinkPressing !== null,
+    batchEditor,
+    invalidLinkCleanup,
+    openingOverlay,
+    closingPanel,
+    loading,
+  };
   useEffect(() => {
     window.__MNCommentManagerCanSwitchCard = () => {
       const state = externalCardSwitchStateRef.current;
-      return !!state && !Object.values(state).some(Boolean) && !commandInFlightRef.current && !overlayOpeningRef.current && !panelCloseRef.current && !mergeDefaultPersistenceRef.current.busy && Object.keys(window.__MNBridgePending || {}).length === 0;
+      return !!state && !Object.values(state).some(Boolean) && !gestureActiveRef.current() && !commandInFlightRef.current && !overlayOpeningRef.current && !panelCloseRef.current && !mergeDefaultPersistenceRef.current.busy && Object.keys(window.__MNBridgePending || {}).length === 0;
     };
     return () => { delete window.__MNCommentManagerCanSwitchCard; };
   }, []);
@@ -1021,6 +1170,9 @@ function App() {
       return String(commentSearchIndex.get(comment.index) || "").includes(query);
     })
   ), [commentSearchIndex, comments, filter, search]);
+  useEffect(() => {
+    if (matchingComments.length === 0) setModuleActionModalOpen(false);
+  }, [matchingComments.length]);
   const visibleComments = useMemo(() => {
     if (!moduleTree || hiddenModules.size === 0) return matchingComments;
     const hiddenPositions = new Set();
@@ -1052,20 +1204,31 @@ function App() {
     excerptCanCopyImage || (!excerptSelected && canComment(selectedComments[0], "canCopyImage"))
   );
   const selectedCanEditText = !excerptSelected && hasOneSelection && canComment(selectedComments[0], "canEditText");
+  const selectedCanEditRich = !excerptSelected && hasOneSelection && !!selectedComments[0]?.capabilities?.isHtml && !selectedComments[0]?.capabilities?.isHtmlMarkup;
+  const selectedRichEditSupported = selectedCanEditRich && !!selectedComments[0]?.richEditing?.supported;
+  const selectedRichEditReason = selectedCanEditRich ? (selectedComments[0]?.richEditing?.reason || "当前评论暂不支持编辑") : "";
+  const canPasteRichToSelection = !!snapshot.richText?.clipboard && hasSelection && !excerptSelected && selectedComments.some((comment) => comment?.richEditing?.supported);
   const selectedCanMergeText = hasMultiSelection && excerptCanMergeText && allSelectedCan(selectedComments, "canMergeText") && allSelectedCan(selectedComments, "canCopyText");
   const selectedCommentsCanMergeToExcerpt = selectedComments.length >= (excerptSelected ? 1 : 2)
     && allSelectedCan(selectedComments, "canMergeText")
     && allSelectedCan(selectedComments, "canCopyText");
-  const selectedCanMergeAction = selectedCanMergeText
-    || (selectedCommentsCanMergeToExcerpt && (!excerptSelected || excerpt.type === "image"));
   const mergeToExcerptBlockedByMedia = excerptPresent && (excerpt.type === "audio" || excerpt.type === "video");
-  const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt && !mergeToExcerptBlockedByMedia;
+  const mergeToExcerptBlockedByConversion = excerptPresent && excerpt.type !== "text" && excerpt?.conversion?.eligible !== true;
+  const canMergeToExcerpt = selectedCommentsCanMergeToExcerpt && !mergeToExcerptBlockedByMedia && !mergeToExcerptBlockedByConversion;
+  const canSkipImageExcerptMerge = excerptSelected
+    && excerpt.type === "image"
+    && selectedComments.length >= 2
+    && allSelectedCan(selectedComments, "canMergeText")
+    && allSelectedCan(selectedComments, "canCopyText");
+  const selectedCanMergeNormal = selectedCanMergeText || canSkipImageExcerptMerge;
+  const selectedCanMergeAction = selectedCanMergeNormal || canMergeToExcerpt;
   const selectedCanBidirectionalDelete = hasSelection && !excerptSelected && allSelectedCan(selectedComments, "canBidirectionalDelete");
   const selectedHtmlComments = useMemo(
     () => selectedComments.filter((comment) => comment?.capabilities?.isHtml),
     [selectedComments],
   );
   const selectedHasHtmlComments = selectedHtmlComments.length > 0;
+  const formatBrushSource = !excerptSelected && hasOneSelection && selectedComments[0]?.capabilities?.isHtml ? selectedComments[0] : null;
   const moveState = useMemo(
     () => getMoveState(contentSelection, excerptPresent, comments.length),
     [comments.length, contentSelection, excerptPresent],
@@ -1076,11 +1239,12 @@ function App() {
     && excerptCanMergeText
     && selectedComments.every(canInlineMergeComment)
     && selectedComments.some((comment) => getInlineMergeLinkUrl(comment));
-  const canMoveSelectionToTop = moveState.canMoveToTop;
-  const canMoveSelectionUp = moveState.canMoveUp;
-  const canMoveSelectionDown = moveState.canMoveDown;
-  const canMoveSelectionToBottom = moveState.canMoveToBottom;
-  const canPickInsertPosition = moveState.canPickInsertPosition;
+  const selectedExcerptCanMove = !excerptSelected || excerpt?.conversion?.eligible === true;
+  const canMoveSelectionToTop = selectedExcerptCanMove && moveState.canMoveToTop;
+  const canMoveSelectionUp = selectedExcerptCanMove && moveState.canMoveUp;
+  const canMoveSelectionDown = selectedExcerptCanMove && moveState.canMoveDown;
+  const canMoveSelectionToBottom = selectedExcerptCanMove && moveState.canMoveToBottom;
+  const canPickInsertPosition = selectedExcerptCanMove && moveState.canPickInsertPosition;
   const canInsertAtEnd = !(moveState.continuous && moveState.positions[moveState.positions.length - 1] + 1 === moveState.totalCount);
 
   const notifyStatus = (message) => {
@@ -1094,13 +1258,13 @@ function App() {
     visibleIndices: visibleCommentIndices,
     projectionKey: `${snapshot.noteId}:${moduleStructure}`,
     visibilityKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
-    disabled: loading || !!dialog || !!moduleSettingsOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
+    disabled: loading || !!formatBrush || !!richEditor || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen || !!dragSessionRef.current?.isActive(),
     onSelection: setSelected,
     onClaim: () => { setRangePicking(false); setRangeAnchor(null); setInsertMode(false); },
     onStatus: notifyStatus,
   });
 
-  const dragDisabled = loading || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleResult || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
+  const dragDisabled = loading || !!formatBrush || !!richEditor || !snapshot.noteId || !!snapshot.error || !!dialog || !!moduleSettingsOpen || !!moduleActionModalOpen || !!actionButtonSettings || !!workflowManager || !!batchEditor || !!invalidLinkCleanup || !!openingOverlay || closingPanel || selectionActionsOpen;
   const dragOverview = useCommentDragOverview({
     paneRef: commentPaneRef, snapshot, disabled: dragDisabled,
     contextKey: `${filter}:${search}:${JSON.stringify([...hiddenModules].sort())}:${JSON.stringify(moduleEffective)}`,
@@ -1108,6 +1272,7 @@ function App() {
     onCommit: (base, from, to) => commitOverviewMove(base, from, to),
   });
   dragSessionRef.current = dragOverview;
+  gestureActiveRef.current = () => !!dragSessionRef.current?.isActive() || twoFingerSelection.isActive();
   const dragSnapshotKey = (value) => `${value.noteId}:${structureSignature(value.comments || [])}:${value.commentFold?.revision || ''}`;
   const lastDrag = dragHistory[dragHistory.length - 1];
   const canUndoDrag = !!lastDrag && lastDrag.after === dragSnapshotKey(snapshot);
@@ -1118,6 +1283,7 @@ function App() {
   });
 
   const applySnapshot = (nextSnapshot, message = "", nextSelection = null) => {
+    clearAllPressTimers();
     dragSessionRef.current?.cancel();
     twoFingerSelection.cancel(undefined, { restore: false });
     const normalizedSnapshot = nextSnapshot || makeEmptySnapshot();
@@ -1380,6 +1546,9 @@ function App() {
       clearSingleDeleteTimer();
       Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
       Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
+      quickMoveTimers.current = {};
+      linkFocusTimers.current = {};
+      linkFocusLongPressFired.current = {};
     };
   }, []);
 
@@ -1473,6 +1642,11 @@ function App() {
         // stale batch overlay that may still be mounted in the WebView.
         hideBatchEditorRetainingDraft();
         if (!payload?.snapshot) return;
+        if (richEditorRef.current && payload.snapshot.noteId !== currentViewRef.current.snapshot.noteId) {
+          pendingRichNoteSync.current = payload;
+          return;
+        }
+        if (richEditorRef.current) pendingRichNoteSync.current = null;
         const syncMessage = payload.snapshot.error
           ? payload.snapshot.error
           : payload.snapshot.handwritingPendingCount > 0
@@ -1690,7 +1864,7 @@ function App() {
         noteId: snapshot.noteId,
         indices: [commentIndex],
         targetIndex,
-      }, { message: toEdge ? "已移到最上方" : "已上移一位" });
+      }, { message: toEdge ? "已移到最上方" : "已上移一位", expectedNoteId: snapshot.noteId });
       return;
     }
 
@@ -1704,7 +1878,7 @@ function App() {
       noteId: snapshot.noteId,
       indices: [commentIndex],
       targetIndex,
-    }, { message: toEdge ? "已移到最下方" : "已下移一位" });
+    }, { message: toEdge ? "已移到最下方" : "已下移一位", expectedNoteId: snapshot.noteId });
   };
 
   const commitOverviewMove = async (base, from, to, undoing = false) => {
@@ -1745,7 +1919,7 @@ function App() {
     await runCommand("deleteComments", {
       noteId: snapshot.noteId,
       indices: [commentIndex],
-    }, { message: "评论已删除" });
+    }, { message: "评论已删除", expectedNoteId: snapshot.noteId });
   };
 
   const moveByStep = async (direction, returnFocusTarget = null) => {
@@ -1773,10 +1947,16 @@ function App() {
 
   const executeDeleteSelection = async () => {
     if (!requireSelection()) return;
+    const noteId = snapshot.noteId;
+    const wasActionsOpen = selectionActionsOpen;
     await runCommand("deleteContentSelection", {
-      noteId: snapshot.noteId,
+      noteId,
       selection: contentSelection,
-    }, { message: "所选内容已删除" });
+    }, { message: "所选内容已删除", expectedNoteId: noteId });
+    if (wasActionsOpen && appMountedRef.current && currentNoteIdRef.current === noteId) {
+      setSelectionActionsOpen(false);
+      restoreFocusAfterDialogClose(document.getElementById("selection-actions-toggle"), document.getElementById("comment-list"));
+    }
   };
 
   const deleteSelection = async (returnFocusTarget = null) => {
@@ -1810,26 +1990,29 @@ function App() {
       notifyStatus("双向删除只适用于纯卡片链接评论");
       return;
     }
+    const noteId = snapshot.noteId;
+    const indices = selectedIndices;
     try {
       const result = await runCommand("countReverseLinks", {
-        noteId: snapshot.noteId,
-        indices: selectedIndices,
-      }, { keepSelection: true });
+        noteId,
+        indices,
+      }, { keepSelection: true, expectedNoteId: noteId });
+      if (!appMountedRef.current || currentNoteIdRef.current !== noteId) return;
       const reverseCount = result?.reverseCount || 0;
       setDialog({
         focusManaged: true,
         closeBeforeConfirm: true,
         title: "删除双向链接",
-        body: `将删除当前卡片中的 ${selectedIndices.length} 条链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
+        body: `将删除当前卡片中的 ${indices.length} 条链接评论，并同步删除目标卡片中的 ${reverseCount} 条反向链接。Markdown 文本里的行内链接不会被改动。`,
         confirmText: "确认双向删除",
         danger: true,
         returnFocusTarget,
         returnFocusFallback: document.getElementById("selection-summary"),
         onConfirm: async () => {
           await runCommand("deleteBidirectionalLinks", {
-            noteId: snapshot.noteId,
-            indices: selectedIndices,
-          }, { message: "双向链接已删除" });
+            noteId,
+            indices,
+          }, { message: "双向链接已删除", expectedNoteId: noteId });
         },
       });
     } catch (_) {
@@ -1843,11 +2026,13 @@ function App() {
       notifyStatus("双向删除只适用于纯卡片链接评论");
       return;
     }
+    const noteId = snapshot.noteId;
     try {
       const result = await runCommand("countReverseLinks", {
-        noteId: snapshot.noteId,
+        noteId,
         indices: [commentIndex],
-      }, { keepSelection: true });
+      }, { keepSelection: true, expectedNoteId: noteId });
+      if (!appMountedRef.current || currentNoteIdRef.current !== noteId) return;
       const reverseCount = result?.reverseCount || 0;
       setDialog({
         focusManaged: true,
@@ -1860,9 +2045,9 @@ function App() {
         returnFocusFallback: document.getElementById("comment-list"),
         onConfirm: async () => {
           await runCommand("deleteBidirectionalLinks", {
-            noteId: snapshot.noteId,
+            noteId,
             indices: [commentIndex],
-          }, { message: "双向链接已删除" });
+          }, { message: "双向链接已删除", expectedNoteId: noteId });
         },
       });
     } catch (_) {
@@ -1894,6 +2079,18 @@ function App() {
     setSingleDeletePressing(null);
   }
 
+  function clearAllPressTimers() {
+    clearDeletePress();
+    clearSingleDeletePress();
+    Object.values(quickMoveTimers.current).forEach((timer) => clearTimeout(timer));
+    Object.values(linkFocusTimers.current).forEach((timer) => clearTimeout(timer));
+    quickMoveTimers.current = {};
+    linkFocusTimers.current = {};
+    linkFocusLongPressFired.current = {};
+    setQuickMovePressing(null);
+    setInlineLinkPressing(null);
+  }
+
   const handleMainDeleteKeyboardEvent = (event) => {
     const returnFocusTarget = event.currentTarget;
     handleQuickActionKeyboardEvent(event, () => {
@@ -1919,6 +2116,10 @@ function App() {
   };
 
   const endDeletePress = (event) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelDeletePress(event);
+      return;
+    }
     const returnFocusTarget = event.currentTarget;
     releasePressCapture(event);
     const fired = deleteLongPressFired.current;
@@ -1930,6 +2131,10 @@ function App() {
     releasePressCapture(event);
     deleteLongPressFired.current = true;
     clearDeletePress();
+  };
+
+  const moveDeletePress = (event) => {
+    if (deletePressing && isPointerOutsideTarget(event)) cancelDeletePress(event);
   };
 
   const startSingleDeletePress = (event, commentIndex) => {
@@ -1947,6 +2152,10 @@ function App() {
   };
 
   const endSingleDeletePress = (event, commentIndex) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelSingleDeletePress(event);
+      return;
+    }
     releasePressCapture(event);
     const fired = singleDeleteLongPressFired.current;
     clearSingleDeletePress();
@@ -1959,19 +2168,30 @@ function App() {
     clearSingleDeletePress();
   };
 
+  const moveSingleDeletePress = (event) => {
+    if (singleDeletePressing !== null && isPointerOutsideTarget(event)) cancelSingleDeletePress(event);
+  };
+
   const startQuickMovePress = (event, commentIndex, direction) => {
     suppressPressDefaults(event);
     if (loading) return;
     clearTimeout(quickMoveTimers.current[commentIndex]);
+    setQuickMovePressing(`${commentIndex}:${direction}`);
     quickMoveTimers.current[commentIndex] = setTimeout(() => {
       quickMoveTimers.current[commentIndex] = null;
+      setQuickMovePressing(null);
       execute(() => moveSingleComment(commentIndex, direction, true));
     }, 520);
   };
 
   const finishQuickMovePress = (event, commentIndex, direction) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelQuickMovePress(event, commentIndex);
+      return;
+    }
     releasePressCapture(event);
     const timer = quickMoveTimers.current[commentIndex];
+    setQuickMovePressing(null);
     if (!timer) return;
     clearTimeout(timer);
     quickMoveTimers.current[commentIndex] = null;
@@ -1982,6 +2202,11 @@ function App() {
     releasePressCapture(event);
     clearTimeout(quickMoveTimers.current[commentIndex]);
     quickMoveTimers.current[commentIndex] = null;
+    setQuickMovePressing(null);
+  };
+
+  const moveQuickMovePress = (event, commentIndex) => {
+    if (quickMoveTimers.current[commentIndex] && isPointerOutsideTarget(event)) cancelQuickMovePress(event, commentIndex);
   };
 
   const locateLinkedNote = async (noteId, mode = "mindmap") => {
@@ -2026,6 +2251,10 @@ function App() {
   };
 
   const finishInlineLinkFocusPress = (event, comment) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelInlineLinkFocusPress(event, comment.index);
+      return;
+    }
     releasePressCapture(event);
     const key = comment.index;
     const timer = linkFocusTimers.current[key];
@@ -2042,6 +2271,10 @@ function App() {
   };
 
   const finishMarkdownLinkFocusPress = (event, comment, link, linkIndex) => {
+    if (isPointerOutsideTarget(event)) {
+      cancelMarkdownLinkFocusPress(event, comment, link, linkIndex);
+      return;
+    }
     releasePressCapture(event);
     const key = getMarkdownLinkPressKey(comment, link, linkIndex);
     const timer = linkFocusTimers.current[key];
@@ -2074,6 +2307,10 @@ function App() {
     setInlineLinkPressing(null);
   };
 
+  const moveInlineLinkFocusPress = (event, commentIndex) => {
+    if (linkFocusTimers.current[commentIndex] && isPointerOutsideTarget(event)) cancelInlineLinkFocusPress(event, commentIndex);
+  };
+
   const cancelSelectionMode = () => {
     if (loading || commandInFlightRef.current) return;
     const trigger = selectionModeTriggerRef.current;
@@ -2094,7 +2331,7 @@ function App() {
       return;
     }
     if ((!rangePicking && !insertMode) || loading || commandInFlightRef.current) return;
-    if (dialog || moduleSettingsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
+    if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || selectionActionsOpen || actionButtonSettings || workflowManager || batchEditor || invalidLinkCleanup || openingOverlay) return;
     if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     const target = event.target;
     if (target.closest?.('textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
@@ -2142,24 +2379,28 @@ function App() {
       notifyStatus("至少选择 2 条可合并的文本评论");
       return;
     }
-    const mergeExcerptText = excerptPresent && excerpt.type === "text" && excerptCanCopyText
+    const forceMergeToExcerpt = !selectedCanMergeNormal && canMergeToExcerpt;
+    const defaultMergeToExcerpt = canMergeToExcerpt && (forceMergeToExcerpt || mergeToExcerptDefault);
+    const mergeExcerptText = excerptPresent && excerpt.type === "text" && excerpt?.capabilities?.canCopyText === true
       ? String(excerpt.text || "").trim()
       : "";
     const text = [
-      (excerptSelected || (canMergeToExcerpt && mergeToExcerptDefault)) && excerpt?.capabilities?.canCopyText
+      (excerptSelected || defaultMergeToExcerpt) && excerpt?.capabilities?.canCopyText
         ? excerpt.text
         : "",
       ...selectedComments.map(commentText),
     ].filter(Boolean).join("\n\n");
     const autoExcerptPrefix = mergeExcerptText ? `${mergeExcerptText}\n\n` : "";
-    let autoExcerptPrefixApplied = canMergeToExcerpt && mergeToExcerptDefault && !excerptSelected && !!autoExcerptPrefix;
+    let autoExcerptPrefixApplied = defaultMergeToExcerpt && !excerptSelected && !!autoExcerptPrefix;
     setDialog({
       focusManaged: true,
       closeBeforeConfirm: true,
       title: "合并为一条评论",
       body: `${excerptSelected
         ? (excerpt.type === "image"
-          ? "已选中的图片摘录会跳过；所选文本评论可继续合并，图片摘录只会在选择“合并到摘录”时转为普通合并摘录评论。"
+          ? (forceMergeToExcerpt
+            ? "当前仅选中图片摘录与 1 条文本评论，将先转换图片摘录并把结果设为新的文本摘录。"
+            : "已选中的图片摘录会跳过；所选文本评论可继续合并，图片摘录只会在选择“合并到摘录”时转为普通合并摘录评论。")
           : "原生文本摘录已包含在当前选区中；你也可以改为把结果写回文本摘录。")
         : "所选文本会合并成一条新的 Markdown 评论，原评论会被移除。"}${mergeDefaultLoadError ? `\n\n默认合并设置读取失败：${mergeDefaultLoadError}。本次先按未启用处理；手动切换后会重新核对保存结果。` : ""}`,
       inputLabel: "合并后的内容",
@@ -2167,11 +2408,13 @@ function App() {
       checkboxLabel: "合并到摘录",
       checkboxDescription: mergeToExcerptBlockedByMedia
         ? "音频/视频摘录暂不支持；请使用普通合并。"
-        : (excerpt.type === "image"
-          ? "先将图片摘录转为合并摘录评论，再把编辑后的文本设为新的文本摘录。"
-          : (mergeExcerptText ? "把现有文本摘录放在前面，并将编辑后的结果写回文本摘录。" : "把编辑后的结果设为新的文本摘录。")),
-      checkboxDisabled: !canMergeToExcerpt,
-      checkboxDefault: canMergeToExcerpt && mergeToExcerptDefault,
+        : mergeToExcerptBlockedByConversion
+          ? getExcerptConversionError(excerpt)
+          : (excerpt.type === "image"
+            ? "先将图片摘录转为合并摘录评论，再把编辑后的文本设为新的文本摘录。"
+            : (mergeExcerptText ? "把现有文本摘录放在前面，并将编辑后的结果写回文本摘录。" : "把编辑后的结果设为新的文本摘录。")),
+      checkboxDisabled: !canMergeToExcerpt || forceMergeToExcerpt,
+      checkboxDefault: defaultMergeToExcerpt,
       onCheckChange: (checked, currentValue) => {
         persistMergeToExcerptDefault(checked);
         if (!mergeExcerptText) return currentValue;
@@ -2189,7 +2432,7 @@ function App() {
       returnFocusTarget: event?.currentTarget || null,
       returnFocusFallback: document.getElementById("selection-summary"),
       onConfirm: async (value, options) => {
-        if (options?.checked && canMergeToExcerpt) {
+        if ((options?.checked || forceMergeToExcerpt) && canMergeToExcerpt) {
           await runCommand("mergeCommentsToExcerpt", {
             noteId: snapshot.noteId,
             selection: contentSelection,
@@ -2198,13 +2441,13 @@ function App() {
           }, { message: "已合并到文本摘录" });
           return;
         }
-        if (!selectedCanMergeText) {
+        if (!selectedCanMergeNormal) {
           notifyStatus("当前选区只能使用“合并到摘录”");
           return;
         }
         await runCommand("mergeContentSelection", {
           noteId: snapshot.noteId,
-          selection: contentSelection,
+          selection: canSkipImageExcerptMerge ? makeContentSelection(false, selectedIndices) : contentSelection,
           text: value,
           markdown: true,
           mode: "text",
@@ -2277,13 +2520,20 @@ function App() {
     const returnFocusTarget = event?.currentTarget && typeof event.currentTarget.focus === "function"
       ? event.currentTarget
       : null;
-    const returnFocusFallback = document.getElementById(`comment-${index}`);
+    const returnFocusFallback = document.getElementById(`comment-${index}`) || document.getElementById("selection-summary");
     setDialog({
       kind: "editCommentText",
       title: `编辑评论 #${index}`,
-      body: "只修改这条评论的文本内容；如需维护卡片链接，请使用链接相关操作。",
+      body: "修改这条评论的文本内容；可切换 Markdown 解析或升级为自定义富文本样式。",
       inputLabel: "评论内容",
       inputValue: commentText(current),
+      checkboxLabel: current?.originalType === "LinkNote" ? undefined : "按 Markdown 格式解析",
+      checkboxDescription: current?.originalType === "LinkNote" ? undefined : "开启后支持标题、强调、列表、公式与行内链接。",
+      checkboxDefault: !!current?.capabilities?.isMarkdown,
+      secondaryActionLabel: typeof openRichEditor === "function" && current?.richEditing?.supported ? "转为富文本样式…" : undefined,
+      onSecondaryAction: typeof openRichEditor === "function" && current?.richEditing?.supported
+        ? () => openRichEditor(current, returnFocusTarget || returnFocusFallback, "rich")
+        : undefined,
       confirmText: "保存",
       pendingText: "保存中…",
       closeOnConfirmSuccess: true,
@@ -2291,12 +2541,48 @@ function App() {
       returnFocusFallback: returnFocusFallback && typeof returnFocusFallback.focus === "function"
         ? returnFocusFallback
         : null,
-      onConfirm: async (value) => {
+      onConfirm: async (value, options) => {
         await runCommand("editCommentText", {
           noteId: snapshot.noteId,
           index,
           text: value,
-          markdown: !!current?.capabilities?.isMarkdown,
+          markdown: options && typeof options.checked === "boolean" ? options.checked : !!current?.capabilities?.isMarkdown,
+        }, { message: "评论已更新" });
+      },
+    });
+  };
+
+  const openTextEditByComment = (comment, trigger = null) => {
+    if (!comment || !canComment(comment, "canEditText")) return;
+    const index = comment.index;
+    const returnFocusTarget = trigger && typeof trigger.focus === "function" ? trigger : null;
+    const returnFocusFallback = document.getElementById(`comment-${index}`) || document.getElementById("selection-summary");
+    setDialog({
+      kind: "editCommentText",
+      title: `编辑评论 #${index}`,
+      body: "修改这条评论的文本内容；可切换 Markdown 解析或升级为自定义富文本样式。",
+      inputLabel: "评论内容",
+      inputValue: commentText(comment),
+      checkboxLabel: comment?.originalType === "LinkNote" ? undefined : "按 Markdown 格式解析",
+      checkboxDescription: comment?.originalType === "LinkNote" ? undefined : "开启后支持标题、强调、列表、公式与行内链接。",
+      checkboxDefault: !!comment?.capabilities?.isMarkdown,
+      secondaryActionLabel: comment?.richEditing?.supported ? "转为富文本样式…" : undefined,
+      onSecondaryAction: comment?.richEditing?.supported
+        ? () => openRichEditor(comment, returnFocusTarget || returnFocusFallback, "rich")
+        : undefined,
+      confirmText: "保存",
+      pendingText: "保存中…",
+      closeOnConfirmSuccess: true,
+      returnFocusTarget,
+      returnFocusFallback: returnFocusFallback && typeof returnFocusFallback.focus === "function"
+        ? returnFocusFallback
+        : null,
+      onConfirm: async (value, options) => {
+        await runCommand("editCommentText", {
+          noteId: snapshot.noteId,
+          index,
+          text: value,
+          markdown: options && typeof options.checked === "boolean" ? options.checked : !!comment?.capabilities?.isMarkdown,
         }, { message: "评论已更新" });
       },
     });
@@ -2331,7 +2617,7 @@ function App() {
 
   const openConvertHtmlToMarkdownDialog = (event) => {
     if (!selectedHasHtmlComments) {
-      notifyStatus("先选择 HTML 评论");
+      notifyStatus("先选择富文本或 HTML 评论");
       return;
     }
     const skipped = selectedComments.length - selectedHtmlComments.length;
@@ -2340,10 +2626,10 @@ function App() {
       closeBeforeConfirm: true,
       title: "转为 Markdown",
       body: [
-        `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条 HTML 评论。`,
-        skipped > 0 ? `另外 ${skipped} 条非 HTML 评论会跳过。` : "",
+        `将转换当前卡片中选中的 ${selectedHtmlComments.length} 条富文本 / HTML 评论。`,
+        skipped > 0 ? `另外 ${skipped} 条其他类型评论会跳过。` : "",
         excerptSelected ? "所选原生摘录保持不变，卡片不会转为非摘录版。" : "",
-        "可保留的标题、强调、链接、图片、列表和代码会转为 Markdown；含不支持的样式或结构时保留原 HTML。",
+        "原生富文本会移除颜色与字号样式并保留正文；模板 HTML 的标题、强调、链接、列表和代码会转为 Markdown，不支持的复杂结构保留原样。",
       ].filter(Boolean).join("\n"),
       confirmText: "确认转换",
       returnFocusTarget: event?.currentTarget || null,
@@ -2352,7 +2638,7 @@ function App() {
         await runCommand("convertHtmlCommentsToMarkdown", {
           noteId: snapshot.noteId,
           indices: selectedIndices,
-        }, { message: excerptSelected ? "HTML 评论已转为 Markdown；原生摘录保持不变" : "HTML 评论已转为 Markdown" });
+        }, { message: excerptSelected ? "已转为 Markdown；原生摘录保持不变" : "已转为 Markdown" });
       },
     });
   };
@@ -2437,6 +2723,63 @@ function App() {
     if (selectionActionsOpen) closeSelectionActions();
   };
 
+  const openFormatBrush = async (source = formatBrushSource) => {
+    if (!source?.richFormat?.supported || loading) return;
+    const noteId = snapshot.noteId, sourceIndex = source.index;
+    const returnFocus = selectionActionsOpen ? document.getElementById('selection-actions-toggle') : document.activeElement;
+    if (selectionActionsOpen) closeSelectionActions();
+    try {
+      const result = await runCommand('getFormatBrushPreview', { noteId, sourceIndex }, { keepSelection: true, expectedNoteId: noteId });
+      if (appMountedRef.current && currentNoteIdRef.current === noteId && result?.noteId === noteId) setFormatBrush({ ...result, returnFocus });
+    } catch (_) {}
+  };
+  const copyRichFormat = async comment => {
+    if (loading || !comment.richFormat?.supported) return;
+    const noteId=snapshot.noteId;
+    try {
+      const result=await runCommand('copyRichCommentFormat',{noteId,sourceIndex:comment.index,expectedText:comment.text,expectedStyle:comment.richFormat.style},{keepSelection:true,expectedNoteId:noteId});
+      if(appMountedRef.current&&result?.state)setSnapshot(old=>({...old,richText:{...(old.richText||{}),...(old.noteId===noteId?result.state:{}),clipboard:result.state.clipboard}}));
+    } catch (_) {}
+  };
+  const clearRichFormat = async () => {
+    const noteId=snapshot.noteId;
+    try {const result=await runCommand('clearRichCommentFormat',{noteId},{keepSelection:true,expectedNoteId:noteId,message:''});if(appMountedRef.current&&result?.state)setSnapshot(old=>({...old,richText:{...(old.richText||{}),...(old.noteId===noteId?result.state:{}),clipboard:result.state.clipboard}}));}catch(_){}
+  };
+  const openRichPaste = async (comment=null,trigger=document.activeElement,preselected=[]) => {
+    if(loading||!snapshot.richText?.clipboard)return;
+    const noteId=snapshot.noteId;
+    if(selectionActionsOpen)closeSelectionActions();
+    const extra=comment?{targetIndex:comment.index,expectedText:comment.text}:preselected.length>0?{selectedIndices:preselected}:{};
+    try {const result=await runCommand('getRichCommentPastePreview',{noteId,...extra},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setFormatBrush({...result,returnFocus:trigger});}catch(_){}
+  };
+  const openRichEditor = async (comment=null,trigger=document.activeElement,initialMode=undefined) => {
+    if(loading||(!comment&&(!snapshot.noteId||snapshot.error)))return;
+    const noteId=snapshot.noteId;
+    if(selectionActionsOpen)closeSelectionActions();
+    try {const result=await runCommand('getRichCommentDraft',{noteId,index:comment?.index??null,...(comment?{expectedText:comment.text}:{}),...(initialMode?{initialMode}:{})},{keepSelection:true,expectedNoteId:noteId});if(currentNoteIdRef.current===noteId&&result?.noteId===noteId)setRichEditor({...result,trigger});}catch(_){}
+  };
+  const closeRichEditor = () => {
+    setRichEditor(null);richEditorRef.current=null;
+    const pending=pendingRichNoteSync.current;pendingRichNoteSync.current=null;
+    if(pending)window.__MNCommentManagerNativeSync?.(pending);
+  };
+  const saveRichComment = async (text,style,mode='rich') => {
+    const plan=richEditor;
+    if(!plan||currentNoteIdRef.current!==plan.noteId)throw Error('当前卡片已变化，评论尚未保存');
+    await runCommand('saveRichComment',{noteId:plan.noteId,token:plan.token,text,style,...(mode&&mode!=='rich'?{mode}:{})},{expectedNoteId:plan.noteId,refreshOnError:true});
+  };
+  const applyFormatBrush = async indices => {
+    const plan=formatBrush;if(!plan)return;
+    const command=plan.mode==='paste'?'applyRichCommentFormat':'applyFormatBrush';
+    const result=await runCommand(command,{noteId:plan.noteId,token:plan.token,indices},{expectedNoteId:plan.noteId,refreshOnError:true});
+    if(currentNoteIdRef.current===plan.noteId){setFormatBrush(null);setFormatBrushUndo(result.undoToken?{noteId:plan.noteId,token:result.undoToken}:null);}
+  };
+  const richUndo = snapshot.richText ? snapshot.richText.undo : (formatBrushUndo?.noteId===snapshot.noteId?formatBrushUndo:null);
+  const undoFormatBrush = async () => {
+    if(!richUndo||loading)return;
+    try {await runCommand(snapshot.richText?'undoRichComment':'undoFormatBrush',richUndo,{expectedNoteId:richUndo.noteId,refreshOnError:true});setFormatBrushUndo(null);}catch(_){}
+  };
+
   const moveActions = [
     { key: "top", label: "移到最上方", visible: canMoveSelectionToTop, onClick: (event) => moveSelection(moveState.topBoundary, "已移到最上方", event.currentTarget) },
     { key: "up", label: "上移", visible: canMoveSelectionUp, onClick: (event) => moveByStep("up", event.currentTarget) },
@@ -2445,8 +2788,12 @@ function App() {
   ].filter((action) => action.visible);
   const hasMoveActions = moveActions.length > 0 || canPickInsertPosition;
   const processActions = [
+    { key: "format-brush", label: "格式刷", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: () => openFormatBrush() },
+    { key: "copy-rich-format", label: "复制格式", visible: !!formatBrushSource, disabled: !formatBrushSource?.richFormat?.supported, title: formatBrushSource?.richFormat?.reason, onClick: () => { copyRichFormat(formatBrushSource); closeSelectionActions(); } },
+    { key: "paste-rich-format", label: "粘贴格式", visible: canPasteRichToSelection, onClick: () => openRichPaste(null, document.getElementById("selection-actions-toggle"), selectedIndices) },
     { key: "copy-text", label: "复制文本", visible: selectedCanCopyText, onClick: copySelectedText },
     { key: "copy-image", label: "复制图片", visible: selectedCanCopyImage, onClick: copySelectedImage },
+    { key: "edit-rich", label: "编辑富文本", visible: selectedCanEditRich, disabled: !selectedRichEditSupported, title: selectedRichEditReason, onClick: () => openRichEditor(selectedComments[0], document.getElementById("selection-actions-toggle")) },
     { key: "edit-text", label: "编辑文本", visible: selectedCanEditText, onClick: openEditDialog },
     { key: "html-to-markdown", label: "转为 Markdown", visible: selectedHasHtmlComments, onClick: openConvertHtmlToMarkdownDialog },
     { key: "merge-text", label: "合并文本", visible: selectedCanMergeAction, onClick: openMergeDialog },
@@ -2461,6 +2808,18 @@ function App() {
     if (!pane) return false;
     if (typeof pane.scrollTo === "function") pane.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
     else pane.scrollTop = 0;
+    return true;
+  };
+
+  const scrollToBottom = () => {
+    if (visibleComments.length > 0 && hiddenModules.size === 0) {
+      return scrollToComment(visibleComments[visibleComments.length - 1]?.index);
+    }
+    const pane = document.getElementById("comment-pane");
+    if (!pane) return false;
+    const top = Math.max(0, (pane.scrollHeight || 0) - (pane.clientHeight || 0));
+    if (typeof pane.scrollTo === "function") pane.scrollTo({ top: pane.scrollHeight || top, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    else pane.scrollTop = pane.scrollHeight || top;
     return true;
   };
 
@@ -2577,7 +2936,7 @@ function App() {
       if (window.__MNCommentManagerRequestedView !== "workflow") return;
       if (workflowManager) { window.__MNCommentManagerRequestedView = ""; return; }
       if (loading || openingOverlay || closingPanel) return;
-      if (dialog || moduleSettingsOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
+      if (formatBrush || richEditor || dialog || moduleSettingsOpen || moduleActionModalOpen || actionButtonSettings || batchEditor || invalidLinkCleanup) {
         notifyStatus("请先完成或关闭当前编辑窗口，随后会打开工作流设置");
         return;
       }
@@ -2587,7 +2946,7 @@ function App() {
     window.__MNCommentManagerOpenWorkflow = openRequestedWorkflow;
     openRequestedWorkflow();
     return () => { delete window.__MNCommentManagerOpenWorkflow; };
-  }, [workflowManager, loading, dialog, moduleSettingsOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
+  }, [workflowManager, loading, formatBrush, richEditor, dialog, moduleSettingsOpen, moduleActionModalOpen, actionButtonSettings, batchEditor, invalidLinkCleanup, openingOverlay, closingPanel]);
 
   const closePanel = async () => {
     if (panelCloseRef.current) return;
@@ -2619,31 +2978,55 @@ function App() {
   };
 
   return (
-    <div className="comment-manager" onKeyDownCapture={handleSelectionModeKeyDown}>
+    <div
+      className="comment-manager"
+      data-range-picking={rangePicking ? "true" : undefined}
+      data-insert-mode={insertMode ? "true" : undefined}
+      data-actions-open={selectionActionsOpen ? "true" : undefined}
+      data-sidebar-collapsed={sidebarCollapsed ? "true" : undefined}
+      data-has-selection={hasSelection ? "true" : undefined}
+      onKeyDownCapture={handleSelectionModeKeyDown}
+    >
       {retainedBatchEditorRef.current ? (
         <BatchCommentEditor state={batchEditor || retainedBatchEditorRef.current} active={!!batchEditor} onClose={closeBatchEditor} onStatus={notifyStatus} />
       ) : null}
+      {formatBrush && <FormatBrushDialog preview={formatBrush} busy={loading} onApply={applyFormatBrush} onClose={() => { if (!loading) setFormatBrush(null); }} />}
+      <div className="manager-heading">
       <header className="topbar">
         <div className="topbar-title">
           <h1>评论管理器</h1>
           <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
         </div>
         <div className="topbar-actions">
+          {richUndo && <Button className="ghost format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次富文本修改'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
-              disabled={!excerptPresent && visibleComments.length === 0}
-              onClick={() => setContentSelection(makeContentSelection(excerptPresent, visibleComments.map((comment) => comment.index)))}
+              disabled={!excerptPresent && matchingComments.length === 0}
+              onClick={() => {
+                const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
+                const next = new Set(selectedIndices);
+                targetComments.forEach((comment) => next.add(comment.index));
+                setContentSelection(makeContentSelection(excerptPresent, sortedSetValues(next)));
+              }}
             >
               全选
             </Button>
             <Button
               className="secondary"
-              disabled={!excerptPresent && visibleComments.length === 0}
-              onClick={() => setContentSelection(makeContentSelection(
-                excerptPresent && !excerptSelected,
-                visibleComments.map((comment) => comment.index).filter((index) => !selected.has(index)),
-              ))}
+              disabled={!excerptPresent && matchingComments.length === 0}
+              onClick={() => {
+                const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
+                const targetSet = new Set(targetComments.map((comment) => comment.index));
+                const next = new Set(selectedIndices.filter((index) => !targetSet.has(index)));
+                targetComments.forEach((comment) => {
+                  if (!selected.has(comment.index)) next.add(comment.index);
+                });
+                setContentSelection(makeContentSelection(
+                  excerptPresent && !excerptSelected,
+                  sortedSetValues(next),
+                ));
+              }}
             >
               反选
             </Button>
@@ -2652,20 +3035,29 @@ function App() {
           </div>
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
             <HelpVideos />
-            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
-            <Button className="secondary" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel}>刷新</Button>
-            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</Button>
-            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置">{openingOverlay === "settings" ? "打开中…" : "设置"}</Button>
-            <Button className="secondary" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel}>{closingPanel ? "关闭中…" : "关闭"}</Button>
+            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
+            <Button className="secondary rich-add-comment" aria-label="新建评论" title="新建评论（普通文本 / Markdown / 富文本）" disabled={loading||!snapshot.noteId||!!snapshot.error||!!openingOverlay||closingPanel} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
+            <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><ActionIcon name="refresh" /><span className="sr-only">刷新</span></Button>
+            <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><ActionIcon name="workflow" /><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
+            <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><ActionIcon name="settings-sliders" /><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
+            <Button className="secondary" aria-label="关闭" title="关闭评论管理器" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel} aria-busy={closingPanel || undefined}><ActionIcon name="close" /><span className="sr-only">{closingPanel ? "关闭中…" : "关闭"}</span></Button>
           </div>
         </div>
       </header>
+      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} onPaste={event=>openRichPaste(null,event.currentTarget,selectedIndices)} onClear={clearRichFormat}/>
+      </div>
 
-      <div className="statusbar" aria-live="polite">
-        <span>{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
-        <span>评论 {comments.length} 条</span>
-        <span>已选 {excerptSelected ? "摘录 + " : ""}{selectedIndices.length} 条评论</span>
-        <span>当前显示 {visibleComments.length} 条评论</span>
+      <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined}>
+        <span className="status-count status-excerpt">{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
+        <span className="status-count status-total">评论 {comments.length} 条</span>
+        <span className="status-count status-selected">{formatSelectionCount(excerptSelected, selectedIndices.length)}</span>
+        {hasActiveFilter ? (
+          <span className="status-count status-visible">
+            {hiddenModules.size > 0 && visibleComments.length !== matchingComments.length
+              ? `匹配 ${matchingComments.length} 条（显示 ${visibleComments.length} 条）`
+              : `当前显示 ${visibleComments.length} 条评论`}
+          </span>
+        ) : null}
         {moduleResult ? <button type="button" title={moduleResult.title} onClick={() => execute(() => runCommand("focusLinkedNote", { noteId: moduleResult.noteId, mode: "focus" }, { message: "已定位提取结果" }))}>查看提取结果</button> : null}
         {snapshot.moduleSettingsError ? <span role="alert">{snapshot.moduleSettingsError}</span> : null}
         <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
@@ -2676,12 +3068,12 @@ function App() {
         <div className="quick-nav-track">
           <Button
             className="quick-nav-item"
-            disabled={!excerptPresent && visibleComments.length === 0}
+            disabled={!excerptPresent && matchingComments.length === 0}
             onClick={scrollToTop}
           >
             顶部
           </Button>
-          {moduleTree ? moduleTree.flat.map(node => <Button key={node.id} className="quick-nav-item" onClick={() => locateModule(node)} title={`定位模块：${node.title}`}><span>{node.title}</span><b>{node.end-node.start}</b></Button>) : fieldGroups.map((field) => (
+          {moduleTree ? moduleTree.flat.map(node => <Button key={node.id} className="quick-nav-item" disabled={matchingComments.length === 0} onClick={() => locateModule(node)} title={`定位模块：${node.title}`}><span>{node.title}</span><b>{node.end-node.start}</b></Button>) : fieldGroups.map((field) => (
             <Button
               key={field.id}
               className="quick-nav-item"
@@ -2691,20 +3083,44 @@ function App() {
               <b>{field.comments.length}</b>
             </Button>
           ))}
-          <Button className="quick-nav-item" disabled={!excerptPresent && visibleComments.length === 0} onClick={() => excerptPresent && visibleComments.length === 0 ? scrollToTop() : scrollToComment(visibleComments[visibleComments.length - 1]?.index)}>底部</Button>
+          <Button className="quick-nav-item" disabled={!excerptPresent && matchingComments.length === 0} onClick={scrollToBottom}>底部</Button>
         </div>
       </nav>
 
       <main className="workspace">
         <aside className="left-pane">
+          <div className="left-pane-bar">
+            <span className="left-pane-title">筛选与大纲</span>
+            <Button
+              className="sidebar-collapse-btn ghost"
+              aria-label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              title={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-expanded={sidebarCollapsed ? "false" : "true"}
+              onClick={() => setSidebarCollapsed((current) => !current)}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2.2" y="2.8" width="13.6" height="12.4" rx="2.2" />
+                <path d="M6.8 3v12" />
+                {sidebarCollapsed ? <path d="m9.6 7 2.2 2-2.2 2" /> : <path d="m11.6 7-2.2 2 2.2 2" />}
+              </svg>
+            </Button>
+          </div>
           <section className="pane-section">
             <h2>查找</h2>
+            <Button
+              className={search ? "sidebar-search-wake ghost is-active" : "sidebar-search-wake ghost"}
+              aria-label="展开并搜索评论"
+              title={search ? `搜索中：${search}（点击展开）` : "展开并搜索评论"}
+              onClick={() => {
+                setSidebarCollapsed(false);
+                requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+              }}
+            >
+              <ActionIcon name="search" />
+            </Button>
             <div className="search-box" role="search" aria-label="查找评论">
               <label htmlFor="comment-search">搜索评论</label>
-              <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <path d="m13 13 4 4" strokeLinecap="round" />
-              </svg>
+              <ActionIcon name="search" className="search-icon" />
               <input
                 ref={searchInputRef}
                 id="comment-search"
@@ -2739,8 +3155,10 @@ function App() {
                   key={item.key}
                   className={filter === item.key ? "active" : ""}
                   aria-pressed={filter === item.key ? "true" : "false"}
+                  title={`${item.label}（${filterCounts[item.key] || 0}）`}
                   onClick={() => setFilter(item.key)}
                 >
+                  {renderFilterRailIcon(item.key)}
                   <span>{item.label}</span>
                   <b>{filterCounts[item.key] || 0}</b>
                 </Button>
@@ -2751,6 +3169,53 @@ function App() {
                 清除失效链接
               </Button>
             ) : null}
+          </section>
+          <section className="left-outline-section" aria-label="大纲定位">
+            <div className="left-outline-head">
+              <h2>大纲定位</h2>
+              <div className="left-outline-edges" role="group" aria-label="列表首尾跳转">
+                <Button
+                  className="outline-edge-btn ghost"
+                  disabled={!excerptPresent && matchingComments.length === 0}
+                  title="滚动到列表顶部"
+                  onClick={scrollToTop}
+                >
+                  顶部
+                </Button>
+                <Button
+                  className="outline-edge-btn ghost"
+                  disabled={!excerptPresent && matchingComments.length === 0}
+                  title="滚动到列表底部"
+                  onClick={scrollToBottom}
+                >
+                  底部
+                </Button>
+              </div>
+            </div>
+            <div className="left-outline-list">
+              {moduleTree ? moduleTree.flat.map((node) => (
+                <Button
+                  key={node.id}
+                  className={`left-outline-item depth-${Math.min(node.depth || 0, 3)}`}
+                  disabled={matchingComments.length === 0}
+                  title={`定位模块：${node.title}`}
+                  onClick={() => locateModule(node)}
+                >
+                  <span className="left-outline-name">{node.title}</span>
+                  <b className="left-outline-count">{node.end - node.start}</b>
+                </Button>
+              )) : fieldGroups.map((field) => (
+                <Button
+                  key={field.id}
+                  className="left-outline-item"
+                  title={`定位分组：${field.name}`}
+                  onClick={() => scrollToComment(field.anchorIndex)}
+                >
+                  <span className="left-outline-name">{field.name}</span>
+                  <b className="left-outline-count">{field.comments.length}</b>
+                </Button>
+              ))}
+            </div>
           </section>
         </aside>
 
@@ -2771,7 +3236,7 @@ function App() {
               ) : null}
               {hasActiveFilter ? <div className="list-context-main">
                 <div className="list-context-summary" role="status" aria-live="polite" aria-atomic="true">
-                  <strong>{visibleComments.length}<span> / {comments.length} 条评论</span></strong>
+                  <strong>{matchingComments.length}<span> / {comments.length} 条评论</span></strong>
                   <p title={filterDescription}>{filterDescription}</p>
                 </div>
                 <Button className="secondary filter-reset" onClick={clearSearchAndFilter}>重置筛选</Button>
@@ -2826,7 +3291,7 @@ function App() {
                   <Button className="quick-action-btn" disabled title="原生摘录已在最上方" aria-label="上移摘录">↑</Button>
                   <Button
                     className="quick-action-btn"
-                    disabled={loading || !!dialog || comments.length === 0 || excerpt?.conversion?.eligible !== true}
+                    disabled={loading || !!formatBrush || !!richEditor || !!dialog || comments.length === 0 || excerpt?.conversion?.eligible !== true}
                     title={excerpt?.conversion?.eligible !== true ? getExcerptConversionError(excerpt) : comments.length === 0 ? "已在最下方" : "转为非摘录版并下移一位"}
                     aria-label="下移摘录"
                     onClick={(event) => {
@@ -2839,7 +3304,7 @@ function App() {
               <div className="comment-body excerpt-body">
                 {normalizeImageSource(excerpt) ? <img src={normalizeImageSource(excerpt)} alt="当前卡片的原生摘录" /> : null}
                 {excerpt.type === "image" && !showImageExcerptText ? null : excerpt.text && excerpt.textMarkdown ? (
-                  <MarkdownCommentBody source={excerpt.text} />
+                  <MarkdownCommentBody source={excerpt.text} onLocateLink={locateMarkdownHref} />
                 ) : excerpt.text ? (
                   <PlainTextPreview
                     text={excerpt.text}
@@ -2869,18 +3334,28 @@ function App() {
             ) : (
               <EmptyState title="没有匹配的评论" body="当前类型或搜索条件没有结果。" actionText="清除筛选" onAction={clearSearchAndFilter} />
             )
-          ) : <ModuleCommentList key={moduleViewKey} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
+          ) : <ModuleCommentList key={`${moduleViewKey}:${moduleResetSeq}`} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
             onHide={id => setHiddenModules(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })}
             onSelect={(next, hiddenCount) => { setContentSelection(makeContentSelection(excerptSelected, [...next])); notifyStatus(hiddenCount ? `模块选择包含 ${hiddenCount} 条筛选隐藏评论` : "模块选择已更新"); }}
-            loading={loading} foldSupported={snapshot.commentFold?.supported} onFold={(indices,collapsed) => execute(() => setCommentsCollapsed(indices,collapsed))} onAction={runModuleAction} onModalOpen={() => twoFingerSelection.cancel()}
+            loading={loading} foldSupported={snapshot.commentFold?.supported} onFold={(indices,collapsed) => execute(() => setCommentsCollapsed(indices,collapsed))} onAction={runModuleAction} onModalOpen={() => twoFingerSelection.cancel()} onModalChange={setModuleActionModalOpen}
           >{visibleComments.map((comment, visiblePosition) => {
             const selectedNow = selected.has(comment.index);
-            const { meta, mediaSources, linkedDisplay, markdownLinks } = commentPresentation.get(comment.index);
+            const presentation = commentPresentation.get(comment.index);
+            const { meta, mediaSources, linkedDisplay, markdownLinks } = presentation;
+            const isModuleTitleAnchor = isLosslessModuleTitleAnchor(
+              comment,
+              presentation,
+              moduleTitleByCommentIndex.get(comment.index),
+            );
             const commentPosition = getCommentPosition(comment.index);
             const isFirstComment = commentPosition === 0;
             const isLastComment = commentPosition >= comments.length - 1;
             const insertVirtualTarget = getVirtualPositionForComment(comment.index, excerptPresent);
-            const insertTargetIsNoop = moveState.continuous && insertVirtualTarget === moveState.positions[moveState.positions.length - 1] + 1;
+            const insertTargetInSelectedSpan = moveState.positions.length > 0
+              && insertVirtualTarget >= moveState.positions[0]
+              && insertVirtualTarget <= moveState.positions[moveState.positions.length - 1];
+            const insertTargetIsNoop = insertTargetInSelectedSpan
+              || (moveState.continuous && insertVirtualTarget === moveState.positions[moveState.positions.length - 1] + 1);
             return (
               <div className="comment-row" key={comment.index}>
                 {insertMode && !selectedNow && !insertTargetIsNoop ? (
@@ -2895,7 +3370,7 @@ function App() {
                 <article
                   id={`comment-${comment.index}`}
                   data-comment-index={comment.index}
-                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
+                  className={`comment-card has-drag-handle comment-kind-${meta.filter} ${isModuleTitleAnchor ? "comment-is-module-title-anchor" : ""} ${comment.collapsed === true ? "comment-is-collapsed" : ""} ${selectedNow ? "selected" : ""} ${rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? "range-anchor" : ""}`}
                   onClick={(event) => {
                     if (!hasSelectedTextWithin(event.currentTarget)) handleCommentClick(comment.index);
                   }}
@@ -2903,6 +3378,7 @@ function App() {
                   aria-label={selectedNow ? `取消选择评论 #${comment.index}` : `选择评论 #${comment.index}`}
                   aria-pressed={selectedNow ? "true" : "false"}
                   tabIndex={0}
+                  onDoubleClick={event=>{if(event.target.closest('button,input,select,textarea,a'))return;if(comment.capabilities?.isHtml&&comment.richEditing?.supported){event.preventDefault();event.stopPropagation();openRichEditor(comment,event.currentTarget);}else if(canComment(comment,"canEditText")){event.preventDefault();event.stopPropagation();openTextEditByComment(comment,event.currentTarget);}}}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
@@ -2926,6 +3402,23 @@ function App() {
                     />
                     <span className="comment-index">#{comment.index}</span>
                     <span className={`type-pill type-${meta.filter}`}>{meta.label}</span>
+                    {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && (
+                      <Button
+                        id={`comment-${comment.index}-format-brush`}
+                        className="quick-action-btn format-brush-button"
+                        disabled={loading || !comment.richFormat?.supported}
+                        title={comment.richFormat?.reason || "格式刷"}
+                        aria-label={`使用评论 #${comment.index} 的格式刷`}
+                        onClick={event => { event.stopPropagation(); openFormatBrush(comment); }}
+                      ><FormatBrushIcon /></Button>
+                    )}
+                    <span className="rich-comment-actions">
+                      {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && <>
+                        <Button className="quick-action-btn rich-copy-format" aria-label={`复制评论 #${comment.index} 的格式`} title={comment.richFormat?.supported?'复制格式':comment.richFormat?.reason} disabled={loading||!comment.richFormat?.supported} onClick={event=>{event.stopPropagation();copyRichFormat(comment);}}><RichActionIcon name="copy"/></Button>
+                        <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑${meta.label}评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit"/></Button>
+                      </>}
+                      {snapshot.richText?.clipboard && !comment.capabilities?.isMedia && comment.type !== "linkComment" && comment.type !== "summaryComment" && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴格式':'粘贴格式并转为富文本'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
+                    </span>
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
                       <span className={`direction-pill direction-${comment.linkDirection}`}>
@@ -2933,7 +3426,7 @@ function App() {
                       </span>
                     ) : null}
                     <CommentFoldStatus comment={comment} />
-                    <span className="comment-position">{visiblePosition + 1}/{visibleComments.length}</span>
+                    {hasActiveFilter ? <span className="comment-position" title="在筛选结果中的位置">{visiblePosition + 1}/{visibleComments.length}</span> : null}
                     <div className="comment-inline-actions" aria-label={`评论 #${comment.index} 快捷操作`}>
                       {linkedDisplay ? (
                         <>
@@ -2941,6 +3434,7 @@ function App() {
                             className={inlineLinkPressing === comment.index ? "quick-action-btn locate-action pressing" : "quick-action-btn locate-action"}
                             title="点按定位，按住在浮窗定位"
                             onPointerDown={(event) => startInlineLinkFocusPress(event, comment)}
+                            onPointerMove={(event) => moveInlineLinkFocusPress(event, comment.index)}
                             onPointerUp={(event) => finishInlineLinkFocusPress(event, comment)}
                             onPointerLeave={(event) => cancelInlineLinkFocusPress(event, comment.index)}
                             onPointerCancel={(event) => cancelInlineLinkFocusPress(event, comment.index)}
@@ -2949,7 +3443,6 @@ function App() {
                             onClick={(event) => event.stopPropagation()}
                             onContextMenu={(event) => event.preventDefault()}
                             onDragStart={(event) => event.preventDefault()}
-                            onSelectStart={(event) => event.preventDefault()}
                             disabled={loading}
                             aria-label={`定位链接卡片：${linkedDisplay.title}`}
                           >
@@ -2973,10 +3466,11 @@ function App() {
                       ) : null}
                       <button
                         type="button"
-                        className="quick-action-btn"
+                        className={quickMovePressing === `${comment.index}:up` ? "quick-action-btn pressing" : "quick-action-btn"}
                         disabled={loading || isFirstComment}
                         title="点按上移，按住移到最上方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "up")}
+                        onPointerMove={(event) => moveQuickMovePress(event, comment.index)}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "up")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
@@ -2985,17 +3479,17 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`上移评论 #${comment.index}`}
                       >
                         ↑
                       </button>
                       <button
                         type="button"
-                        className="quick-action-btn"
+                        className={quickMovePressing === `${comment.index}:down` ? "quick-action-btn pressing" : "quick-action-btn"}
                         disabled={loading || isLastComment}
                         title="点按下移，按住移到最下方"
                         onPointerDown={(event) => startQuickMovePress(event, comment.index, "down")}
+                        onPointerMove={(event) => moveQuickMovePress(event, comment.index)}
                         onPointerUp={(event) => finishQuickMovePress(event, comment.index, "down")}
                         onPointerLeave={(event) => cancelQuickMovePress(event, comment.index)}
                         onPointerCancel={(event) => cancelQuickMovePress(event, comment.index)}
@@ -3004,7 +3498,6 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`下移评论 #${comment.index}`}
                       >
                         ↓
@@ -3015,6 +3508,7 @@ function App() {
                         disabled={loading}
                         title="点按删除这条评论；按住可同时清理反向链接"
                         onPointerDown={(event) => startSingleDeletePress(event, comment.index)}
+                        onPointerMove={moveSingleDeletePress}
                         onPointerUp={(event) => endSingleDeletePress(event, comment.index)}
                         onPointerLeave={cancelSingleDeletePress}
                         onPointerCancel={cancelSingleDeletePress}
@@ -3023,7 +3517,6 @@ function App() {
                         onClick={(event) => event.stopPropagation()}
                         onContextMenu={(event) => event.preventDefault()}
                         onDragStart={(event) => event.preventDefault()}
-                        onSelectStart={(event) => event.preventDefault()}
                         aria-label={`删除评论 #${comment.index}`}
                       >
                         ×
@@ -3031,6 +3524,9 @@ function App() {
                     </div>
                   </div>
                   <div className="comment-body" id={`comment-${comment.index}-body`}>
+                    {comment.drawingPreviewOnly && comment.drawingPreviewDataURI ? (
+                      <p className="media-warning" role="status">{comment.drawingPreviewDiagnostics?.some(item => item.code === "legacy-preview") ? "兼容显示；笔色和笔触样式可能与原始手写不同。" : "绘图格式尚未完全支持，仅供近似预览。"}</p>
+                    ) : null}
                     {comment.collapsed === true ? (
                       <CollapsedCommentPreview comment={comment} text={commentText(comment)} mediaSources={mediaSources} linkedDisplay={linkedDisplay} />
                     ) : <>
@@ -3049,7 +3545,7 @@ function App() {
                     {linkedDisplay ? (
                       <div className="link-summary">
                         <p className="link-summary-title">{linkedDisplay.title}</p>
-                        {linkedDisplay.url ? <p className="link-summary-url">{linkedDisplay.url}</p> : null}
+                        {linkedDisplay.url ? <p className="link-summary-url" title={linkedDisplay.url}>{linkedDisplay.url}</p> : null}
                       </div>
                     ) : commentText(comment) && comment.capabilities?.isMarkdown ? (
                       <MarkdownCommentBody
@@ -3061,6 +3557,7 @@ function App() {
                         text={commentText(comment)}
                         contentId={`comment-${comment.index}-text-preview`}
                         label={`评论 #${comment.index} 全文`}
+                        richFormat={comment.richFormat}
                         maxLength={360}
                         expanded={expandedPreviews.has(`comment:${comment.index}`)}
                         onToggle={() => togglePreviewExpansion(`comment:${comment.index}`)}
@@ -3106,10 +3603,81 @@ function App() {
         <CommentDragOverview frame={dragOverview.frame} describe={describeDragComment} />
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
-            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? `已选 ${excerptSelected ? "摘录 + " : ""}${selectedIndices.length} 条评论` : "尚未选择"}</p>
+            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? formatSelectionCount(excerptSelected, selectedIndices.length) : "尚未选择"}</p>
             {hiddenSelectedCount > 0 ? <small title="被筛选隐藏的已选评论仍会参与操作">含隐藏 {hiddenSelectedCount} 条评论</small> : null}
           </section>
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
+          {hasSelection ? (
+            <div className="right-pane-quick-actions" role="group" aria-label="快捷批量操作">
+              <Button
+                className="secondary quick-batch-btn quick-batch-step"
+                disabled={loading || !canMoveSelectionUp}
+                title="将连续选区上移一位"
+                onClick={(event) => moveByStep("up", event.currentTarget)}
+              >
+                ↑ 上移
+              </Button>
+              <Button
+                className="secondary quick-batch-btn quick-batch-step"
+                disabled={loading || !canMoveSelectionDown}
+                title="将连续选区下移一位"
+                onClick={(event) => moveByStep("down", event.currentTarget)}
+              >
+                ↓ 下移
+              </Button>
+              <Button
+                className={insertMode ? "active quick-batch-btn quick-batch-desktop" : "secondary quick-batch-btn quick-batch-desktop"}
+                aria-pressed={insertMode ? "true" : "false"}
+                disabled={loading || !canPickInsertPosition}
+                title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}
+                onClick={toggleInsertMode}
+              >
+                插入位置
+              </Button>
+              {selectedCanInlineMerge ? (
+                <Button key="quick-inline-merge" className="primary quick-batch-btn" disabled={loading} title="将连续文本与链接合并为行内链接" onClick={openInlineMergeDialog}>
+                  合成链接
+                </Button>
+              ) : selectedCanMergeAction ? (
+                <Button key="quick-merge" className="primary quick-batch-btn" disabled={loading} title="合并所选文本评论" onClick={openMergeDialog}>
+                  合并所选
+                </Button>
+              ) : selectedCanEditText ? (
+                <Button key="quick-edit" className="secondary quick-batch-btn" disabled={loading} title="编辑所选评论文本" onClick={openEditDialog}>
+                  编辑所选
+                </Button>
+              ) : selectedCanEditRich ? (
+                <Button key="quick-edit-rich" className="secondary quick-batch-btn" disabled={loading || !selectedRichEditSupported} title={selectedRichEditSupported ? "编辑所选富文本评论" : selectedRichEditReason} onClick={(event) => openRichEditor(selectedComments[0], event.currentTarget)}>
+                  编辑所选
+                </Button>
+              ) : null}
+              <Button
+                className="secondary quick-batch-btn quick-batch-desktop"
+                disabled={loading}
+                title="将所选内容提取为子卡片"
+                onClick={openExtractDialog}
+              >
+                提取子卡
+              </Button>
+              <button
+                type="button"
+                className={deletePressing ? "danger quick-batch-btn quick-batch-delete pressing" : "danger quick-batch-btn quick-batch-delete"}
+                onPointerDown={startDeletePress}
+                onPointerMove={moveDeletePress}
+                onPointerUp={endDeletePress}
+                onPointerLeave={cancelDeletePress}
+                onPointerCancel={cancelDeletePress}
+                onKeyDown={handleMainDeleteKeyboardEvent}
+                onKeyUp={handleMainDeleteKeyboardEvent}
+                onContextMenu={(event) => event.preventDefault()}
+                onDragStart={(event) => event.preventDefault()}
+                disabled={loading || !hasSelection}
+                title="删除所选内容；按住可对纯卡片链接双向删除"
+              >
+                删除所选
+              </button>
+            </div>
+          ) : null}
           <Button id="selection-actions-toggle" className="selection-actions-toggle ghost" aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
           <SelectionActionsPanel open={selectionActionsOpen} onClose={closeSelectionActions}>
           <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选评论</Button></section>
@@ -3135,18 +3703,19 @@ function App() {
               <h2>处理</h2>
               <div className="stack">
                 {processActions.map((action) => (
-                  <Button key={action.key} className="secondary" disabled={loading} onClick={action.onClick}>{action.label}</Button>
+                  <Button key={action.key} className="secondary" disabled={loading || action.disabled} title={action.title} onClick={action.onClick}>{action.label}</Button>
                 ))}
               </div>
             </section>
           ) : null}
 
           <section className="pane-section danger-zone delete-section">
-            <h2>删除</h2>
+            <h2 className="sr-only">删除</h2>
             <button
               type="button"
               className={deletePressing ? "danger wide pressing" : "danger wide"}
               onPointerDown={startDeletePress}
+              onPointerMove={moveDeletePress}
               onPointerUp={endDeletePress}
               onPointerLeave={cancelDeletePress}
               onPointerCancel={cancelDeletePress}
@@ -3154,7 +3723,6 @@ function App() {
               onKeyUp={handleMainDeleteKeyboardEvent}
               onContextMenu={(event) => event.preventDefault()}
               onDragStart={(event) => event.preventDefault()}
-              onSelectStart={(event) => event.preventDefault()}
               disabled={loading || !hasSelection}
               title="点按删除所选内容；按住仅对纯卡片链接执行双向删除"
             >
@@ -3167,6 +3735,7 @@ function App() {
       </main>
 
         {moduleSettingsOpen && moduleSettings ? <ModuleSettingsDialog key={snapshot.noteId} settings={moduleSettings} noteId={snapshot.noteId} readError={snapshot.moduleSettingsError} onSave={saveModuleSettings} onClose={() => { if (currentNoteIdRef.current === snapshot.noteId) setModuleSettingsOpen(false); }} /> : null}
+      {richEditor && <RichCommentEditor plan={richEditor} onSave={saveRichComment} onClose={closeRichEditor}/>}
       {dialog ? (
         <Dialog dialog={dialog} loading={loading} onClose={() => setDialog(null)} />
       ) : null}
@@ -3406,6 +3975,24 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
     };
   }, [active]);
 
+  useEffect(() => {
+    if (!active || closeConfirmation) return undefined;
+    const handleDocumentKeyDown = (event) => {
+      if (isComposingKeyEvent(event) || closeConfirmationRef.current || event.defaultPrevented) return;
+      if (batchEditorRef.current?.contains(event.target)) return;
+      if (event.key === "Tab") {
+        keepFocusWithinDialog(event, batchEditorRef.current);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        nativeCloseRequestRef.current(batchEditorRef.current?.querySelector("[data-batch-editor-close]"));
+      }
+    };
+    document.addEventListener("keydown", handleDocumentKeyDown);
+    return () => document.removeEventListener("keydown", handleDocumentKeyDown);
+  }, [active, closeConfirmation]);
+
   const cancelEditorClose = () => {
     const current = closeConfirmationRef.current;
     if (!current) return;
@@ -3579,6 +4166,11 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
           if (isComposingKeyEvent(event)) return;
           if (closeConfirmationRef.current) return;
           keepFocusWithinDialog(event, batchEditorRef.current);
+          if (event.key === "Escape" && !busy) {
+            event.preventDefault();
+            event.stopPropagation();
+            requestEditorClose(event.target);
+          }
         }}
       >
         <header className="batch-editor-header">
@@ -3785,10 +4377,7 @@ function ActionButtonSettingsDialog({
       label: "显示管理按钮",
       hint: "单击与长按分别设置；下拉箭头始终打开整卡操作，并随管理入口一起显隐和排序。",
       icon: (
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 3.5h12a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H8L4 18v-2.5A1.5 1.5 0 0 1 2.5 14V5A1.5 1.5 0 0 1 4 3.5Z" />
-          <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4.5" />
-        </svg>
+        <ActionIcon name="comments" />
       ),
       actions: [
         ["managementTapAction", "管理按钮单击", "manager"],
@@ -3801,10 +4390,7 @@ function ActionButtonSettingsDialog({
       label: "显示添加评论按钮",
       hint: "单击与长按的动作可以分别设置。",
       icon: (
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H8.5L5 17v-2.5H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5Z" />
-          <path d="M10 7.25v4.5M7.75 9.5h4.5" />
-        </svg>
+        <ActionIcon name="comment-add" />
       ),
       actions: [
         ["addTapAction", "添加按钮单击", "quickInput"],
@@ -3938,7 +4524,7 @@ function ActionButtonSettingsDialog({
               {busy ? "保存中…" : "即时生效"}
             </span>
           </div>
-          <p id="action-button-settings-description">这些设置会立即保存，并在下次打开笔记本时继续生效。</p>
+          <p id="action-button-settings-description">修改后在下次打开笔记本时继续保持。</p>
           {feedback ? (
             <p
               id="action-button-settings-status"
@@ -4209,7 +4795,7 @@ function ActionButtonSettingsDialog({
         </div>
 
         <div className="dialog-actions action-button-settings-footer">
-          <span className="action-button-settings-footer-hint">按 Esc 或点击遮罩也可关闭 · 排序支持 Alt+↑/↓</span>
+          <span className="action-button-settings-footer-hint">按 Esc 或点击遮罩也可关闭</span>
           <Button className="primary" onClick={requestClose}>完成</Button>
         </div>
       </section>
@@ -4874,7 +5460,7 @@ function WorkflowManagerDialog({ initialCatalog, initialWorkflows, initialTempla
         </details>
         <div className="workflow-manager-body">
           <aside className="workflow-list" aria-label="已保存工作流">
-            <Button data-workflow-create className="primary wide" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
+            <Button data-workflow-create className="secondary wide workflow-create-btn" disabled={busy} onClick={createWorkflow}>＋ 新建工作流</Button>
             <label className="workflow-name-field"><span>正在排列的菜单</span>
               <HtmlSelect aria-label="菜单排序范围" value={menuMode} disabled={busy} onChange={(event) => setMenuMode(event.target.value)}>
                 <option value="single">单选卡片</option><option value="batch">多选卡片</option>
@@ -5285,6 +5871,7 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
                 title={noteId ? "点按定位这条行内链接的卡片，按住在浮窗定位" : "非 MarginNote 卡片链接不能定位"}
                 aria-label={`定位行内链接：${link.displayText || link.url}`}
                 onPointerDown={(event) => onLocateStart(event, comment, link, linkIndex)}
+                onPointerMove={(event) => { if (pressingKey === pressKey && isPointerOutsideTarget(event)) onLocateCancel(event, comment, link, linkIndex); }}
                 onPointerUp={(event) => onLocateFinish(event, comment, link, linkIndex)}
                 onPointerLeave={(event) => onLocateCancel(event, comment, link, linkIndex)}
                 onPointerCancel={(event) => onLocateCancel(event, comment, link, linkIndex)}
@@ -5293,7 +5880,6 @@ function MarkdownLinkList({ comment, links, loading, pressingKey, onLocateStart,
                 onClick={(event) => event.stopPropagation()}
                 onContextMenu={(event) => event.preventDefault()}
                 onDragStart={(event) => event.preventDefault()}
-                onSelectStart={(event) => event.preventDefault()}
               >
                 ⌖
               </Button>
@@ -5369,6 +5955,13 @@ function TextDialog({ dialog, loading, onClose }) {
       const nextValue = dialog.onCheckChange(nextChecked, value);
       if (typeof nextValue === "string") setValue(nextValue);
     }
+  };
+
+  const handleSecondaryAction = () => {
+    if (busy || typeof dialog.onSecondaryAction !== "function") return;
+    const dismiss = requestClose;
+    dismiss();
+    dialog.onSecondaryAction(value);
   };
 
   const handleConfirm = () => {
@@ -5481,6 +6074,8 @@ function TextDialog({ dialog, loading, onClose }) {
           <p className="dialog-error" role="alert">保存失败：{submissionError}</p>
         ) : null}
         <div className="dialog-actions">
+          {dialog.inputLabel ? <span className="dialog-shortcut-hint" aria-hidden="true">⌘/Ctrl + Enter 提交</span> : null}
+          {dialog.secondaryActionLabel && typeof dialog.onSecondaryAction === "function" ? <Button className="secondary" disabled={busy} onClick={handleSecondaryAction}>{dialog.secondaryActionLabel}</Button> : null}
           {dialog.hideCancel !== true ? <Button className="secondary" disabled={busy} onClick={requestClose}>取消</Button> : null}
           <Button
             className={dialog.danger ? "danger" : "primary"}
@@ -5781,24 +6376,37 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
         <p>{dialog.body}</p>
 
         <section className="merge-section">
-          <h3>已选内容</h3>
+          <div className="merge-section-head">
+            <h3>已选内容</h3>
+            <small>点按填入组合框，或点右侧直接插入</small>
+          </div>
           <div className="merge-material-list">
             {materials.map((material) => (
-              <button
-                key={`${material.index}-${material.order}`}
-                type="button"
-                className="merge-material"
-                disabled={busy}
-                title="点按填入下方输入框，双击直接加入最终内容"
-                onClick={() => applyMaterial(material)}
-                onDoubleClick={() => appendMaterial(material)}
-              >
-                <span className="merge-material-meta">#{material.index} · {material.label}</span>
-                {material.title ? <span className="merge-material-title">{material.title}</span> : null}
-                {material.content && material.content !== material.title ? (
-                  <span className="merge-material-content">{material.content}</span>
-                ) : null}
-              </button>
+              <div key={`${material.index}-${material.order}`} className="merge-material-row">
+                <button
+                  type="button"
+                  className="merge-material"
+                  disabled={busy}
+                  title="点按填入下方输入框，双击直接加入最终内容"
+                  onClick={() => applyMaterial(material)}
+                  onDoubleClick={() => appendMaterial(material)}
+                >
+                  <span className="merge-material-meta">#{material.index} · {material.label}</span>
+                  {material.title ? <span className="merge-material-title">{material.title}</span> : null}
+                  {material.content && material.content !== material.title ? (
+                    <span className="merge-material-content">{material.content}</span>
+                  ) : null}
+                </button>
+                <Button
+                  className="secondary compact merge-material-insert"
+                  disabled={busy}
+                  aria-label={`直接插入 #${material.index}`}
+                  title="直接插入到最终内容"
+                  onClick={() => appendMaterial(material)}
+                >
+                  插入
+                </Button>
+              </div>
             ))}
           </div>
         </section>
@@ -5842,6 +6450,7 @@ function InlineMergeDialog({ dialog, loading, onClose }) {
           <p className="dialog-error" role="alert">合并失败：{submissionError}</p>
         ) : null}
         <div className="dialog-actions">
+          <span className="dialog-shortcut-hint" aria-hidden="true">⌘/Ctrl + Enter 合并</span>
           <Button className="secondary" disabled={busy} onClick={closeDialog}>取消</Button>
           <Button className="primary" disabled={!canConfirm} onClick={handleConfirm}>
             {busy ? (dialog.pendingText || "合并中…") : (dialog.confirmText || "合并")}

@@ -104,7 +104,7 @@ it('shows the module fold arrow only on full selection and scopes mixed-state to
   expect(labelled('折叠模块评论：证明')).toBeUndefined();
   await click(labelled('选择模块：证明（含标题）'));
   expect(labelled('折叠模块评论：证明').dataset.foldState).toBe('mixed');
-  expect(labelled('折叠模块评论：证明').nextElementSibling).toBe(labelled('选择模块：证明（含标题）'));
+  expect(labelled('折叠模块评论：证明').nextElementSibling.querySelector('input')).toBe(labelled('选择模块：证明（含标题）'));
   await click(labelled('折叠模块评论：证明'));
   expect(state.cards[0].comments.slice(1, 13).every(c => c.collapsed)).toBe(true);
   expect(state.cards[0].comments[0].collapsed).toBe(false);

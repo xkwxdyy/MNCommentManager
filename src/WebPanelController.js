@@ -772,8 +772,8 @@ var __MN_WEB_API_MNCommentManagerAddon = (function () {
       UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
       const message = String(error && error.localizedDescription ? error.localizedDescription : error);
       const errHTML =
-        "<html><body style=\"margin:20px;font-family:-apple-system;color:#666;\"><h3>页面加载失败</h3><p>" +
-        message.replace(/</g, "&lt;") +
+        "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><meta name=\"color-scheme\" content=\"light dark\"><title>页面加载失败</title><style>body{margin:0;padding:24px;font:14px/1.65 -apple-system,BlinkMacSystemFont,sans-serif;color:#1d1d1f;background:#f5f5f7}h1{margin:0 0 12px;font-size:18px;font-weight:600}p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#bb241c}@media(prefers-color-scheme:dark){body{color:#f5f5f7;background:#151517}p{color:#ff938c}}</style></head><body><h1>页面加载失败</h1><p role=\"alert\">" +
+        message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") +
         "</p></body></html>";
       self.webView.loadHTMLStringBaseURL(errHTML, null);
     },

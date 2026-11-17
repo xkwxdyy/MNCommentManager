@@ -1,22 +1,55 @@
+import ActionIcon from "./ActionIcon";
 import HtmlSelect from "./HtmlSelect";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { moduleIds, selectionState, toggleIds, moduleMovePlan, bodyMovePlan, effectiveSettings, validateSettings } from '../lib/commentModules.mjs';
 import './CommentModules.css';
 
-function IconButton({ label, children, ...props }) {
-  return <button type="button" className="module-icon" title={label} aria-label={label} {...props}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg></button>;
+function IconButton({ label, name, ...props }) {
+  return <button type="button" className="module-icon" title={label} aria-label={label} {...props}><ActionIcon name={name} /></button>;
 }
 function ModuleCheckbox({ label, checked, partial, ...props }) {
   const ref = useRef(null);
   useEffect(() => { if (ref.current) ref.current.indeterminate = partial; }, [partial]);
-  return <input ref={ref} type="checkbox" aria-label={label} checked={checked} {...props} />;
+  return <span className="module-check-hit" onClick={e => {
+    if (e.target === e.currentTarget && !props.disabled) ref.current?.click();
+  }}><input ref={ref} type="checkbox" aria-label={label} checked={checked} {...props} /></span>;
 }
-function Modal({ title, busy, onClose, children }) {
+function Modal({ title, busy, returnFocus = null, onClose, children }) {
   const ref = useRef(null);
+  const stateRef = useRef({ busy, onClose });
+  stateRef.current = { busy, onClose };
   useEffect(() => {
-    const previous = document.activeElement;
-    ref.current?.querySelector('input,select,button')?.focus();
-    return () => { if (previous?.isConnected) previous.focus(); };
+    const previous = returnFocus || document.activeElement;
+    (ref.current?.querySelector('input:not(:disabled),select:not(:disabled),button:not(:disabled),textarea:not(:disabled)') || ref.current)?.focus({ preventScroll: true });
+    return () => {
+      const target = previous?.closest?.('details:not([open])')?.querySelector('summary') || previous;
+      if (target?.isConnected && !target.closest?.('[hidden]')) target.focus({ preventScroll: true });
+    };
+  }, []);
+  useEffect(() => {
+    if (busy || !ref.current || ref.current.contains(document.activeElement)) return;
+    (ref.current.querySelector('input:not(:disabled),select:not(:disabled),button:not(:disabled),textarea:not(:disabled)') || ref.current).focus({ preventScroll: true });
+  }, [busy]);
+  useEffect(() => {
+    const handleKeyDown = e => {
+      if (e.defaultPrevented || e.isComposing || e.keyCode === 229 || !ref.current) return;
+      if (e.key === 'Escape' && !stateRef.current.busy) {
+        e.preventDefault();
+        e.stopPropagation();
+        stateRef.current.onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const controls = [...ref.current.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(n => !n.disabled && n.tabIndex >= 0);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (!first) { e.preventDefault(); ref.current.focus({ preventScroll: true }); }
+        else if (!controls.includes(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+        else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
   return <div className="dialog-backdrop" onClick={() => !busy && onClose()}><section className="dialog module-dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onClick={e => e.stopPropagation()} onKeyDown={e => {
     if (e.isComposing || e.nativeEvent?.isComposing || e.keyCode === 229 || e.nativeEvent?.keyCode === 229) return;
@@ -25,7 +58,8 @@ function Modal({ title, busy, onClose, children }) {
     if (e.key === 'Tab') {
       const controls = [...ref.current.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(n => !n.disabled && n.tabIndex >= 0);
       const first = controls[0], last = controls[controls.length - 1];
-      if (!first) { e.preventDefault(); ref.current.focus(); }
+      if (!first) { e.preventDefault(); ref.current.focus({ preventScroll: true }); }
+      else if (!controls.includes(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
       else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
@@ -38,12 +72,23 @@ export function ModuleSettingsDialog({ settings, noteId, readError, onSave, onCl
   const [scope, setScope] = useState(current.overridden ? 'card' : 'global');
   const [profileId, setProfileId] = useState(current.profile.id);
   const [includeTitle, setIncludeTitle] = useState(current.includeTitle);
+  const [cardDraft, setCardDraft] = useState(() => draft.cardOverrides[noteId] || { profileId: draft.defaultProfileId, includeTitle: draft.includeTitle });
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const profile = draft.profiles.find(p => p.id === profileId);
   const updateProfile = patch => setDraft(value => ({ ...value, profiles: value.profiles.map(p => p.id === profileId ? { ...p, ...patch } : p) }));
+  const changeProfileId = value => {
+    setProfileId(value);
+    if (scope === 'global') setDraft(prev => ({ ...prev, defaultProfileId: value }));
+    else setCardDraft(prev => ({ ...prev, profileId: value }));
+  };
+  const changeIncludeTitle = checked => {
+    setIncludeTitle(checked);
+    if (scope === 'global') setDraft(prev => ({ ...prev, includeTitle: checked }));
+    else setCardDraft(prev => ({ ...prev, includeTitle: checked }));
+  };
   const changeScope = value => {
     setScope(value);
-    const target = value === 'global' ? { profileId: draft.defaultProfileId, includeTitle: draft.includeTitle } : draft.cardOverrides[noteId] || { profileId: draft.defaultProfileId, includeTitle: draft.includeTitle };
+    const target = value === 'global' ? { profileId: draft.defaultProfileId, includeTitle: draft.includeTitle } : cardDraft;
     setProfileId(target.profileId); setIncludeTitle(target.includeTitle);
   };
   const save = async reset => {
@@ -60,20 +105,20 @@ export function ModuleSettingsDialog({ settings, noteId, readError, onSave, onCl
     <p>单卡片设置优先于全局默认。修改方案规则会影响采用该方案的其他卡片。</p>
     {readError ? <p className="dialog-error" role="alert">{readError}</p> : null}
     <label>设置范围<HtmlSelect value={scope} disabled={busy} onChange={e => changeScope(e.target.value)}><option value="global">全局默认</option><option value="card">当前卡片</option></HtmlSelect></label>
-    <label>划分方案<HtmlSelect value={profileId} disabled={busy} onChange={e => setProfileId(e.target.value)}>{draft.profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</HtmlSelect></label>
+    <label>划分方案<HtmlSelect value={profileId} disabled={busy} onChange={e => changeProfileId(e.target.value)}>{draft.profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</HtmlSelect></label>
     <fieldset disabled={busy}><legend>方案规则</legend>
       {['html','nested','text'].includes(profile.mode) ? <><label>匹配方式<HtmlSelect value={profile.match} onChange={e => updateProfile({ match: e.target.value })}><option value="all">全部匹配</option><option value="exact">精确匹配</option><option value="prefix">前缀匹配</option><option value="contains">包含匹配</option></HtmlSelect></label>
       {profile.match !== 'all' ? <label>匹配文本<input value={profile.value} maxLength={2000} onChange={e => updateProfile({ value: e.target.value })} /></label> : null}</> : null}
       {['markdown','nested'].includes(profile.mode) ? <div className="module-levels">标题级别{[1,2,3,4,5,6].map(level => <label key={level}><input type="checkbox" checked={profile.levels.includes(level)} onChange={e => updateProfile({ levels: e.target.checked ? [...profile.levels, level].sort() : profile.levels.filter(n => n !== level) })} />H{level}</label>)}<p>兼容 HtmlMD 的 method 和 level 标记。</p></div> : null}
     </fieldset>
-    <label className="module-inline-label"><input type="checkbox" checked={includeTitle} disabled={busy} onChange={e => setIncludeTitle(e.target.checked)} />整组选择包含结构标题</label>
+    <label className="module-inline-label"><input type="checkbox" checked={includeTitle} disabled={busy} onChange={e => changeIncludeTitle(e.target.checked)} />整组选择包含结构标题</label>
     {scope === 'global' && draft.cardOverrides[noteId] ? <p>当前卡片已有覆盖设置，全局默认更改不会替换该覆盖。</p> : null}
     {error ? <p className="dialog-error" role="alert">{error}</p> : null}
     <div className="dialog-actions"><button type="button" className="secondary" disabled={busy} onClick={onClose}>取消</button>{draft.cardOverrides[noteId] ? <button type="button" className="secondary" disabled={busy || !!readError} onClick={() => save(true)}>恢复全局默认</button> : null}<button type="button" className="primary" disabled={busy || !!readError} onClick={() => save(false)}>{busy ? '保存中…' : '保存'}</button></div>
   </Modal>;
 }
 
-export function ModuleCommentList({ tree, comments, visibleComments, matchingComments, selected, includeTitle, hidden, onHide, onSelect, loading, foldSupported, onFold, onAction, onModalOpen, children }) {
+export function ModuleCommentList({ tree, comments, visibleComments, matchingComments, selected, includeTitle, hidden, onHide, onSelect, loading, foldSupported, onFold, onAction, onModalOpen, onModalChange, children }) {
   const rows = new Map(visibleComments.map((c,i) => [c.index, children[i]]));
   const matching = useMemo(() => new Set(matchingComments.map(c => c.index)), [matchingComments]);
   useEffect(() => {
@@ -93,10 +138,12 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
       activeMenu?.querySelector('summary')?.focus();
     };
     document.addEventListener('pointerdown', closeMenusOutside);
+    document.addEventListener('touchstart', closeMenusOutside, { passive: true });
     document.addEventListener('click', closeMenusOutside);
     document.addEventListener('keydown', closeMenusOnEscape, true);
     return () => {
       document.removeEventListener('pointerdown', closeMenusOutside);
+      document.removeEventListener('touchstart', closeMenusOutside);
       document.removeEventListener('click', closeMenusOutside);
       document.removeEventListener('keydown', closeMenusOnEscape, true);
     };
@@ -124,7 +171,13 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
   }, [tree, comments, includeTitle, matching, foldSupported]);
   const [action, setAction] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [target, setTarget] = useState(''), [title, setTitle] = useState(''), [remove, setRemove] = useState(false);
-  const open = (kind,node) => { onModalOpen?.(); setAction({ kind,node }); setTitle(node.title); setRemove(false); setError(''); setTarget(''); };
+  const onModalChangeRef = useRef(onModalChange);
+  onModalChangeRef.current = onModalChange;
+  useEffect(() => {
+    onModalChangeRef.current?.(Boolean(action));
+    return () => { if (action) onModalChangeRef.current?.(false); };
+  }, [action]);
+  const open = (kind,node,returnFocus = null) => { onModalOpen?.(); setAction({ kind,node,returnFocus }); setTitle(node.title); setRemove(false); setError(''); setTarget(''); };
   const bodyIndices = action ? moduleIds(action.node, comments, tree.titleIds, false) : [];
   const targets = action ? tree.flat.filter(node => { try { bodyMovePlan(tree,comments,bodyIndices,node.id); return true; } catch { return false; } }) : [];
   const submit = async () => {
@@ -137,30 +190,30 @@ export function ModuleCommentList({ tree, comments, visibleComments, matchingCom
     const state = selectionState(ids, selected);
     const closed = hidden.has(node.id);
     return <section className="comment-module" id={node.id} key={node.id}>
-      <header className="comment-module-head">
-        <IconButton label={`${closed ? '显示' : '隐藏'}模块内容：${node.title}`} aria-expanded={!closed} aria-controls={`${node.id}-content`} onClick={() => onHide(node.id)}>{closed ? <path d="M3 7h7l2 2h9v11H3V7ZM3 7V4h7l2 3M8 14h8m-4-4v8" /> : <path d="M3 7V4h7l2 3h8v4M3 7h7l2 3h9l-3 10H3V7Z" />}</IconButton>
+      <header className="comment-module-head" data-closed={closed ? 'true' : undefined}>
+        <IconButton label={`${closed ? '显示' : '隐藏'}模块内容：${node.title}`} aria-expanded={!closed} aria-controls={`${node.id}-content`} onClick={() => onHide(node.id)} name="folder" />
         {state.checked ? <button type="button" className="comment-fold-button module-comment-fold" aria-expanded={!folded} aria-label={`${folded ? '展开' : '折叠'}模块评论：${node.title}`} title={enabledFold ? `${folded ? '展开' : '折叠'}模块内所选评论（包含筛选隐藏成员）` : '宿主未支持折叠，或超过 200 条评论'} disabled={loading || !enabledFold} onClick={() => onFold(ids,!folded)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></button> : null}
         <ModuleCheckbox label={`选择模块：${node.title}${includeTitle ? '（含标题）' : '（仅正文）'}`} checked={state.checked} partial={state.partial} disabled={loading || !ids.length} onChange={() => onSelect(toggleIds(selected,ids),hiddenCount)} />
         <strong className="comment-module-title" title={node.title}>{node.title}</strong><span className="module-count" title={`模块共 ${node.end-node.start} 条评论`}>{node.end-node.start}</span>
         {hiddenCount ? <span className="module-hidden-count" title="整组选择包含筛选隐藏成员">隐藏 {hiddenCount}</span> : null}
-        <IconButton label={`上移模块：${node.title}`} disabled={loading || !canMoveUp} onClick={() => onAction('reorder',{moduleId:node.id,direction:'up'}).catch(() => {})}><path d="m7 14 5-5 5 5" /></IconButton>
-        <IconButton label={`下移模块：${node.title}`} disabled={loading || !canMoveDown} onClick={() => onAction('reorder',{moduleId:node.id,direction:'down'}).catch(() => {})}><path d="m7 10 5 5 5-5" /></IconButton>
+        <IconButton label={`上移模块：${node.title}`} disabled={loading || !canMoveUp} onClick={() => onAction('reorder',{moduleId:node.id,direction:'up'}).catch(() => {})} name="arrow-up" />
+        <IconButton label={`下移模块：${node.title}`} disabled={loading || !canMoveDown} onClick={() => onAction('reorder',{moduleId:node.id,direction:'down'}).catch(() => {})} name="arrow-down" />
         <details className="module-menu" onToggle={e => {
           if (e.currentTarget.open) {
             document.querySelectorAll('.module-menu[open]').forEach(menu => { if (menu !== e.currentTarget) menu.open = false; });
           }
-        }}><summary aria-label={`模块操作：${node.title}`} title="模块操作">⋯</summary><div><button type="button" disabled={loading || !hasBody} onClick={e => { e.currentTarget.closest('details').open=false; open('body',node); }}>移动正文</button><button type="button" disabled={loading || !ids.length} onClick={e => { e.currentTarget.closest('details').open=false; open('extract',node); }}>提取为子卡片</button></div></details>
+        }}><summary aria-label={`模块操作：${node.title}`} title="模块操作">⋯</summary><div><button type="button" disabled={loading || !hasBody} onClick={e => { const details = e.currentTarget.closest('details'); details.open=false; open('body',node,details.querySelector('summary')); }}>移动正文</button><button type="button" disabled={loading || !ids.length} onClick={e => { const details = e.currentTarget.closest('details'); details.open=false; open('extract',node,details.querySelector('summary')); }}>提取为子卡片</button></div></details>
       </header>
       <div id={`${node.id}-content`} hidden={closed}>
-        {closed ? null : contents.map((item,i) => item.child ? renderNode(item.child) : <div key={`row-${i}`}>{rows.get(item.index)}</div>)}
+        {closed ? null : contents.map((item,i) => item.child ? renderNode(item.child) : (rows.has(item.index) ? <div key={`row-${i}`}>{rows.get(item.index)}</div> : null))}
         {node.items.length === 0 && node.children.length === 0 ? <p className="module-empty">模块正文为空</p> : !hasMatch ? <p className="module-empty">当前筛选隐藏模块内容</p> : null}
       </div>
       {closed ? <p className="module-empty">模块内容已隐藏 · {node.end-node.start} 条评论</p> : null}
     </section>;
   };
   if (!tree) return <>{children}</>;
-  return <>{tree.roots.map(renderNode)}{action ? <Modal title={action.kind === 'body' ? '移动模块正文' : '提取模块为子卡片'} busy={busy} onClose={() => setAction(null)}>
-    {action.kind === 'body' ? <><p>移动完整正文到目标模块末尾；当前模块与子模块的结构标题保留。</p><label>目标模块<HtmlSelect value={target || targets[0]?.id || ''} disabled={busy} onChange={e => setTarget(e.target.value)}>{targets.map(n => <option key={n.id} value={n.id}>{`${'　'.repeat(n.depth)}${n.title}（#${n.start}）`}</option>)}</HtmlSelect></label>{!targets.length ? <p>没有可接收正文的其他模块。</p> : null}</> : <><label>子卡片标题<input value={title} disabled={busy} onChange={e => setTitle(e.target.value)} /></label><label className="module-inline-label"><input type="checkbox" checked={remove} disabled={busy} onChange={e => setRemove(e.target.checked)} />提取后删除原内容</label><p>提取范围遵循当前标题选择设置，包含筛选隐藏成员。</p></>}
+  return <>{tree.roots.map(renderNode)}{action ? <Modal title={action.kind === 'body' ? '移动模块正文' : '提取模块为子卡片'} busy={busy} returnFocus={action.returnFocus} onClose={() => setAction(null)}>
+    {action.kind === 'body' ? <><p>移动完整正文到目标模块末尾；当前模块与子模块的结构标题保留。</p><label>目标模块<HtmlSelect value={target || targets[0]?.id || ''} disabled={busy || !targets.length} onChange={e => setTarget(e.target.value)}>{targets.map(n => <option key={n.id} value={n.id}>{`${'　'.repeat(n.depth)}${n.title}（#${n.start}）`}</option>)}</HtmlSelect></label>{!targets.length ? <p>没有可接收正文的其他模块。</p> : null}</> : <><label>子卡片标题<input value={title} disabled={busy} onChange={e => setTitle(e.target.value)} /></label><label className="module-inline-label"><input type="checkbox" checked={remove} disabled={busy} onChange={e => setRemove(e.target.checked)} />提取后删除原内容</label><p>提取范围遵循当前标题选择设置，包含筛选隐藏成员。</p></>}
     {error ? <p className="dialog-error" role="alert">{error}</p> : null}<div className="dialog-actions"><button type="button" className="secondary" disabled={busy} onClick={() => setAction(null)}>取消</button><button type="button" className="primary" disabled={busy || loading || (action.kind==='body' && !targets.length)} onClick={submit}>{busy ? '处理中…' : '确认'}</button></div>
   </Modal> : null}</>;
 }

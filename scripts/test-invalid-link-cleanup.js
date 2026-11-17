@@ -57,4 +57,28 @@ assert.strictEqual(current.comments.some((comment) => comment.text.includes("保
 assert.strictEqual(current.comments.some((comment) => comment.text.includes("`[代码]")), true);
 assert.strictEqual(current.comments.some((comment) => comment.text.includes("围栏代码")), true);
 assert.throws(() => mutations.clearInvalidLinksForNotes([current], { allowSingle: true, mode: "all", expectedSignature: preview.signature }), /链接内容已变化/);
+
+for (const mode of ['markdown','all']) {
+  const sample=note('empty-'+mode,[
+    '- []()', '- [ ]( )', '保留正文\n- []()\n继续正文', '行内 []() 正文',
+    '`- []()`', '```markdown\n- []()\n```', '~~~\n- []()\n~~~',
+    '![ ]()', '\\[]()', '- [有效](https://example.com)', '- [待填写]()',
+    `marginnote4app://note/${missingId}`, `- []()\n- [失效](marginnote4app://note/${missingId})`,
+  ]);
+  const p=mutations.previewInvalidLinkCleanupForNotes([sample],{allowSingle:true,mode});
+  assert.strictEqual(p.removableMarkdownLinks,6);
+  const r=mutations.clearInvalidLinksForNotes([sample],{allowSingle:true,mode,expectedSignature:p.signature});
+  assert.strictEqual(r.failed,0);assert.strictEqual(r.removedMarkdownLinks,6);
+  const contents=sample.comments.map(c=>c.text);
+  assert.ok(!contents.includes('- []()'));assert.ok(!contents.includes('- [ ]( )'));
+  assert.ok(contents.includes('保留正文\n继续正文'));assert.ok(contents.includes('行内  正文'));
+  assert.ok(contents.includes('`- []()`'));assert.ok(contents.includes('```markdown\n- []()\n```'));
+  assert.ok(contents.includes('~~~\n- []()\n~~~'));assert.ok(contents.includes('![ ]()'));
+  assert.ok(contents.includes('\\[]()'));assert.ok(contents.includes('- [待填写]()'));
+  assert.ok(contents.includes('- [有效](https://example.com)'));assert.ok(contents.includes('- 失效'));
+  assert.strictEqual(mutations.previewInvalidLinkCleanupForNotes([sample],{allowSingle:true,mode}).removableMarkdownLinks,0);
+}
+const cardOnly=note('card-only',['- []()']);
+assert.strictEqual(mutations.previewInvalidLinkCleanupForNotes([cardOnly],{allowSingle:true,mode:'card'}).removableMarkdownLinks,0);
+
 console.log("invalid link cleanup tests passed");

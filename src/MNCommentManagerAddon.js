@@ -1,6 +1,8 @@
 function createMNCommentManagerAddon(mainPath) {
   const missingMNUtilsMessage = "MN Comment Manager 需要先安装并启用 MN Utils";
   const unavailableMNUtilsMessage = "MN Utils 已安装，但运行时尚未就绪；请确认已启用后重新打开笔记本";
+  let runtimeGeneration = 0;
+  const runtimeOwners = new Set();
   const mnUtilsRetryInterval = 0.1;
   const mnUtilsRetryCount = 10;
 
@@ -30,6 +32,7 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   function showMNUtilsDependencyStatus(addon) {
+    if (addon && addon.mnCommentManagerDisconnected) return;
     const message = isMNUtilsInstalled() ? unavailableMNUtilsMessage : missingMNUtilsMessage;
     if (addon && addon.mnCommentManagerDependencyNotice === message) return;
     if (addon) addon.mnCommentManagerDependencyNotice = message;
@@ -43,21 +46,40 @@ function createMNCommentManagerAddon(mainPath) {
     } catch (_) {}
   }
 
-  function waitForMNUtilsRuntime() {
+  function invalidateInitialization(addon) {
+    addon.mnCommentManagerDisconnected = true;
+    addon.mnCommentManagerGeneration = Number(addon.mnCommentManagerGeneration || 0) + 1;
+    const waits = addon.mnCommentManagerDependencyWaits || [];
+    addon.mnCommentManagerDependencyWaits = [];
+    waits.slice().forEach(cancel => cancel());
+  }
+
+  function waitForMNUtilsRuntime(addon, generation, runtimeTicket) {
     return new Promise((resolve) => {
       let remainingAttempts = mnUtilsRetryCount;
+      let timer = null, settled = false;
+      const finish = available => {
+        if (settled) return;
+        settled = true;
+        if (timer) { try { timer.invalidate(); } catch (_) {} }
+        addon.mnCommentManagerDependencyWaits = (addon.mnCommentManagerDependencyWaits || []).filter(item => item !== cancel);
+        resolve(available);
+      };
+      const cancel = () => finish(false);
+      (addon.mnCommentManagerDependencyWaits || (addon.mnCommentManagerDependencyWaits = [])).push(cancel);
 
       function checkRuntime() {
+        if (runtimeTicket !== runtimeGeneration || addon.mnCommentManagerDisconnected || Number(addon.mnCommentManagerGeneration || 0) !== generation) { finish(false); return; }
         if (hasMNUtilsRuntime()) {
-          resolve(true);
+          finish(true);
           return;
         }
         if (remainingAttempts <= 0) {
-          resolve(false);
+          finish(false);
           return;
         }
         remainingAttempts -= 1;
-        NSTimer.scheduledTimerWithTimeInterval(mnUtilsRetryInterval, false, checkRuntime);
+        timer = NSTimer.scheduledTimerWithTimeInterval(mnUtilsRetryInterval, false, checkRuntime);
       }
 
       checkRuntime();
@@ -65,6 +87,7 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   function initializeAddon(addon) {
+    if (!addon || addon.mnCommentManagerDisconnected) return false;
     if (addon && addon.mnCommentManagerInitialized) return true;
     if (!hasMNUtilsRuntime()) {
       if (addon) addon.mnCommentManagerRuntimeReady = false;
@@ -83,6 +106,7 @@ function createMNCommentManagerAddon(mainPath) {
     MNUtil.addObserver(addon, "onMindmapViewBottomToolbarClosed:", "mindmapViewBottomToolbarClosed");
     MNUtil.addObserver(addon, "onPopupMenuOnNote:", "PopupMenuOnNote");
     MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnNote");
+    MNUtil.addObserver(addon, "onClosePopupMenuOnNote:", "ClosePopupMenuOnSelection");
     addon.mnCommentManagerInitialized = true;
     if (typeof __MN_UPDATER_MNCommentManagerAddon !== "undefined") {
       try { __MN_UPDATER_MNCommentManagerAddon.start(addon); }
@@ -94,10 +118,12 @@ function createMNCommentManagerAddon(mainPath) {
   }
 
   async function initializeAddonWhenReady(addon, notifyIfUnavailable) {
+    const runtimeTicket = runtimeGeneration;
+    const generation = Number(addon.mnCommentManagerGeneration || 0);
     if (initializeAddon(addon)) return true;
-    if (isMNUtilsInstalled() && await waitForMNUtilsRuntime()) {
-      return initializeAddon(addon);
-    }
+    const available = isMNUtilsInstalled() && await waitForMNUtilsRuntime(addon, generation, runtimeTicket);
+    if (runtimeTicket !== runtimeGeneration || addon.mnCommentManagerDisconnected || generation !== Number(addon.mnCommentManagerGeneration || 0)) return false;
+    if (available) return initializeAddon(addon);
     if (notifyIfUnavailable) showMNUtilsDependencyStatus(addon);
     return false;
   }
@@ -166,7 +192,7 @@ function createMNCommentManagerAddon(mainPath) {
       return MNUtil.getNoteById(target.noteid, false);
     }
     if (typeof target === "string") {
-      const note = MNNote.new(target, false);
+      const note = __MN_NOTE_ACCESS_MNCommentManagerAddon.byId(target);
       return note ? note.note : null;
     }
     return target;
@@ -259,17 +285,45 @@ function createMNCommentManagerAddon(mainPath) {
     } catch (error) { return failed(error); }
   }
 
+  function disconnectScene(addon) {
+    if (typeof __MN_CASCADING_MENU_MNCommentManagerAddon !== "undefined") __MN_CASCADING_MENU_MNCommentManagerAddon.dismiss(addon);
+    runtimeOwners.delete(addon);
+    invalidateInitialization(addon);
+    __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(addon);
+    if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(addon);
+    const runtimeAvailable = hasMNUtilsRuntime();
+    if (addon.mnCommentManagerInitialized && runtimeAvailable) {
+      MNUtil.removeObserver(addon, "mindmapViewOnMultipleSelection");
+      MNUtil.removeObserver(addon, "mindmapViewBottomToolbarClosed");
+      MNUtil.removeObserver(addon, "PopupMenuOnNote");
+      MNUtil.removeObserver(addon, "ClosePopupMenuOnNote");
+      MNUtil.removeObserver(addon, "ClosePopupMenuOnSelection");
+    }
+    if (typeof __MN_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(addon);
+    __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(addon, "scene.disconnect");
+    __MN_BATCH_COMMENT_ACTIONS__.disposeButton(addon, "scene.disconnect");
+    if (addon.webController && addon.webController.view && addon.webController.view.superview) {
+      addon.webController.view.removeFromSuperview();
+    }
+    addon.webController = null;
+    addon.mnCommentManagerInitialized = false;
+    addon.mnCommentManagerRuntimeReady = false;
+    console.log("[MN Comment Manager] disconnected");
+  }
+
   return JSB.defineClass("MNCommentManagerAddon : JSExtension <UIPopoverControllerDelegate>", {
     sceneWillConnect: async function () {
+      runtimeOwners.add(self);
+      self.mnCommentManagerDisconnected = false;
+      self.mnCommentManagerGeneration = Number(self.mnCommentManagerGeneration || 0) + 1;
+
       self.mnCommentManagerSceneActive = true;
       await initializeAddonWhenReady(self, false);
     },
 
     addonWillDisconnect: function () {
-      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
-      __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
-      __MN_BATCH_COMMENT_ACTIONS__.disposeButton(self, "addon.disconnect");
-      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
+      runtimeGeneration += 1;
+      Array.from(runtimeOwners).forEach(disconnectScene);
     },
 
     notebookWillClose: function () {
@@ -299,33 +353,18 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     sceneDidDisconnect: function () {
-      __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
-      if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.unregister(self);
-      const runtimeAvailable = hasMNUtilsRuntime();
-      if (self.mnCommentManagerInitialized && runtimeAvailable) {
-        MNUtil.removeObserver(self, "mindmapViewOnMultipleSelection");
-        MNUtil.removeObserver(self, "mindmapViewBottomToolbarClosed");
-        MNUtil.removeObserver(self, "PopupMenuOnNote");
-        MNUtil.removeObserver(self, "ClosePopupMenuOnNote");
-      }
-      if (typeof __MN_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
-      __MN_DYNAMIC_COMMENT_ACTIONS__.disposeButton(self, "scene.disconnect");
-      __MN_BATCH_COMMENT_ACTIONS__.disposeButton(self, "scene.disconnect");
-
-      if (self.webController && self.webController.view && self.webController.view.superview) {
-        self.webController.view.removeFromSuperview();
-      }
-      self.webController = null;
-      self.mnCommentManagerInitialized = false;
-      self.mnCommentManagerRuntimeReady = false;
-      console.log("[MN Comment Manager] disconnected");
+      disconnectScene(self);
     },
 
     notebookWillOpen: async function () {
       if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== 'undefined') __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "notebook.open");
       if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined") __MN_COMMENT_MOVE_MNCommentManagerAddon.remove(self);
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);
-      if (!(await initializeAddonWhenReady(self, true))) return;
+      const owner = self;
+      const generation = Number(owner.mnCommentManagerGeneration || 0);
+      const runtimeTicket = runtimeGeneration;
+      if (!(await initializeAddonWhenReady(owner, true))) return;
+      if (owner.mnCommentManagerDisconnected || generation !== Number(owner.mnCommentManagerGeneration || 0) || runtimeTicket !== runtimeGeneration) return;
       if (self.quickCommentController) __MN_QUICK_COMMENT_MNCommentManagerAddon.dispose(self);
       if (!self.webController) {
         throw new Error("webController not initialized");
@@ -391,7 +430,11 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     toggleWebPanel: async function () {
-      if (!(await initializeAddonWhenReady(self, true))) return;
+      const owner = self;
+      const generation = Number(owner.mnCommentManagerGeneration || 0);
+      const runtimeTicket = runtimeGeneration;
+      if (!(await initializeAddonWhenReady(owner, true))) return;
+      if (owner.mnCommentManagerDisconnected || generation !== Number(owner.mnCommentManagerGeneration || 0) || runtimeTicket !== runtimeGeneration) return;
       if (!self.webController) {
         throw new Error("webController not initialized");
       }
@@ -618,10 +661,7 @@ function createMNCommentManagerAddon(mainPath) {
     },
 
     popoverControllerDidDismissPopover: function (controller) {
-      if (self.mncmActionPopover === controller) self.mncmActionPopover = null;
-      if (typeof __MN_BATCH_COMMENT_ACTIONS__.menuDismissed === 'function' && __MN_BATCH_COMMENT_ACTIONS__.menuDismissed(self, controller)) return;
-      if (typeof __MN_COMMENT_MOVE_MNCommentManagerAddon !== "undefined" && typeof __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed === "function" && __MN_COMMENT_MOVE_MNCommentManagerAddon.menuDismissed(self, controller)) return;
-      __MN_DYNAMIC_COMMENT_ACTIONS__.handleMenuDismissed(self, controller);
+      return __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.menuDismissed(self, controller);
     },
 
     runSingleKeepFirstContent: async function (sender) { await runSingleMenuAction(self, sender, "runKeepFirstContent", "只保留第一条内容失败"); },

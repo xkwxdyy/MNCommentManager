@@ -110,7 +110,10 @@ function setup(options = {}) {
     } },
   };
   if (options.runLoopUnavailable) delete context.NSRunLoop;
+  context.MNUtil.notebookController = { notebookId: 'book', view: { hidden: false },
+    get focusNote() { return notes[focusId]; }, mindmapView: mindmap };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(runtime, "NoteAccess.js"), "utf8"), context);
   for (const module of ['NativeEntryPolicy', 'NativeMenuVisibility', 'NativeSceneEntries', 'NativeCardMenuActions']) vm.runInContext(fs.readFileSync(path.join(runtime, module + ".js"), "utf8"), context);
   for (const file of ['FloatingControlLayout.js', 'CommentMutations.js', 'CommentMoveGesture.js', 'CommentMoveViews.js', 'CommentMoveController.js', 'DynamicCommentActions.js', 'MNCommentManagerAddon.js']) {
     vm.runInContext(fs.readFileSync(path.join(runtime, file), 'utf8'), context, { filename: file });

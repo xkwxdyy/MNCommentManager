@@ -390,8 +390,8 @@ var __MN_COMMENT_MOVE_MNCommentManagerAddon = (function () {
     return (state.selecting ? state.selectedIndices : [state.sourceIndex]).slice().filter(index => Number.isInteger(index) && index >= 0 && index < state.comments.length).sort((a, b) => a - b);
   }
   function conversionSignature(current) {
-    return JSON.stringify([current.snapshot.excerpt, current.note.noteTitle, String(current.note.parentNote && current.note.parentNote.noteId || ""),
-      (current.note.childNotes || []).map(note => String(note.noteId)), current.note.indexInBrotherNotes]);
+    return JSON.stringify([current.snapshot.excerpt, current.note.noteTitle, __MN_NOTE_ACCESS_MNCommentManagerAddon.parentId(current.note),
+      __MN_NOTE_ACCESS_MNCommentManagerAddon.children(current.note).map(note => String(note.noteId)), __MN_NOTE_ACCESS_MNCommentManagerAddon.siblingIndex(current.note)]);
   }
   function openActions(addon, sender) {
     const { state, current } = checked(addon, sender, true), indices = selected(state);

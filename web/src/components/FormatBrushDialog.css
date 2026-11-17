@@ -1,0 +1,132 @@
+.format-brush-button svg {
+  width: 16px;
+  height: 16px;
+}
+.format-brush-undo svg {
+  width: 18px;
+  height: 18px;
+}
+.format-brush-button {
+  color: var(--text-secondary);
+}
+.format-brush-button:hover:not(:disabled) {
+  color: var(--text-accent);
+}
+.rich-format-preview pre {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 8px 12px;
+  max-width: 100%;
+  line-height: 1.6;
+}
+.brush-source {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.brush-source > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.brush-source > div > span {
+  color: var(--text-secondary);
+}
+.brush-target-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.brush-target-heading h3 {
+  margin: 0;
+}
+.brush-target-heading button {
+  min-height: 44px;
+}
+.brush-target {
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.brush-target:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.brush-target > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.brush-target > label input {
+  width: 18px;
+  height: 18px;
+  margin: 0 8px 0 0;
+  accent-color: var(--accent-blue);
+  flex: none;
+}
+.brush-target > label small {
+  margin-left: auto;
+  max-width: 55%;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: right;
+}
+.brush-target.is-picked > label {
+  color: var(--text-accent);
+}
+.brush-target.is-unavailable > label {
+  cursor: default;
+}
+.brush-target-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding-left: 26px;
+}
+.brush-target.is-picked .brush-target-preview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.brush-target-preview > div {
+  min-width: 0;
+}
+.brush-preview-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.brush-target-preview .markdown-content {
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.brush-target-preview .markdown-content > :first-child {
+  margin-top: 0;
+}
+.brush-target-preview .markdown-content > :last-child {
+  margin-bottom: 0;
+}
+.brush-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+@media (max-width: 520px) {
+  .brush-target.is-picked .brush-target-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .brush-target > label {
+    flex-wrap: wrap;
+  }
+  .brush-target > label small {
+    flex-basis: 100%;
+    max-width: none;
+    text-align: left;
+    padding-left: 26px;
+  }
+}

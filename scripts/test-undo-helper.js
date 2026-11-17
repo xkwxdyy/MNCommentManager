@@ -2,8 +2,9 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const runtime = path.resolve(process.argv[2] || path.join(__dirname, "../src"));
 
-function loadHelper() {
+function loadHelper(swallowNativeException = false) {
   const groups = [];
   const noRefreshGroups = [];
   const refreshes = [];
@@ -13,7 +14,7 @@ function loadHelper() {
       currentNotebookId: "current-topic",
       undoGroupingNotRefresh(block, notebookId, trigger) {
         noRefreshGroups.push({ notebookId, trigger: JSON.parse(JSON.stringify(trigger)) });
-        block();
+        try { block(); } catch (error) { if (!swallowNativeException) throw error; }
       },
     },
     Application: {
@@ -30,14 +31,14 @@ function loadHelper() {
         return {
           undoGrouping(actionName, notebookId, block) {
             groups.push({ actionName, notebookId });
-            block();
+            try { block(); } catch (error) { if (!swallowNativeException) throw error; }
           },
         };
       },
     },
   };
   vm.createContext(context);
-  const source = fs.readFileSync(path.join(__dirname, "../src/UndoGroupingHelper.js"), "utf8");
+  const source = fs.readFileSync(path.join(runtime, "UndoGroupingHelper.js"), "utf8");
   vm.runInContext(source, context, { filename: "UndoGroupingHelper.js" });
   return {
     helper: context.__MN_UNDO_GROUPING_MNCommentManagerAddon,
@@ -86,3 +87,10 @@ function loadHelper() {
 }
 
 console.log("undo helper tests passed");
+
+{
+  const { helper } = loadHelper(true);
+  assert.throws(() => helper.run('native-callback-error', {notebookId:'topic-a'}, () => {
+    throw new Error('native callback failed');
+  }), /native callback failed/, 'native callback exceptions must reach the mutation caller');
+}

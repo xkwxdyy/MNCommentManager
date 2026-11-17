@@ -556,3 +556,24 @@ it('allows a later mobile Return after the composition-confirming key is release
   await act(async () => input().dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true })));
   expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(1);
 });
+it('focuses recovery actions in load-error and handles document-level Escape/Tab when focus drops to body', async () => {
+  await act(async () => root.unmount());
+  MNBridge.send.mockImplementation(async (cmd) => {
+    if (cmd === 'getQuickCommentState') throw new Error('读取失败');
+    return { closed: true };
+  });
+  root = createRoot(host);
+  await act(async () => root.render(<QuickComment />));
+  const closeBtn = host.querySelector('.quick-close');
+  const retryBtn = [...host.querySelectorAll('button')].find(b => b.textContent === '重新读取');
+  expect(document.activeElement).toBe(retryBtn);
+  document.body.focus();
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })));
+  expect(document.activeElement).toBe(closeBtn);
+  document.body.focus();
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })));
+  expect(document.activeElement).toBe(retryBtn);
+  document.body.focus();
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+  expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', { sessionId: undefined });
+});

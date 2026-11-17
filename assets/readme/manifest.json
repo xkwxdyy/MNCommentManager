@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "purpose": "README visual resources",
+  "source_head": "4045eaa679ce7ccaa8e7862e7b0a2bc1bb2eb336",
+  "proof_capture_report": "Resources/readme-beautify-trial-2026-11-02/qa/proof-capture.json",
+  "proof_scope": "Current React frontend, isolated mock Bridge, example data; no MarginNote library access",
+  "storage": "The maintainer explicitly authorized committing the four production README PNG screenshots on 2026-11-03. Trial screenshots and raw reports remain local; this manifest records the original sources and hashes.",
+  "assets": [
+    {
+      "path": "assets/readme/comment-panel-dark.png",
+      "bytes": 79633,
+      "sha256": "4500bc0f2ba73ef2b1b054d9309ad75dbcf0d5b91eeb23dde51828c3b47cd5ee",
+      "source": "Resources/readme-beautify-trial-2026-11-02/assets/readme/comment-panel-dark.png"
+    },
+    {
+      "path": "assets/readme/comment-panel-light.png",
+      "bytes": 79496,
+      "sha256": "180f0f46b3b910963fe02ebdfea1dca86c5aa7d3a540d750693c7842f54db812",
+      "source": "Resources/readme-beautify-trial-2026-11-02/assets/readme/comment-panel-light.png"
+    },
+    {
+      "path": "assets/readme/comment-panel-mobile-dark.png",
+      "bytes": 48039,
+      "sha256": "860b8fc71805d1fd41237eaf8e16906943b4388bd3214aa017b3e1d5406e455c",
+      "source": "Resources/readme-beautify-trial-2026-11-02/assets/readme/comment-panel-mobile-dark.png"
+    },
+    {
+      "path": "assets/readme/comment-panel-mobile-light.png",
+      "bytes": 47659,
+      "sha256": "7ae19565e917522243427f9fabdfb77d649c66460fb712a27807406cc3203df7",
+      "source": "Resources/readme-beautify-trial-2026-11-02/assets/readme/comment-panel-mobile-light.png"
+    },
+    {
+      "path": "assets/readme/hero.svg",
+      "bytes": 2769,
+      "sha256": "9693fe662a3572cc368cd6225caebe25813c07fb3dde0d080f5481d8dcac0ac0",
+      "source": "Resources/readme-beautify-trial-2026-11-02/assets/readme/hero.svg"
+    }
+  ]
+}

@@ -10,58 +10,13 @@ const appSource = fs.readFileSync(path.join(rootDir, "web/src/App.jsx"), "utf8")
 const cssSource = fs.readFileSync(path.join(rootDir, "web/src/styles.css"), "utf8");
 const panelSource = fs.readFileSync(path.join(rootDir, "src/WebPanelController.js"), "utf8");
 
-function encodeVarint(value) {
-  const bytes = [];
-  let current = value;
-  do {
-    let byte = current & 0x7f;
-    current = Math.floor(current / 128);
-    if (current > 0) byte |= 0x80;
-    bytes.push(byte);
-  } while (current > 0);
-  return Buffer.from(bytes);
-}
-
-function bytesField(number, payload) {
-  return Buffer.concat([encodeVarint(number * 8 + 2), encodeVarint(payload.length), payload]);
-}
-
-function varintField(number, value) {
-  return Buffer.concat([encodeVarint(number * 8), encodeVarint(value)]);
-}
-
-function floatField(number, value) {
-  const payload = Buffer.alloc(4);
-  payload.writeFloatLE(value);
-  return Buffer.concat([encodeVarint(number * 8 + 5), payload]);
-}
-
-function doubleField(number, value) {
-  const payload = Buffer.alloc(8);
-  payload.writeDoubleLE(value);
-  return Buffer.concat([encodeVarint(number * 8 + 1), payload]);
-}
-
-function createInkArchive() {
-  const pointStride = 48;
-  const pointData = Buffer.alloc(pointStride * 2);
-  pointData.writeFloatLE(1, 0);
-  pointData.writeFloatLE(2, 4);
-  pointData.writeFloatLE(0, 8);
-  pointData.writeFloatLE(3, pointStride);
-  pointData.writeFloatLE(4, pointStride + 4);
-  pointData.writeFloatLE(0.5, pointStride + 8);
-  const strokeData = Buffer.concat([varintField(3, 2), bytesField(7, pointData)]);
-  const transform = Buffer.concat([floatField(5, 10), floatField(6, 20)]);
-  const stroke = Buffer.concat([bytesField(5, strokeData), bytesField(7, transform)]);
-  const metadata = doubleField(8, 3);
-  const protobuf = Buffer.concat([bytesField(4, metadata), bytesField(5, stroke)]);
-  return Buffer.concat([Buffer.from([119, 114, 100, 0, 0, 0]), protobuf]).toString("base64");
-}
+const { drawing } = require("./fixtures/handwriting.js");
+function createInkArchive() { return drawing().toString("base64"); }
 
 const drawingBase64 = createInkArchive();
 const mediaByHash = {
   drawing: { base64Encoding: () => drawingBase64 },
+  previewOnlyDrawing: { base64Encoding: () => drawing({ marker: 99 }).toString("base64") },
   invalidDrawing: { base64Encoding: () => "bm90LWFuLWluay1hcmNoaXZl" },
   paint: { base64Encoding: () => "cGFpbnQ=" },
 };
@@ -106,6 +61,7 @@ const context = vm.createContext({
   },
 });
 
+vm.runInContext(fs.readFileSync(path.join(rootDir, "src/HandwritingDecoder.js"), "utf8"), context);
 vm.runInContext(previewSource, context, { filename: "HandwritingPreview.js" });
 vm.runInContext(fs.readFileSync(path.join(rootDir, "src/CommentFoldState.js"), "utf8"), context);
 vm.runInContext(commentDataSource, context, { filename: "CommentData.js" });
@@ -115,6 +71,9 @@ const svg = Buffer.from(rendered.dataURI.split(",")[1], "base64").toString("utf8
 assert.match(rendered.dataURI, /^data:image\/svg\+xml;base64,/);
 assert.match(svg, /d="M 11\.00 22\.00 L 13\.00 24\.00"/);
 assert.match(svg, /fill="white"/);
+assert.match(svg, /stroke="#ff0000"/);
+assert.strictEqual(rendered.approximate, true);
+assert.strictEqual(rendered.previewOnly, false);
 assert.strictEqual(
   context.__MN_HANDWRITING_PREVIEW_MNCommentManagerAddon.renderMediaDataURI("drawing"),
   rendered,
@@ -153,6 +112,18 @@ assert.match(snapshot.comments[3].drawingPreviewError, /无法识别|不完整/)
 assert.strictEqual(snapshot.comments[3].drawingPreviewPending, false);
 assert.strictEqual(snapshot.comments[4].drawingPreviewPending, true);
 assert.strictEqual(snapshot.handwritingPendingCount, 1);
+
+const restrictedSnapshot = context.__MN_COMMENT_DATA__.getNoteSnapshot({
+  noteId: "11111111-1111-1111-1111-111111111111",
+  noteTitle: "Restricted preview",
+  MNComments: [],
+  comments: [{ type: "PaintNote", drawing: "previewOnlyDrawing" }],
+});
+assert.strictEqual(restrictedSnapshot.comments[0].drawingPreviewOnly, true);
+assert.strictEqual(restrictedSnapshot.comments[0].drawingPreviewApproximate, true);
+assert.strictEqual(restrictedSnapshot.comments[0].drawingPreviewDiagnostics[0].code, "unverified-path-marker");
+assert.match(restrictedSnapshot.comments[0].drawingPreviewDataURI, /^data:image\/svg\+xml;base64,/);
+assert.match(appSource, /comment\.drawingPreviewOnly && comment\.drawingPreviewDataURI/);
 
 const refreshedSnapshot = context.__MN_COMMENT_DATA__.getNoteSnapshot({
   noteId: "11111111-1111-1111-1111-111111111111",

@@ -729,3 +729,86 @@ it("blocks external card switching while an edit dialog or workflow draft is ope
   await addFilter();
   expect(window.__MNCommentManagerCanSwitchCard()).toBe(false);
 });
+
+it("routes Escape in the batch editor through the recording close guard even when focus drops to body", async () => {
+  await openRecordedBatch({});
+  document.body.focus();
+  await key(document.body, "Escape");
+  expect(host.querySelector(".batch-recording-close-dialog")?.dataset.closeKind).toBe("unsaved");
+  await click(host.querySelector("[data-batch-close-cancel]"));
+  expect(host.querySelector(".batch-recording-close-dialog")).toBeNull();
+  await key(host.querySelector(".batch-recording input"), "Escape");
+  expect(host.querySelector(".batch-recording-close-dialog")?.dataset.closeKind).toBe("unsaved");
+});
+
+it("handles image-excerpt merge permutations cleanly without silent no-ops", async () => {
+  const imageSnapshot = (eligible = true) => ({
+    noteId: "img-merge",
+    noteTitle: "图片摘录合并",
+    excerpt: {
+      present: true,
+      type: "image",
+      text: "",
+      conversion: eligible ? { eligible: true } : { eligible: false, reason: "missingParentNote" },
+      capabilities: { canCopyImage: true, canMergeText: false },
+    },
+    comments: [
+      { index: 0, type: "textComment", text: "评论 A", capabilities: { canCopyText: true, canMergeText: true, canEditText: true } },
+      { index: 1, type: "textComment", text: "评论 B", capabilities: { canCopyText: true, canMergeText: true, canEditText: true } },
+    ],
+  });
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: imageSnapshot(true) }));
+  await click(host.querySelector("#native-excerpt input"));
+  await click(host.querySelector('#comment-0 input[type="checkbox"]'));
+  await click(button("合并文本"));
+  const forcedCheck = host.querySelector('.dialog .dialog-check input[type="checkbox"]');
+  expect(forcedCheck.checked).toBe(true);
+  expect(forcedCheck.disabled).toBe(true);
+  MNBridge.send.mockClear();
+  await click(button("合并"));
+  expect(MNBridge.send).toHaveBeenCalledWith("mergeCommentsToExcerpt", expect.objectContaining({
+    noteId: "img-merge",
+    selection: { excerptSelected: true, commentIndices: [0] },
+  }));
+
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: imageSnapshot(true) }));
+  await click(host.querySelector("#native-excerpt input"));
+  await click(host.querySelector('#comment-0 input[type="checkbox"]'));
+  await click(host.querySelector('#comment-1 input[type="checkbox"]'));
+  await click(button("合并文本"));
+  const optionalCheck = host.querySelector('.dialog .dialog-check input[type="checkbox"]');
+  expect(optionalCheck.checked).toBe(false);
+  expect(optionalCheck.disabled).toBe(false);
+  MNBridge.send.mockClear();
+  await click(button("合并"));
+  expect(MNBridge.send).toHaveBeenCalledWith("mergeContentSelection", expect.objectContaining({
+    noteId: "img-merge",
+    selection: { excerptSelected: false, commentIndices: [0, 1] },
+  }));
+
+  await act(async () => window.__MNCommentManagerNativeSync({ snapshot: imageSnapshot(false) }));
+  await click(host.querySelector('#comment-0 input[type="checkbox"]'));
+  await click(host.querySelector('#comment-1 input[type="checkbox"]'));
+  await click(button("合并文本"));
+  expect(host.querySelector('.dialog .dialog-check input[type="checkbox"]').disabled).toBe(true);
+});
+
+it("cancels long-press delete when the pointer drags outside the button bounds", async () => {
+  vi.useFakeTimers();
+  try {
+    const delBtn = host.querySelector("#comment-0 .quick-action-btn.danger");
+    delBtn.getBoundingClientRect = () => ({ left: 10, top: 10, right: 40, bottom: 40, width: 30, height: 30 });
+    MNBridge.send.mockClear();
+    await act(async () => {
+      delBtn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: 20, clientY: 20, pointerId: 1 }));
+    });
+    await act(async () => {
+      delBtn.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, clientX: 90, clientY: 90, pointerId: 1 }));
+      vi.advanceTimersByTime(700);
+      delBtn.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, clientX: 90, clientY: 90, pointerId: 1 }));
+    });
+    expect(MNBridge.send).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});

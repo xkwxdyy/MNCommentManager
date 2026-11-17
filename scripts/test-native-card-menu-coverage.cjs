@@ -94,6 +94,9 @@ function fixture() {
     __MN_NATIVE_SCENE_ENTRIES_MNCommentManagerAddon: { read: () => scene },
     __MN_DYNAMIC_COMMENT_ACTIONS__: { relayout() {} },
   });
+  context.MNUtil.notebookController = { notebookId: "notebook1", view: { hidden: false },
+    get mindmapView() { return { selViewLst: [{ note: { note: notes[selectedId] } }] }; } };
+  vm.runInContext(fs.readFileSync(path.join(runtime, "NoteAccess.js"), "utf8"), context);
   for (const name of ["NativeMenuVisibility", "NativeCardMenuActions"]) vm.runInContext(fs.readFileSync(path.join(runtime, name + ".js"), "utf8"), context, { filename: name + ".js" });
   const api = context.__MN_NATIVE_CARD_MENU_MNCommentManagerAddon;
   function tick(seconds) {
@@ -132,6 +135,24 @@ test("fresh primary evidence covers only directly accessible quick and input act
   assert.equal(f.addon.mncmNativeCardMenuState.bindings[0].gestures.length, 2);
   assert.equal(f.read().manager, false, "bound double tap is insufficient proof of keyboard or assistive access");
   assert.equal(f.read().menu, false, "bound hold is insufficient proof of keyboard or assistive access");
+});
+
+test("ordinary document menus cannot invalidate floating entries through an unrelated map selection", () => {
+  const f = fixture(), hidden = [];
+  f.context.__MN_DYNAMIC_COMMENT_ACTIONS__.hideButton = (_addon, reason) => hidden.push(reason);
+  f.addon.dynamicCommentContext = { noteId: "A", token: "document-A" };
+  f.open("A");
+  f.menu.items = [{ title: "", actionString: "noteHighlight:" }];
+  f.context.__MN_NOTE_ACCESS_MNCommentManagerAddon.selected = () => [f.notes.B];
+  assert.deepEqual(f.read(), empty);
+  for (let index = 0; index < 4; index++) f.tick(.25);
+  assert.deepEqual(hidden, [], "native integration must leave ordinary document entries to their own close lifecycle");
+  assert.equal(f.addon.dynamicCommentContext.token, "document-A");
+  assert.equal(f.addon.mncmNativeCardMenuState.bindings.length, 0);
+
+  f.rebuild([0, 1]);
+  f.read();
+  assert.deepEqual(hidden, ["native-menu.context-changed"], "integrated native commands still reject an actual target mismatch");
 });
 
 test("zero, manager-only, add-only and both entries cover only their matching primary strips", () => {

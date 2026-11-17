@@ -19,6 +19,7 @@ function makeNote(id, types = ["TextNote", "HtmlNote", "PaintNote", "AudioNote",
   let mode = "";
   let receiptTransform = (result) => result;
   const raw = {
+    noteId: id,
     get comments() { return rows; },
     commentState() {
       syncRevision();
@@ -90,7 +91,7 @@ const context = vm.createContext({
   },
 });
 [
-  "CommentFoldState", "CommentData", "CommentMutations", "CommentBatchEditor",
+  "CommentFoldState", "NoteAccess", "CommentData", "CommentMutations", "CommentBatchEditor",
   "CommentWorkflowStore", "CommentWorkflowRegistry", "CommentWorkflowRunner", "WebBridgeCommands",
 ].forEach((name) => vm.runInContext(fs.readFileSync(path.join(__dirname, "../src", `${name}.js`), "utf8"), context, { filename: `${name}.js` }));
 const data = context.__MN_COMMENT_DATA__;
