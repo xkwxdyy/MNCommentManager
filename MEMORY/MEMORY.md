@@ -1,5 +1,7 @@
 # 项目记忆索引
 
+- 2026-11-16｜空 Markdown 占位 `- []()` 已纳入失效链接的 Markdown／全部范围清理；成功静默，代码与正文保护回归通过。本地提交 `2536bdc`，0.1.43 候选包与包内回归通过。已备份本机 0.1.42 原安装；正常退出因应用处于前台而拒绝，文件未替换。Mac／iPad 待验，GitHub 登记已在持续授权后[发送并回读核验](https://github.com/xkwxdyy/MNCommentManager/issues/118)。见[记录](../../../../MarginNote%20Template/projects/research-workflow/docs/所需知识链接与空链接清理-20261116.md)。
+
 - 2026-11-16｜0.1.43 已完整发布：源码分支、标签、GitHub 与云盘正式包、主备用更新清单和双语日志全部核验通过，真实联网更新检测及备用回退通过。本轮未安装或重启，设备边界保留；发版技能直接选用可用后台浏览器，见[发布记录](../Resources/releases/v0.1.43.md)。
 
 - 2026-11-16｜双列菜单同类回归已经统一修正：原生 selector 不再按普通属性调用，Toolbar 回到原有原生入口，评论管理器保留取消 handle 身份。离线、原生回调及候选包检查通过；Mac 可见菜单验收未通过，iPad 未验。临时测试插件已移出，现用业务候选未替换。见[验收记录](/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mnknowledgebase/dist/双列菜单原生回调-独立候选-20261116/验收记录.md)。 [跨插件回归 #58](https://github.com/xkwxdyy/MNLiterature/issues/58) 保持开放。
