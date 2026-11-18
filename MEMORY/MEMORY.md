@@ -1,6 +1,6 @@
 # 项目记忆索引
 
-- 2026-11-18｜v0.1.44 正式 GitHub Release 与完整附件校验通过。云盘与配套更新源等待 BrowserSkill 扩展连接。[发布记录](../Resources/releases/v0.1.44.md)。
+- 2026-11-18｜v0.1.44 正式 GitHub Release 与完整附件校验通过。云盘及配套更新源已完成核验。[发布记录](../Resources/releases/v0.1.44.md)。
 
 - 2026-11-17｜本地与 GitHub 远端均已仅保留 `main`，同步至 `1e112a3`。整理 PR [#119](https://github.com/xkwxdyy/MNCommentManager/pull/119) 通过必需 checks 后合并，其余远端分支已删除，对应依赖 PR 已关闭；标签、原工作区修改及并行富文本编辑保留。恢复材料：`/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mncommentmanager/Archive/GitBranches/main-only-20261117-151628`。详见事实与决策点。
 
