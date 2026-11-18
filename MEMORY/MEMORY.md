@@ -1,5 +1,7 @@
 # 项目记忆索引
 
+- 2026-11-18｜v0.1.44 正式 GitHub Release 与完整附件校验通过。云盘与配套更新源等待 BrowserSkill 扩展连接。[发布记录](../Resources/releases/v0.1.44.md)。
+
 - 2026-11-17｜本地与 GitHub 远端均已仅保留 `main`，同步至 `1e112a3`。整理 PR [#119](https://github.com/xkwxdyy/MNCommentManager/pull/119) 通过必需 checks 后合并，其余远端分支已删除，对应依赖 PR 已关闭；标签、原工作区修改及并行富文本编辑保留。恢复材料：`/Users/xiakangwei/Nutstore/MarginNote/MarginNote Develop/MarginNote Addon/Projects/mncommentmanager/Archive/GitBranches/main-only-20261117-151628`。详见事实与决策点。
 
 - 2026-11-16｜空 Markdown 占位 `- []()` 已纳入失效链接的 Markdown／全部范围清理；成功静默，代码与正文保护回归通过。本地提交 `2536bdc`，0.1.43 候选包与包内回归通过。已备份本机 0.1.42 原安装；正常退出因应用处于前台而拒绝，文件未替换。Mac／iPad 待验，GitHub 登记已在持续授权后[发送并回读核验](https://github.com/xkwxdyy/MNCommentManager/issues/118)。见[记录](../../../../MarginNote%20Template/projects/research-workflow/docs/所需知识链接与空链接清理-20261116.md)。
