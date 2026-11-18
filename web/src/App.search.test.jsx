@@ -127,7 +127,8 @@ describe("comment search and filter recovery", () => {
     expect(host.querySelector(".list-context-summary strong").textContent).toBe("0 / 3 条评论");
     expect(host.querySelector(".empty-state").textContent).toContain("没有匹配的评论");
     expect(host.querySelector('#native-excerpt input').checked).toBe(true);
-    await click(button("清除筛选"));
+    expect(host.querySelector(".empty-state button")).toBeNull();
+    await click(button("重置筛选"));
     expect(host.querySelectorAll(".comment-row")).toHaveLength(3);
     expect(host.querySelector('#native-excerpt input').checked).toBe(true);
     expect(host.querySelector('#comment-1 input').checked).toBe(true);

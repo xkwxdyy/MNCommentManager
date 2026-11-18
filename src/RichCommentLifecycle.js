@@ -76,6 +76,7 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
     }
     return result;
   }
+  // Returns the last saved valid style, or null when none has been saved yet.
   function readPreferredStyle() {
     try {
       if (
@@ -83,13 +84,13 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
         !NSUserDefaults ||
         typeof NSUserDefaults.standardUserDefaults !== 'function'
       ) {
-        return clone(neutralDefaults);
+        return null;
       }
       const saved = NSUserDefaults.standardUserDefaults().objectForKey(STYLE_PREF_KEY);
-      if (typeof saved !== 'string' || !saved.trim()) return clone(neutralDefaults);
+      if (typeof saved !== 'string' || !saved.trim()) return null;
       return style(JSON.parse(saved));
     } catch (_) {
-      return clone(neutralDefaults);
+      return null;
     }
   }
   function writePreferredStyle(nextStyle) {
@@ -351,6 +352,9 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
         : c.text
       : '';
     const token = put({ kind: 'edit', noteId: n.id, index, fingerprint: fingerprint(n) });
+    const preferred = a && a.style ? null : clipboard ? null : readPreferredStyle();
+    const styleSource =
+      a && a.style ? 'comment' : clipboard ? 'clipboard' : preferred ? 'recent' : 'default';
     return {
       token,
       noteId: n.id,
@@ -366,7 +370,10 @@ var __MN_RICH_COMMENTS_MNCommentManagerAddon__ = (function () {
       rawText: c ? c.text : '',
       plainText: a ? a.text : '',
       text: initialText,
-      style: clone(a && a.style ? a.style : clipboard ? clipboard.style : readPreferredStyle()),
+      style: clone(
+        a && a.style ? a.style : clipboard ? clipboard.style : preferred || neutralDefaults,
+      ),
+      styleSource,
     };
   }
   function append(n, value) {

@@ -577,3 +577,27 @@ it('focuses recovery actions in load-error and handles document-level Escape/Tab
   await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
   expect(MNBridge.send).toHaveBeenCalledWith('closeQuickComment', { sessionId: undefined });
 });
+it('shows accurate load-error header, splits error code, keeps focus inside modal on retry, and surfaces Markdown mode', async () => {
+  await act(async () => root.unmount());
+  let pendingRetry;
+  let calls = 0;
+  MNBridge.send.mockImplementation((cmd) => {
+    if (cmd === 'getQuickCommentState') {
+      calls += 1;
+      if (calls === 1) return Promise.reject(new Error('目标卡片读取超时（BRIDGE_TIMEOUT）'));
+      return new Promise((resolve) => { pendingRetry = resolve; });
+    }
+    return Promise.resolve({ closed: true });
+  });
+  root = createRoot(host);
+  await act(async () => root.render(<QuickComment />));
+  expect(host.querySelector('.quick-context p').textContent).toBe('未能读取目标卡片');
+  expect(host.querySelector('.quick-error-code').textContent).toBe('（BRIDGE_TIMEOUT）');
+  const retryBtn = [...host.querySelectorAll('button')].find(b => b.textContent === '重新读取');
+  await act(async () => retryBtn.click());
+  expect(host.querySelector('.quick-context p').textContent).toBe('正在读取卡片…');
+  expect(document.activeElement).toBe(host.querySelector('.quick-close'));
+  await act(async () => pendingRetry({ ...nativeState, markdown: true }));
+  expect(document.activeElement).toBe(input());
+  expect(host.querySelector('.quick-mode-pill').textContent).toBe('Markdown');
+});

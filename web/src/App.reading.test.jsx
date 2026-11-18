@@ -162,4 +162,56 @@ describe("comment reading interactions", () => {
     expect(pre(0).getAttribute("role")).toBeNull();
     expect(pre(0).scrollTop).toBe(0);
   });
+
+  it("tracks note lifecycle readiness, empty-card creation CTA, and narrow overflow menu focus", async () => {
+    const manager = () => host.querySelector(".comment-manager");
+    expect(manager().getAttribute("data-note-ready")).toBe("true");
+    expect(host.querySelector(".statusbar .status-message").getAttribute("data-idle")).toBe("true");
+    expect(host.querySelector("#selection-actions-toggle").hidden).toBe(true);
+
+    await act(async () => window.__MNCommentManagerNativeSync({
+      snapshot: { noteId: "", noteTitle: "", error: "超时未响应（BRIDGE_TIMEOUT）", excerpt: { present: false }, comments: [] },
+    }));
+    expect(manager().getAttribute("data-note-ready")).toBe("false");
+    expect(host.querySelector(".topbar-title p").textContent).toBe("读取失败");
+    expect(host.querySelector(".empty-state-code").textContent).toBe("错误代码：BRIDGE_TIMEOUT");
+
+    await act(async () => window.__MNCommentManagerNativeSync({
+      snapshot: { ...snapshot, comments: [] },
+    }));
+    expect(manager().getAttribute("data-note-ready")).toBe("true");
+    MNBridge.send.mockImplementationOnce(async (command) => (
+      command === "getRichCommentDraft" ? { noteId: "reading-test", index: null, token: "t1", mode: "plain", text: "", style: {} } : {}
+    ));
+    await click(host.querySelector(".empty-state button"));
+    expect(MNBridge.send).toHaveBeenCalledWith("getRichCommentDraft", expect.objectContaining({ noteId: "reading-test", index: null }));
+    await click([...document.querySelectorAll("button")].find((node) => node.textContent === "取消"));
+
+    const moreTrigger = host.querySelector(".topbar-more-trigger");
+    await click(moreTrigger);
+    const menuItems = [...host.querySelectorAll(".topbar-more-menu button")];
+    expect(document.activeElement).toBe(menuItems[0]);
+    await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })));
+    expect(document.activeElement).toBe(menuItems[1]);
+    await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+    expect(host.querySelector(".topbar-more-menu")).toBeNull();
+    expect(document.activeElement).toBe(moreTrigger);
+
+    await act(async () => window.__MNCommentManagerNativeSync({
+      snapshot: {
+        noteId: "single-img",
+        noteTitle: "单图卡片",
+        error: "",
+        excerpt: { present: false },
+        comments: [{ index: 0, type: "imageComment", text: "", capabilities: { isMedia: true } }],
+      },
+    }));
+    await click(host.querySelector("#comment-0 input"));
+    expect(host.querySelector("#selection-actions-toggle").classList.contains("dup-at-desktop")).toBe(true);
+    const clearBtn = host.querySelector(".selection-clear");
+    clearBtn.focus();
+    await click(clearBtn);
+    await act(async () => new Promise((resolve) => requestAnimationFrame(resolve)));
+    expect(document.activeElement?.textContent).toBe("全选");
+  });
 });

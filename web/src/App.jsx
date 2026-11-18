@@ -5,6 +5,7 @@ import ActionIcon from "./components/ActionIcon";
 import FormatBrushDialog, { FormatBrushIcon, richTextStyle } from "./components/FormatBrushDialog";
 import HtmlSelect from "./components/HtmlSelect";
 import HelpVideos from "./components/HelpVideos";
+import TopbarMoreMenu from "./components/TopbarMoreMenu";
 import AddonUpdate from "./components/AddonUpdate";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MNBridge from "./lib/mnBridge";
@@ -94,6 +95,11 @@ function getLongPressDelay(event, baseMs) {
 }
 
 const RICH_COMMENT_META = { label: "富文本", filter: "html" };
+// The copied-format chip points back to its source row while that row is unchanged.
+function isRichClipboardSource(snapshot, comment) {
+  const clip = snapshot?.richText?.clipboard;
+  return !!clip && !!clip.noteId && clip.noteId === snapshot.noteId && clip.index === comment.index && clip.text === comment.text;
+}
 
 function getTypeMeta(comment) {
   if (comment?.type === "textComment" && comment?.capabilities?.isMarkdown) {
@@ -960,12 +966,23 @@ function PlainTextPreview({ text, maxLength, expanded, onToggle, contentId, labe
   );
 }
 
-function EmptyState({ tone = "neutral", title, body, actionText = "", onAction = null }) {
+// Ready messages only confirm the steady state; they stay readable by assistive tech but leave the pill.
+const IDLE_STATUS_MESSAGES = new Set(["当前卡片已刷新", "当前卡片已就绪"]);
+
+function splitErrorCode(message) {
+  const match = /^([\s\S]*?)\s*[（(]([A-Z][A-Z0-9_]{2,})[）)]\s*$/.exec(String(message || ""));
+  return match && match[1] ? { text: match[1], code: match[2] } : { text: String(message || ""), code: "" };
+}
+
+function EmptyState({ tone = "neutral", title, body, actionText = "", onAction = null, actionDisabled = false }) {
+  const { text, code } = tone === "error" ? splitErrorCode(body) : { text: body, code: "" };
   return (
     <div className={`empty-state ${tone}`} role={tone === "error" ? "alert" : "status"}>
+      {tone === "loading" ? <span className="empty-state-spinner" aria-hidden="true" /> : null}
       <strong>{title}</strong>
-      {body ? <p>{body}</p> : null}
-      {actionText && onAction ? <Button className="secondary" onClick={onAction}>{actionText}</Button> : null}
+      {text ? <p>{text}</p> : null}
+      {code ? <small className="empty-state-code">错误代码：{code}</small> : null}
+      {actionText && onAction ? <Button className="secondary" disabled={actionDisabled} onClick={onAction}>{actionText}</Button> : null}
     </div>
   );
 }
@@ -2977,9 +2994,60 @@ function App() {
     }
   };
 
+  const restoreFocusIfSummaryUnmounted = (nextHasSelection) => {
+    if (nextHasSelection) return;
+    const summary = document.getElementById("selection-summary");
+    if (summary && summary.contains(document.activeElement)) {
+      requestAnimationFrame(() => {
+        (document.querySelector(".topbar-selection-actions button:not(:disabled)") || summary)?.focus({ preventScroll: true });
+      });
+    }
+  };
+  const invertVisibleSelection = () => {
+    const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
+    const targetSet = new Set(targetComments.map((comment) => comment.index));
+    const next = new Set(selectedIndices.filter((index) => !targetSet.has(index)));
+    targetComments.forEach((comment) => {
+      if (!selected.has(comment.index)) next.add(comment.index);
+    });
+    const nextExcerptSelected = excerptPresent && !excerptSelected;
+    const nextValues = sortedSetValues(next);
+    restoreFocusIfSummaryUnmounted(nextExcerptSelected || nextValues.length > 0);
+    setContentSelection(makeContentSelection(nextExcerptSelected, nextValues));
+  };
+  const clearContentSelection = () => {
+    restoreFocusIfSummaryUnmounted(false);
+    setContentSelection(makeContentSelection(false, []));
+  };
+  const noteReady = noteViewState.phase === "ready";
+  const statusIsIdle = !!rangeHint || IDLE_STATUS_MESSAGES.has(status);
+  const statusbarQuiet = statusIsIdle && !snapshot.moduleSettingsError && !moduleResult;
+  // Panel entries already visible in the footer at the current width are hidden by CSS
+  // tiers: quick = ≥360px wide, step = ≥681px, desktop = ≥861px (all with height >400px).
+  const footerPrimaryKey = selectedCanInlineMerge ? "inline-merge" : selectedCanMergeAction ? "merge-text" : selectedCanEditText ? "edit-text" : selectedCanEditRich ? "edit-rich" : "";
+  const footerDupTier = (key) => (
+    key === footerPrimaryKey ? "quick" : key === "up" || key === "down" ? "step" : key === "extract" || key === "insert" ? "desktop" : ""
+  );
+  const tierRank = { quick: 1, step: 2, desktop: 3 };
+  const sectionDupTier = (keys) => {
+    const tiers = keys.map(footerDupTier);
+    if (tiers.length === 0 || tiers.some((tier) => !tier)) return "";
+    return tiers.reduce((widest, tier) => (tierRank[tier] > tierRank[widest] ? tier : widest), "quick");
+  };
+  const dupClass = (tier) => (tier ? ` dup-at-${tier}` : "");
+  const moveSectionKeys = [...moveActions.map((action) => action.key), ...(canPickInsertPosition ? ["insert"] : [])];
+  const hasDesktopOverflowActions = canMoveSelectionToTop
+    || canMoveSelectionToBottom
+    || processActions.some((action) => action.key !== footerPrimaryKey && action.key !== "extract");
+  const titleText = snapshot.noteTitle || ({ loading: "正在读取卡片…", error: "读取失败" }[noteViewState.phase] || "未选择卡片");
+  const moduleSettingsDisabled = loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen;
+  const addCommentDisabled = loading || !snapshot.noteId || !!snapshot.error || !!openingOverlay || closingPanel;
+
   return (
     <div
       className="comment-manager"
+      data-note-phase={noteViewState.phase}
+      data-note-ready={noteReady ? "true" : "false"}
       data-range-picking={rangePicking ? "true" : undefined}
       data-insert-mode={insertMode ? "true" : undefined}
       data-actions-open={selectionActionsOpen ? "true" : undefined}
@@ -2995,10 +3063,9 @@ function App() {
       <header className="topbar">
         <div className="topbar-title">
           <h1>评论管理器</h1>
-          <p title={snapshot.noteTitle}>{snapshot.noteTitle || "当前没有选中的卡片"}</p>
+          <p title={snapshot.noteTitle}>{titleText}</p>
         </div>
         <div className="topbar-actions">
-          {richUndo && <Button className="ghost format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次富文本修改'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
           <div className="topbar-selection-actions" role="group" aria-label="选区操作">
             <Button
               className="secondary"
@@ -3012,55 +3079,37 @@ function App() {
             >
               全选
             </Button>
-            <Button
-              className="secondary"
-              disabled={!excerptPresent && matchingComments.length === 0}
-              onClick={() => {
-                const targetComments = visibleComments.length > 0 ? visibleComments : matchingComments;
-                const targetSet = new Set(targetComments.map((comment) => comment.index));
-                const next = new Set(selectedIndices.filter((index) => !targetSet.has(index)));
-                targetComments.forEach((comment) => {
-                  if (!selected.has(comment.index)) next.add(comment.index);
-                });
-                setContentSelection(makeContentSelection(
-                  excerptPresent && !excerptSelected,
-                  sortedSetValues(next),
-                ));
-              }}
-            >
-              反选
-            </Button>
-            <Button className="secondary" disabled={!hasSelection} onClick={() => setContentSelection(makeContentSelection(false, []))}>清空</Button>
             <Button className={rangePicking ? "active" : "secondary"} aria-pressed={rangePicking ? "true" : "false"} disabled={loading || (!excerptPresent && comments.length === 0)} onClick={startRangeSelection} title={rangePicking ? "退出范围选择（Esc）" : "选择连续范围"}>选范围</Button>
           </div>
           <div className="topbar-utility-actions" role="group" aria-label="面板操作">
+            {richUndo && <Button className="format-brush-undo" disabled={loading} title={richUndo.label||'撤销上次富文本修改'} aria-label="撤销上次富文本修改" onClick={undoFormatBrush}><RichActionIcon name="undo"/></Button>}
             <HelpVideos />
-            {moduleSettings ? <Button className="secondary module-settings-button" aria-label="模块划分设置" title="模块划分设置" disabled={loading || !!openingOverlay || closingPanel || !!workflowManager || !!actionButtonSettings || moduleActionModalOpen} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
-            <Button className="secondary rich-add-comment" aria-label="新建评论" title="新建评论（普通文本 / Markdown / 富文本）" disabled={loading||!snapshot.noteId||!!snapshot.error||!!openingOverlay||closingPanel} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
+            {moduleSettings ? <Button className="secondary module-settings-button topbar-wide-only" aria-label="模块划分设置" title="模块划分设置" disabled={moduleSettingsDisabled} onClick={() => setModuleSettingsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg></Button> : null}
+            <Button className="secondary rich-add-comment" aria-label="新建评论" title="新建评论（普通文本 / Markdown / 富文本）" disabled={addCommentDisabled} onClick={event=>openRichEditor(null,event.currentTarget)}><ActionIcon name="comment-add"/></Button>
             <Button className="secondary" aria-label="刷新" title="刷新当前卡片" onClick={loadCurrentNote} disabled={loading || !!openingOverlay || closingPanel} aria-busy={loading || undefined}><ActionIcon name="refresh" /><span className="sr-only">刷新</span></Button>
-            <Button className="secondary" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><ActionIcon name="workflow" /><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
-            <Button className="secondary" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><ActionIcon name="settings-sliders" /><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
+            <Button className="secondary topbar-wide-only" aria-label="工作流" disabled={loading || !!openingOverlay || closingPanel} onClick={openWorkflowManager} title="管理已保存工作流" aria-busy={openingOverlay === "workflow" || undefined}><ActionIcon name="workflow" /><span className="sr-only">{openingOverlay === "workflow" ? "打开中…" : "工作流"}</span></Button>
+            <Button className="secondary topbar-wide-only" aria-label="设置" disabled={loading || !!openingOverlay || closingPanel} onClick={openActionButtonSettings} title="评论管理设置" aria-busy={openingOverlay === "settings" || undefined}><ActionIcon name="settings-sliders" /><span className="sr-only">{openingOverlay === "settings" ? "打开中…" : "设置"}</span></Button>
+            <TopbarMoreMenu
+              className="topbar-narrow-only"
+              items={[
+                moduleSettings && noteReady ? { key: "modules", label: "模块划分设置", disabled: moduleSettingsDisabled, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></svg>, onSelect: () => setModuleSettingsOpen(true) } : null,
+                { key: "workflow", label: "工作流", disabled: loading || !!openingOverlay || closingPanel, icon: <ActionIcon name="workflow" />, onSelect: (trigger) => openWorkflowManager({ currentTarget: trigger }) },
+                { key: "settings", label: "设置", disabled: loading || !!openingOverlay || closingPanel, icon: <ActionIcon name="settings-sliders" />, onSelect: (trigger) => openActionButtonSettings({ currentTarget: trigger }) },
+              ]}
+            />
             <Button className="secondary" aria-label="关闭" title="关闭评论管理器" disabled={loading || !!openingOverlay || closingPanel} onClick={closePanel} aria-busy={closingPanel || undefined}><ActionIcon name="close" /><span className="sr-only">{closingPanel ? "关闭中…" : "关闭"}</span></Button>
           </div>
         </div>
       </header>
-      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} onPaste={event=>openRichPaste(null,event.currentTarget,selectedIndices)} onClear={clearRichFormat}/>
+      <RichClipboardBar clipboard={snapshot.richText?.clipboard} busy={loading||!!formatBrush||!!richEditor} selectedCount={excerptSelected?0:selectedIndices.length} onPaste={event=>openRichPaste(null,event.currentTarget,selectedIndices)} onClear={clearRichFormat}/>
       </div>
 
-      <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined}>
+      <div className="statusbar" aria-live="polite" data-has-alert={snapshot.moduleSettingsError ? "true" : undefined} data-quiet={statusbarQuiet ? "true" : undefined}>
         <span className="status-count status-excerpt">{excerptPresent ? "原生摘录 1 项" : "无原生摘录"}</span>
         <span className="status-count status-total">评论 {comments.length} 条</span>
-        <span className="status-count status-selected">{formatSelectionCount(excerptSelected, selectedIndices.length)}</span>
-        {hasActiveFilter ? (
-          <span className="status-count status-visible">
-            {hiddenModules.size > 0 && visibleComments.length !== matchingComments.length
-              ? `匹配 ${matchingComments.length} 条（显示 ${visibleComments.length} 条）`
-              : `当前显示 ${visibleComments.length} 条评论`}
-          </span>
-        ) : null}
         {moduleResult ? <button type="button" title={moduleResult.title} onClick={() => execute(() => runCommand("focusLinkedNote", { noteId: moduleResult.noteId, mode: "focus" }, { message: "已定位提取结果" }))}>查看提取结果</button> : null}
         {snapshot.moduleSettingsError ? <span role="alert">{snapshot.moduleSettingsError}</span> : null}
-        <span key={`${statusKey}-${rangeHint}`} className="status-message updated">{rangeHint || status}</span>
+        <span key={`${statusKey}-${rangeHint}`} className="status-message updated" data-idle={statusIsIdle ? "true" : undefined}>{rangeHint || status}</span>
       </div>
 
       <nav className="quick-nav" aria-label="快速定位">
@@ -3237,6 +3286,7 @@ function App() {
               {hasActiveFilter ? <div className="list-context-main">
                 <div className="list-context-summary" role="status" aria-live="polite" aria-atomic="true">
                   <strong>{matchingComments.length}<span> / {comments.length} 条评论</span></strong>
+                  {hiddenModules.size > 0 && visibleComments.length !== matchingComments.length ? <small className="list-context-visible">折叠模块后显示 {visibleComments.length} 条</small> : null}
                   <p title={filterDescription}>{filterDescription}</p>
                 </div>
                 <Button className="secondary filter-reset" onClick={clearSearchAndFilter}>重置筛选</Button>
@@ -3324,15 +3374,15 @@ function App() {
           ) : null}
           {matchingComments.length === 0 ? (
             noteViewState.phase === "loading" ? (
-              <EmptyState title="正在读取当前卡片" body="正在等待 MarginNote 返回摘录和评论…" />
+              <EmptyState tone="loading" title="正在读取当前卡片" body="正在等待 MarginNote 返回摘录和评论…" />
             ) : noteViewState.phase === "unselected" ? (
               <EmptyState title="尚未选择卡片" body="请先在 MarginNote 中选中一张卡片，再重新读取。" actionText="重新读取" onAction={loadCurrentNote} />
             ) : noteViewState.phase === "error" ? (
               <EmptyState tone="error" title="无法读取当前卡片" body={noteViewState.error || "请检查 MarginNote 状态后重试。"} actionText="重试读取" onAction={loadCurrentNote} />
             ) : comments.length === 0 ? (
-              <EmptyState title={excerptPresent ? "当前卡片还没有评论" : "当前卡片没有摘录或评论"} body={excerptPresent ? "原生摘录仍可在上方选择和处理。" : "可先在 MarginNote 中添加摘录或评论。"} />
+              <EmptyState title={excerptPresent ? "当前卡片还没有评论" : "当前卡片没有摘录或评论"} body={excerptPresent ? "可以直接新建一条评论，原生摘录仍可在上方选择和处理。" : "可以直接新建一条评论，或先在 MarginNote 中添加摘录。"} actionText="新建评论" actionDisabled={addCommentDisabled} onAction={(event) => openRichEditor(null, event.currentTarget)} />
             ) : (
-              <EmptyState title="没有匹配的评论" body="当前类型或搜索条件没有结果。" actionText="清除筛选" onAction={clearSearchAndFilter} />
+              <EmptyState title="没有匹配的评论" body="换个关键词或类型，或用上方的“重置筛选”恢复全部评论。" />
             )
           ) : <ModuleCommentList key={`${moduleViewKey}:${moduleResetSeq}`} tree={moduleTree} comments={comments} visibleComments={visibleComments} matchingComments={matchingComments} selected={selected} includeTitle={moduleEffective?.includeTitle ?? true} hidden={hiddenModules}
             onHide={id => setHiddenModules(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })}
@@ -3407,18 +3457,21 @@ function App() {
                         id={`comment-${comment.index}-format-brush`}
                         className="quick-action-btn format-brush-button"
                         disabled={loading || !comment.richFormat?.supported}
-                        title={comment.richFormat?.reason || "格式刷"}
+                        title={comment.richFormat?.supported ? "格式刷：把这条评论的格式套用到本卡其他评论" : (comment.richFormat?.reason || "格式刷")}
                         aria-label={`使用评论 #${comment.index} 的格式刷`}
                         onClick={event => { event.stopPropagation(); openFormatBrush(comment); }}
                       ><FormatBrushIcon /></Button>
                     )}
-                    <span className="rich-comment-actions">
-                      {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && <>
-                        <Button className="quick-action-btn rich-copy-format" aria-label={`复制评论 #${comment.index} 的格式`} title={comment.richFormat?.supported?'复制格式':comment.richFormat?.reason} disabled={loading||!comment.richFormat?.supported} onClick={event=>{event.stopPropagation();copyRichFormat(comment);}}><RichActionIcon name="copy"/></Button>
-                        <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑${meta.label}评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit"/></Button>
-                      </>}
-                      {snapshot.richText?.clipboard && !comment.capabilities?.isMedia && comment.type !== "linkComment" && comment.type !== "summaryComment" && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴格式':'粘贴格式并转为富文本'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
-                    </span>
+                    {(Boolean(comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup)
+                      || Boolean(snapshot.richText?.clipboard && !comment.capabilities?.isMedia && comment.type !== "linkComment" && comment.type !== "summaryComment")) ? (
+                      <span className="rich-comment-actions">
+                        {comment.capabilities?.isHtml && !comment.capabilities?.isHtmlMarkup && <>
+                          <Button className={`quick-action-btn rich-copy-format ${isRichClipboardSource(snapshot, comment) ? "is-format-source" : ""}`} aria-label={`复制评论 #${comment.index} 的格式`} title={!comment.richFormat?.supported?comment.richFormat?.reason:isRichClipboardSource(snapshot, comment)?'已复制这条评论的格式':'复制格式，可粘贴到其他评论或卡片'} disabled={loading||!comment.richFormat?.supported} onClick={event=>{event.stopPropagation();copyRichFormat(comment);}}><RichActionIcon name="copy"/></Button>
+                          <Button className="quick-action-btn rich-edit-comment" aria-label={`编辑${meta.label}评论 #${comment.index}`} title={comment.richEditing?.supported?'编辑正文与格式':comment.richEditing?.reason||'当前评论暂不支持编辑'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichEditor(comment,event.currentTarget);}}><ActionIcon name="edit"/></Button>
+                        </>}
+                        {snapshot.richText?.clipboard && !comment.capabilities?.isMedia && comment.type !== "linkComment" && comment.type !== "summaryComment" && <Button className="quick-action-btn rich-paste-format" aria-label={`粘贴格式到评论 #${comment.index}`} title={comment.richEditing?.supported?(comment.capabilities?.isHtml?'粘贴已复制的格式':'粘贴已复制的格式，并转为富文本'):comment.richEditing?.reason||'当前评论暂不支持此操作'} disabled={loading||!comment.richEditing?.supported} onClick={event=>{event.stopPropagation();openRichPaste(comment,event.currentTarget);}}><RichActionIcon name="paste"/></Button>}
+                      </span>
+                    ) : null}
                     {rangePicking && rangeAnchor === getVirtualPositionForComment(comment.index, excerptPresent) ? <span className="range-anchor-label">起点</span> : null}
                     {comment.linkDirection ? (
                       <span className={`direction-pill direction-${comment.linkDirection}`}>
@@ -3603,7 +3656,16 @@ function App() {
         <CommentDragOverview frame={dragOverview.frame} describe={describeDragComment} />
         <aside className="right-pane">
           <section id="selection-summary" className="pane-section selection-summary" tabIndex={-1}>
-            <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? formatSelectionCount(excerptSelected, selectedIndices.length) : "尚未选择"}</p>
+            <div className="selection-chip">
+              <p title={selectedIndices.map((index) => `#${index}`).join(" ")} aria-live="polite">{hasSelection ? formatSelectionCount(excerptSelected, selectedIndices.length) : "尚未选择"}</p>
+              {hasSelection ? (
+                <Button className="ghost selection-clear" title="清空选择" onClick={clearContentSelection}>
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" strokeLinecap="round" /></svg>
+                  <span className="sr-only">清空</span>
+                </Button>
+              ) : null}
+            </div>
+            {hasSelection ? <Button className="ghost selection-invert" title="反选当前显示的内容" onClick={invertVisibleSelection}>反选</Button> : null}
             {hiddenSelectedCount > 0 ? <small title="被筛选隐藏的已选评论仍会参与操作">含隐藏 {hiddenSelectedCount} 条评论</small> : null}
           </section>
           <CommentFoldToolbar capability={snapshot.commentFold} loading={loading} canFold={selectedComments.length > 0 && allSelectedCan(selectedComments, "canSetCollapsed")} onSetCollapsed={(collapsed) => setCommentsCollapsed(selectedIndices, collapsed)} />
@@ -3678,38 +3740,38 @@ function App() {
               </button>
             </div>
           ) : null}
-          <Button id="selection-actions-toggle" className="selection-actions-toggle ghost" aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
+          <Button id="selection-actions-toggle" className={`selection-actions-toggle ghost${!hasDesktopOverflowActions && !selectionActionsOpen ? " dup-at-desktop" : ""}`} hidden={!hasSelection && !selectionActionsOpen} aria-label="更多选区操作" title="移动、处理和删除所选内容" aria-haspopup="dialog" aria-expanded={selectionActionsOpen} aria-controls="selection-actions-panel" onClick={() => setSelectionActionsOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg></Button>
           <SelectionActionsPanel open={selectionActionsOpen} onClose={closeSelectionActions}>
-          <section className="pane-section selection-extra-section"><h2>选择</h2><Button className="secondary" disabled={loading || comments.length === 0} onClick={() => { setContentSelection(makeContentSelection(excerptSelected, allIndices)); closeSelectionActions(); }}>全选评论</Button></section>
+          <section className="pane-section selection-extra-section dup-at-wide"><h2>选择</h2><Button className="secondary" disabled={loading || !hasSelection} onClick={() => { invertVisibleSelection(); closeSelectionActions(); }}>反选</Button></section>
 
           {hasMoveActions ? (
-            <section className="pane-section move-section">
+            <section className={`pane-section move-section${dupClass(sectionDupTier(moveSectionKeys))}`}>
               <h2>移动</h2>
               {moveActions.length > 0 ? (
                 <div className="button-grid move-controls">
                   {moveActions.map((action) => (
-                    <Button key={action.key} onClick={action.onClick} disabled={loading}>{action.label}</Button>
+                    <Button key={action.key} className={dupClass(footerDupTier(action.key)).trim() || undefined} onClick={action.onClick} disabled={loading}>{action.label}</Button>
                   ))}
                 </div>
               ) : null}
               {canPickInsertPosition ? (
-                <Button className={insertMode ? "active wide" : "secondary wide"} aria-pressed={insertMode ? "true" : "false"} disabled={loading} onClick={(event) => { toggleInsertMode(event); selectionModeTriggerRef.current = document.getElementById("selection-actions-toggle"); closeSelectionActions(); }} title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}>选择插入位置</Button>
+                <Button className={`${insertMode ? "active wide" : "secondary wide"}${dupClass("desktop")}`} aria-pressed={insertMode ? "true" : "false"} disabled={loading} onClick={(event) => { toggleInsertMode(event); selectionModeTriggerRef.current = document.getElementById("selection-actions-toggle"); closeSelectionActions(); }} title={insertMode ? "退出插入位置选择（Esc）" : "在评论间选择移动位置"}>选择插入位置</Button>
               ) : null}
             </section>
           ) : null}
 
           {processActions.length > 0 ? (
-            <section className="pane-section process-section">
+            <section className={`pane-section process-section${dupClass(sectionDupTier(processActions.map((action) => action.key)))}`}>
               <h2>处理</h2>
               <div className="stack">
                 {processActions.map((action) => (
-                  <Button key={action.key} className="secondary" disabled={loading || action.disabled} title={action.title} onClick={action.onClick}>{action.label}</Button>
+                  <Button key={action.key} className={`secondary${dupClass(footerDupTier(action.key))}`} disabled={loading || action.disabled} title={action.title} onClick={action.onClick}>{action.label}</Button>
                 ))}
               </div>
             </section>
           ) : null}
 
-          <section className="pane-section danger-zone delete-section">
+          <section className="pane-section danger-zone delete-section dup-at-quick">
             <h2 className="sr-only">删除</h2>
             <button
               type="button"
@@ -3735,7 +3797,7 @@ function App() {
       </main>
 
         {moduleSettingsOpen && moduleSettings ? <ModuleSettingsDialog key={snapshot.noteId} settings={moduleSettings} noteId={snapshot.noteId} readError={snapshot.moduleSettingsError} onSave={saveModuleSettings} onClose={() => { if (currentNoteIdRef.current === snapshot.noteId) setModuleSettingsOpen(false); }} /> : null}
-      {richEditor && <RichCommentEditor plan={richEditor} onSave={saveRichComment} onClose={closeRichEditor}/>}
+      {richEditor && <RichCommentEditor plan={richEditor} clipboard={snapshot.richText?.clipboard} onSave={saveRichComment} onClose={closeRichEditor}/>}
       {dialog ? (
         <Dialog dialog={dialog} loading={loading} onClose={() => setDialog(null)} />
       ) : null}
@@ -3857,6 +3919,22 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
     const cancelButton = dialogElement?.querySelector?.("[data-batch-close-cancel]") || null;
     focusInitialDialogControl(dialogElement, cancelButton);
   }, [active, closeConfirmation, savingRecording]);
+
+  const wasBatchPendingRef = useRef(false);
+  useEffect(() => {
+    const nowPending = busy || savingRecording;
+    const justSettled = wasBatchPendingRef.current && !nowPending;
+    wasBatchPendingRef.current = nowPending;
+    if (!justSettled || !active || closeConfirmationRef.current) return;
+    requestAnimationFrame(() => {
+      const dialogElement = batchEditorRef.current;
+      if (!dialogElement || !currentScopeRef.current.active || dialogElement.contains(document.activeElement)) return;
+      const fallback = (recordingSaveFeedback?.kind === "error" && dialogElement.querySelector(".batch-recording input:not([readonly])"))
+        || dialogElement.querySelector(".batch-editor-grid .primary:not(:disabled)")
+        || dialogElement.querySelector("[data-batch-editor-close]:not(:disabled)");
+      fallback?.focus({ preventScroll: true });
+    });
+  }, [active, busy, savingRecording, recordingSaveFeedback]);
 
   const selectorBase = {
     subject: "comments",
@@ -4174,14 +4252,36 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
         }}
       >
         <header className="batch-editor-header">
-          <div><h2 id="batch-editor-title">多卡评论编辑器</h2><p>{(state.noteIds || []).length} 张卡片 · 每张卡片分别处理</p></div>
+          <div><h2 id="batch-editor-title">多卡评论编辑器</h2><p>{(state.noteIds || []).length > 0 ? `${(state.noteIds || []).length} 张卡片 · 每张卡片分别处理` : (state.error ? "多卡选区未就绪" : "尚未选择卡片")}</p></div>
           <Button data-batch-recording-toggle className={recording ? "danger" : "secondary"} aria-pressed={recording ? "true" : "false"} disabled={busy || savingRecording} onClick={toggleRecording}>{recording ? "停止录制" : "开始录制"}</Button>
         </header>
         {batchRecordingDraftSignature(name, steps) !== savedRecordingSignature ? <p className="batch-editor-status" role="status">已有未保存的录制草稿。执行仅作用于当前选区，保存工作流不会修改卡片。</p> : null}
-        {state.error ? <p className="batch-editor-status error" role="alert">{state.error}</p> : null}
-        {editorMessage ? <p className={`batch-editor-status ${editorMessageKind}`} role={editorMessageKind === "error" ? "alert" : "status"}>{editorMessage}</p> : null}
+        {state.error ? (() => {
+          const parts = splitErrorCode(state.error);
+          return <p className="batch-editor-status error" role="alert"><span>{parts.text}</span>{parts.code ? <code className="batch-status-code">（{parts.code}）</code> : null}</p>;
+        })() : null}
+        {editorMessage
+          && editorMessage !== state.error
+          && editorMessage !== executionFailure?.statusMessage
+          && editorMessage !== recordingSaveFeedback?.message
+          && !(recordingSaveFeedback?.kind === "error" && recordingSaveFeedback.message?.includes(editorMessage)) ? (() => {
+            const parts = editorMessageKind === "error" ? splitErrorCode(editorMessage) : { text: editorMessage, code: "" };
+            return <p className={`batch-editor-status ${editorMessageKind}`} role={editorMessageKind === "error" ? "alert" : "status"}><span>{parts.text}</span>{parts.code ? <code className="batch-status-code">（{parts.code}）</code> : null}</p>;
+          })() : null}
         <div className="batch-editor-grid">
-          <section><h3>卡片概览</h3>{(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 主摘录：{excerptTypeLabels[card.excerptType] || card.excerptType || "无"}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}</section>
+          <section>
+            <h3>卡片概览</h3>
+            {(state.cards || []).length > 0 ? (
+              <div className="batch-card-list">
+                {(state.cards || []).map((card) => <div className="batch-card-summary" key={card.noteId}><strong>{card.title}</strong><small>{card.commentCount ?? card.commentCounts?.all ?? 0} 条评论 · 主摘录：{excerptTypeLabels[card.excerptType] || card.excerptType || "无"}</small><span>文本 {card.commentCounts?.text || 0} · Markdown {card.commentCounts?.markdown || 0} · HTML {card.commentCounts?.html || 0}</span></div>)}
+              </div>
+            ) : (
+              <div className="batch-card-empty" role="status">
+                <strong>{hasCurrentSelection ? `已关联 ${(state.noteIds || []).length} 张卡片` : "暂无可处理的卡片选区"}</strong>
+                <p>{hasCurrentSelection ? "当前选区可直接预览匹配数量或执行批量操作。" : "请关闭此窗口，在脑图或文档中选中多张卡片后重新打开。"}</p>
+              </div>
+            )}
+          </section>
           <section>
             <h3>评论范围</h3>
             <CommentTypeSelector types={selectorTypes} disabled={busy} onChange={(types) => { setSelectorTypes(types); invalidateBatchPreview(); }} />
@@ -4275,7 +4375,7 @@ function BatchCommentEditor({ state, active = true, onClose, onStatus }) {
         {recording || steps.length > 0 || name.trim() || recordingSaveFeedback ? (
           <section className="batch-recording" aria-busy={savingRecording ? "true" : undefined}>
             <h3>录制草稿{recording ? "（录制中）" : "（已停止）"}</h3>
-            <p>仅记录本面板内点击“执行当前操作”后成功完成的动作；执行会实际修改所选卡片。预览和面板外操作不会被记录。停止录制后仍可保存草稿；也可在工作流管理器中直接编排步骤。</p>
+            <p className="batch-recording-hint">仅记录“执行当前操作”成功完成的动作；停止录制后仍可保存为工作流。</p>
             <p>{steps.length ? steps.map((step, index) => <span key={index}>{index + 1}. {step.kind === "select" ? selectorTitle(step) : actionTitle(step.actionId)}</span>) : "尚未录制操作"}</p>
             <div className="batch-recording-save">
               <input

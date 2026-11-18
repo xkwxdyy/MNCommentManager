@@ -5,6 +5,10 @@ import './QuickComment.css';
 
 const messageOf = error => String(error?.message || error || '操作未完成');
 const ticket = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function splitQuickErrorCode(message) {
+  const match = /^([\s\S]*?)\s*[（(]([A-Z][A-Z0-9_]{2,})[）)]\s*$/.exec(String(message || ''));
+  return match && match[1] ? { text: match[1], code: match[2] } : { text: String(message || ''), code: '' };
+}
 export function animationDestination(state, rect, width, height) {
   const target = state?.targetRect, native = state?.nativeViewport;
   if (!target || !native || native.width <= 0 || native.height <= 0) return null;
@@ -333,10 +337,10 @@ export default function QuickComment() {
             if (controls.length) { event.preventDefault(); controls[next].focus(); }
           }
         }}>
-        <header><div className="quick-context"><Icon kind="add" /><div><h1 id="quick-title">添加评论</h1><p title={state?.noteTitle}>{state?.noteTitle || '正在读取卡片…'}</p></div></div>
+        <header><div className="quick-context"><Icon kind="add" /><div><h1 id="quick-title">添加评论</h1><p title={state?.noteTitle}>{state?.noteTitle || (phase === 'load-error' ? '未能读取目标卡片' : '正在读取卡片…')}</p></div></div>
           <button type="button" className="quick-icon quick-close" aria-label="关闭输入并保留草稿" title="关闭并保留草稿" disabled={busy} onClick={() => close(confirmed.current)}><Icon kind="close" /></button>
         </header>
-        <textarea ref={input} value={text} aria-label="评论内容" placeholder="记录此刻的想法…" disabled={!state || locked.current} rows={4}
+        <textarea ref={input} value={text} aria-label="评论内容" placeholder={phase === 'load-error' ? '重新读取目标卡片后即可输入评论…' : '记录此刻的想法…'} disabled={!state || locked.current} rows={4}
           onFocus={() => { keyboardFocusMoved.current = false; }}
           onBlur={event => { if (event.relatedTarget) keyboardFocusMoved.current = true; }}
           onChange={event => change(event.target.value)} onKeyDown={keyDown}
@@ -352,8 +356,11 @@ export default function QuickComment() {
             cursor.current = start + value.length;
             change(`${text.slice(0, start)}${value}${text.slice(element.selectionEnd)}`);
           }} />
-        {error && <div className="quick-error" role="alert">{error}{phase === 'load-error' && <button type="button" onClick={() => { setPhase('loading'); setError(''); loadState(); }}>重新读取</button>}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</div>}
-        <footer><span className="quick-hint">回车提交<span> · Shift＋回车换行</span></span><div className="quick-actions">
+        {error && (() => {
+          const parts = splitQuickErrorCode(error);
+          return <div className="quick-error" role="alert"><span className="quick-error-copy"><span>{parts.text}</span>{parts.code ? <code className="quick-error-code">（{parts.code}）</code> : null}</span><span className="quick-error-actions">{phase === 'load-error' && <button type="button" onClick={() => { setPhase('loading'); setError(''); panel.current?.querySelector('.quick-close:not(:disabled)')?.focus({ preventScroll: true }); loadState(); }}>重新读取</button>}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</span></div>;
+        })()}
+        <footer><span className="quick-hint">{markdown ? <b className="quick-mode-pill">Markdown</b> : null}回车提交<span> · Shift＋回车换行</span></span><div className="quick-actions">
           <button className="quick-icon quick-markdown" role="switch" aria-label="Markdown 评论" aria-checked={markdown} title={markdown ? 'Markdown 已开启：保存为 Markdown 评论' : 'Markdown 已关闭：保存为普通文本评论'} disabled={!state || locked.current}
             onClick={() => {
               if (composing.current) return;
