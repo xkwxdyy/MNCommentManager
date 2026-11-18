@@ -154,9 +154,7 @@ it("uses the shared scroll pane for the top navigation action", async () => {
 });
 
 it("folds hidden selected comments too and preserves the excerpt selection", async () => {
-  await click(host.querySelector("#native-excerpt input"));
-  await click(host.querySelector("#selection-actions-toggle"));
-  await click(button("全选评论"));
+  await click(button("全选"));
   const input = host.querySelector("#comment-search");
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "完整正文");

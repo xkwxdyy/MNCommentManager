@@ -9,6 +9,16 @@
 .format-brush-button {
   color: var(--text-secondary);
 }
+.comment-manager .topbar-utility-actions .format-brush-undo {
+  color: var(--text-accent);
+}
+.quick-action-btn.is-format-source {
+  color: var(--text-accent);
+}
+.quick-action-btn.is-format-source::before {
+  background: var(--accent-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-blue);
+}
 .format-brush-button:hover:not(:disabled) {
   color: var(--text-accent);
 }
@@ -34,6 +44,10 @@
 .brush-source > div > span {
   color: var(--text-secondary);
 }
+.brush-source > div > .brush-source-summary {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
 .brush-target-heading {
   display: flex;
   align-items: center;
@@ -48,12 +62,37 @@
   min-height: 44px;
 }
 .brush-target {
-  padding: 12px 0 16px;
+  margin: 0 -12px;
+  padding: 4px 12px 14px;
   border-bottom: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+.brush-target:hover:not(.is-unavailable) {
+  background: var(--bg-control);
+}
+.brush-target.is-picked,
+.brush-target.is-picked:hover {
+  background: var(--accent-blue-soft);
 }
 .brush-target:last-child {
   border-bottom: 0;
-  padding-bottom: 0;
+}
+.brush-target.is-unavailable {
+  cursor: default;
+}
+.brush-target.is-unavailable .brush-target-preview,
+.brush-target.is-same:not(.is-picked) .brush-target-preview {
+  opacity: 0.6;
+}
+.brush-target-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-control-strong);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
 }
 .brush-target > label {
   display: flex;
@@ -80,16 +119,13 @@
 .brush-target.is-picked > label {
   color: var(--text-accent);
 }
-.brush-target.is-unavailable > label {
-  cursor: default;
-}
 .brush-target-preview {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding-left: 26px;
 }
-.brush-target.is-picked .brush-target-preview {
+.brush-target-preview.is-compare {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .brush-target-preview > div {
@@ -117,7 +153,7 @@
   color: var(--text-secondary);
 }
 @media (max-width: 520px) {
-  .brush-target.is-picked .brush-target-preview {
+  .brush-target-preview.is-compare {
     grid-template-columns: minmax(0, 1fr);
   }
   .brush-target > label {

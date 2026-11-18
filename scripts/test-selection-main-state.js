@@ -89,7 +89,8 @@ assert.ok(app.includes("function EmptyState("));
   "当前卡片没有摘录或评论",
   "没有匹配的评论",
 ].forEach((text) => assert.ok(app.includes(text), `main view state ${text} must be explicit`));
-assert.ok(app.includes('actionText="清除筛选" onAction={clearSearchAndFilter}'), "filtered empty state must provide a recovery action");
+assert.match(app, /onClick=\{clearSearchAndFilter\}>重置筛选<\/Button>/, "filter controls must provide a recovery action");
+assert.match(app, /<EmptyState title="没有匹配的评论" body="[^"]*重置筛选/, "filtered empty state must identify the recovery action");
 assert.ok(app.includes('aria-busy={noteViewState.phase === "loading" || loading ? "true" : undefined}'));
 assert.ok(styles.includes(".empty-state.error"));
 

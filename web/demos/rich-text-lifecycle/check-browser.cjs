@@ -189,7 +189,7 @@ function assertGeometry(g) {
       );
       assert.equal(
         await page.$eval(
-          '.rich-format-clipboard .rich-clipboard-swatch:last-child',
+          '.rich-format-clipboard .rich-clipboard-chip',
           (e) => e.style.backgroundColor,
         ),
         'rgb(227, 242, 253)',
@@ -317,6 +317,9 @@ function assertGeometry(g) {
       assertGeometry(editorGeometry);
       await page.screenshot({ path: path.join(output, `${width}x${height}-${color}-editor.png`) });
       await page.click('.rich-comment-dialog footer .secondary');
+      await page.waitForSelector('.rich-editor-discard');
+      assert.deepEqual(await rows(page), originalProof);
+      await page.click('.rich-editor-discard');
       await closeDialog(page);
       assert.deepEqual(await rows(page), originalProof);
       assert.equal(await page.$eval(editRow(0), (e) => e === document.activeElement), true);
@@ -358,6 +361,8 @@ function assertGeometry(g) {
         'transparent',
       );
       await page.keyboard.press('Escape');
+      await page.waitForSelector('.rich-editor-discard');
+      await page.click('.rich-editor-discard');
       await closeDialog(page);
       await page.click(undo);
       await page.waitForFunction(

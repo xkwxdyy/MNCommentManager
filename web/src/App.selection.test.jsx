@@ -191,7 +191,7 @@ describe("range and insertion selection modes", () => {
 
     await click(button("清空"));
     await click(host.querySelector("#native-excerpt input"));
-    expect(host.querySelector(".status-selected").textContent).toBe("已选 摘录");
+    expect(host.querySelector(".selection-summary p").textContent).toBe("已选 摘录");
 
     await click(button("清空"));
     await click(checkbox(0));

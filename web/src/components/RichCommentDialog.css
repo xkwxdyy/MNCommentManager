@@ -138,19 +138,57 @@
   font-size: 15px;
   line-height: 1.6;
 }
-.rich-editor-type-fields {
+.rich-editor-note {
+  margin: -4px 0 14px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--status-warning-bg, var(--bg-control));
+  color: var(--text-warning, var(--text-secondary));
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.rich-editor-format {
+  margin-top: 20px;
+}
+.rich-editor-section-head {
   display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+.rich-editor-section-head h3 {
+  margin: 0;
+}
+.rich-editor-style-note {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.rich-editor-use-clipboard {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.rich-editor-type-fields {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 220px);
   gap: 16px;
-  margin: 16px 0;
+  margin-bottom: 14px;
 }
 .rich-editor-type-fields label {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
   font-size: 13px;
 }
+.rich-editor-type-fields label > span {
+  white-space: nowrap;
+}
 .rich-editor-type-fields input {
-  width: 80px;
+  width: 100%;
 }
 .rich-editor-type-fields input,
 .rich-editor-color-field input:not([type='color']) {
@@ -163,8 +201,8 @@
   color: var(--text-primary);
 }
 .rich-editor-type-fields .html-select-trigger {
+  width: 100%;
   min-height: 44px;
-  min-width: 130px;
 }
 .rich-editor-colors {
   display: grid;
@@ -199,13 +237,13 @@
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
-.rich-editor-color-field .rich-editor-icon {
-  width: 44px;
+.rich-editor-color-field .rich-editor-reset {
+  min-width: 52px;
   min-height: 44px;
   flex: none;
-  padding: 10px;
-  border-color: transparent;
-  background: transparent;
+  padding: 8px 10px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 .rich-editor-color-field [aria-invalid='true'] {
   border-color: var(--text-danger);
@@ -228,6 +266,13 @@
   overflow-wrap: anywhere;
   line-height: 1.6;
   max-width: 100%;
+}
+.rich-editor-sample.is-placeholder {
+  opacity: 0.55;
+}
+.rich-editor-footer-status.is-warning {
+  color: var(--text-warning, var(--text-primary));
+  font-weight: 600;
 }
 .rich-editor-error,
 .brush-error {
@@ -281,18 +326,30 @@
 .rich-format-clipboard > div:first-child {
   flex: 1;
 }
-.rich-format-clipboard .rich-clipboard-text {
+.rich-format-clipboard .rich-clipboard-label {
+  flex: none;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.rich-format-clipboard .rich-clipboard-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 14em;
+  padding: 2px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
 }
-.rich-format-clipboard .rich-clipboard-swatch {
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  flex: none;
+.rich-format-clipboard .rich-clipboard-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .rich-format-clipboard .ghost {
   min-height: 44px;
@@ -316,8 +373,8 @@
     padding: 10px 12px;
   }
   .rich-editor-type-fields {
+    grid-template-columns: 96px minmax(0, 1fr);
     gap: 12px;
-    flex-wrap: wrap;
   }
   .rich-editor-colors {
     grid-template-columns: 1fr;
@@ -326,13 +383,13 @@
   .rich-format-clipboard {
     padding-inline: 12px;
   }
-  .rich-format-clipboard .rich-clipboard-swatch {
+  .rich-format-clipboard .rich-clipboard-text,
+  .rich-format-clipboard .rich-clipboard-paste-label {
     display: none;
   }
   .rich-format-clipboard .ghost {
     width: 44px;
     padding: 10px;
-    font-size: 0;
     gap: 0;
   }
 }
