@@ -1,8 +1,27 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-15T17:19:38.050604+00:00",
+  "updatedAt": "2026-11-18T11:35:45.159537+00:00",
   "entries": [
+    {
+      "version": "0.1.44",
+      "channel": "stable",
+      "date": "2026-11-18",
+      "items": [
+        {
+          "zh": "整理富文本编辑器和格式刷控件，改善样式预览及键盘焦点。",
+          "en": "Refine rich-text editing and format brush controls, with improved style previews and keyboard focus."
+        },
+        {
+          "zh": "窄窗口可从更多操作访问模块划分、工作流和设置，常用操作保留在面板顶部。",
+          "en": "Access modules, workflows, and settings from the More menu in narrow panels while keeping common actions in the toolbar."
+        },
+        {
+          "zh": "简化评论筛选和快捷编辑，搜索无匹配时可从筛选栏恢复全部评论。",
+          "en": "Streamline comment filtering and quick editing, with a reset action to restore all comments when a search has no matches."
+        }
+      ]
+    },
     {
       "version": "0.1.43",
       "channel": "stable",
