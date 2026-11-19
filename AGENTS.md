@@ -1,5 +1,9 @@
 # MarginNote 插件开发规则（AI 必读）
 
+## 工作区指南
+
+开始仓库任务前，从该仓库的 Git 根沿父目录向上查找。将同时包含 `AGENTS.md` 和 `MarginNote Addon/Tooling/internal/config/workspace-catalog.json` 的目录识别为 MarginNote Develop 工作区。同一任务首次开始前读取该目录的 `AGENTS.md` 一次。独立检出找不到该工作区时，按本仓库指南继续。
+
 ## 总则
 
 - 本目录是 MarginNote 插件开发项目。除 `web/` 目录外，运行环境与前端 / Node 不同，不要按浏览器假设做实现。
@@ -67,17 +71,15 @@
 - 新增 Web 持久化需求时，先在 `src/WebBridgeCommands.js` 增加命令，再在插件侧存储模块实现读写，Web 侧只能调用 `MNBridge.send(command, payload)`。
 - 如果历史版本已经使用 `localStorage` 保存业务数据，只允许做一次性迁移：读取 allowlist key，发 bridge 写入 Native，成功后清理旧 key；迁移后不得继续双写。
 
-## Bug Issue 自动跟踪
+## 缺陷跟踪入口
 
-- Bug 反馈、回归和修复默认创建或复用 GitHub Issue，并记录根因、改动、验证与待验收项；用户已给予持续授权，无需逐次确认。
-- 本目录是独立仓库 `xkwxdyy/MNCommentManager`。先查本仓库及父仓库 `xkwxdyy/MN-Addons` 的相关历史，已有跨插件 Issue 优先关联，不重复建单。
-- 在当前 MNAddon 工作区使用 `../.agents/skills/github-issue-tracker/SKILL.md`；独立检出时沿用本节规则并使用 gh。推送、发布与其他外部沟通不在自动 Bug 跟踪授权中。
-- 收尾提供 Issue 链接；网络失败保存草稿并明确报告。历史测试与本次测试分开，未完成真机验收保持开放，关闭需对应授权与完整证据。
+- 对应仓库为 `xkwxdyy/MNCommentManager`。涉及跨插件或历史行为时，检查本仓和有权访问的历史 Issues，确认是否已有相同问题。
+- 在 MarginNote Develop 中按共享指南登记。需要共用脚本时，读取工作区根下的 `MarginNote Addon/Tooling/internal/skills/agents/github-issue-tracker/SKILL.md`。独立检出可用本地 `gh` 处理已获授权的 Issue。
 
 ## 测试版安装与重启
 
 - 用户于 2026-10-12 明确授权：本项目每次更新并验证测试安装包后，直接安装到本机 MarginNote 插件目录，再重启 MarginNote，无需重复确认。
-- 参考父目录 `batch_build_addons.sh` 的安装流程，使用已验证的 `.mnaddon` 包和包内 `addonid` 定位目标，不复制可能包含旧网页产物的源码目录。
+- 参考工作区根下 `MarginNote Addon/Tooling/internal/bin/batch_build_addons.sh` 的安装流程，使用已验证的 `.mnaddon` 包和包内 `addonid` 定位目标，不复制可能包含旧网页产物的源码目录。
 - 安装前备份现有插件文件，正常退出应用后替换对应插件目录；安装后核对文件与包内资源一致，再启动 MarginNote。正常退出失败时保留现有安装，不因该约定自动强制结束应用。
 - 本授权仅涵盖当前项目的本机测试安装与重启，不包含正式发布、推送、上传或其他插件的更新。
 
