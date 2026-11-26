@@ -75,6 +75,25 @@ test('recognizers attach only to management and retry without duplicates', () =>
   assert.equal(f.menu.subviews[0].gestures.length, 2); assert.equal(f.menu.subviews[1].gestures.length, 0);
   const [double, hold] = f.menu.subviews[0].gestures; assert.equal(double.numberOfTapsRequired, 2); assert(double.delaysTouchesBegan && double.delaysTouchesEnded && double.cancelsTouchesInView); assert.equal(hold.minimumPressDuration, .5);
 });
+test('a partial native gesture attachment leaves no recognizer across menu openings', () => {
+  for (const kind of ['double', 'hold']) {
+    const f = fixture(), button = f.menu.subviews[0];
+    const addGesture = button.addGestureRecognizer;
+    button.addGestureRecognizer = function (gesture) {
+      addGesture.call(this, gesture);
+      if ((gesture.numberOfTapsRequired === 2) === (kind === 'double')) throw new Error('failed after attaching the ' + kind + ' gesture');
+    };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      f.open(); f.tick(.02);
+      assert.equal(button.gestures.length, 1);
+    }
+    button.addGestureRecognizer = addGesture;
+    f.open(); f.tick(.02);
+    assert.equal(button.gestures.length, 2);
+    f.api.dispose(f.addon);
+    assert.equal(button.gestures.length, 0);
+  }
+});
 test('double and hold dispatch exactly once and suppress a trailing native tap', () => {
   for (const kind of ['double', 'hold']) {
     const f = fixture(); f.open(); f.tick(); const binding = f.addon.mncmNativeCardMenuState.bindings[0], gesture = binding[kind];

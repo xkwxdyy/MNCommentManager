@@ -88,6 +88,22 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
     }
     return !queue.length && matches.length === 1 ? matches[0] : null;
   }
+  function attachGesture(binding, kind, gesture) {
+    try {
+      binding.button.addGestureRecognizer(gesture);
+    } catch (error) {
+      try {
+        binding.button.removeGestureRecognizer(gesture);
+      } catch (cleanupError) {
+        binding.gestures.push(gesture);
+        record('detach-error', { message: String(cleanupError) });
+      }
+      throw error;
+    }
+    binding.gestures.push(gesture);
+    binding[kind] = gesture;
+  }
+
   function attach(addon, state) {
     try {
       if (!active(addon) || !state.noteId) return;
@@ -111,12 +127,12 @@ var __MN_NATIVE_CARD_MENU_MNCommentManagerAddon = (function () {
       try {
         const double = new UITapGestureRecognizer(addon, 'mncmNativeCardMenuGesture:');
         double.numberOfTapsRequired = 2; double.delaysTouchesBegan = true; double.delaysTouchesEnded = true; double.cancelsTouchesInView = true;
-        button.addGestureRecognizer(double); binding.double = double; binding.gestures.push(double);
+        attachGesture(binding, 'double', double);
       } catch (error) { record('double-bind-error', { message: String(error) }); }
       try {
         const hold = new UILongPressGestureRecognizer(addon, 'mncmNativeCardMenuGesture:');
         hold.minimumPressDuration = 0.5; hold.cancelsTouchesInView = true;
-        button.addGestureRecognizer(hold); binding.hold = hold; binding.gestures.push(hold);
+        attachGesture(binding, 'hold', hold);
       } catch (error) { record('hold-bind-error', { message: String(error) }); }
       button.accessibilityHint = ['单击打开快捷面板', binding.double ? '双击打开完整面板' : '', binding.hold ? '长按打开整卡操作' : ''].filter(Boolean).join('，');
 

@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-26T02:36:56.361864+00:00",
+  "updatedAt": "2026-11-26T10:54:24.593966+00:00",
   "entries": [
+    {
+      "version": "0.1.46",
+      "channel": "stable",
+      "date": "2026-11-26",
+      "items": [
+        {
+          "zh": "修复单卡和多卡跟随入口在布局失败时残留按钮或标签的问题。",
+          "en": "Remove floating buttons and selection labels when their layout setup fails."
+        },
+        {
+          "zh": "修复原生卡片菜单在挂载异常后残留双击或长按手势的问题。",
+          "en": "Clean up double-tap and long-press recognizers if attachment fails in the native card menu."
+        }
+      ]
+    },
     {
       "version": "0.1.45",
       "channel": "stable",
