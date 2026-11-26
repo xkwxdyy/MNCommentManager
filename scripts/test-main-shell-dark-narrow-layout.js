@@ -116,12 +116,16 @@ const topbarEnd = app.indexOf("</header>", topbarStart);
 assert.notStrictEqual(topbarStart, -1, "topbar actions must exist");
 assert.notStrictEqual(topbarEnd, -1, "topbar actions must close");
 const topbarSource = app.slice(topbarStart, topbarEnd);
-const labels = ["全选", "反选", "清空", "选范围", "刷新", "工作流", "设置", "关闭"];
+const labels = ["全选", "选范围", "新建评论", "刷新", "工作流", "设置", "关闭"];
 let previous = -1;
 for (const label of labels) {
   const index = topbarSource.indexOf(label, previous + 1);
   assert.ok(index > previous, `topbar command ${label} must remain present and ordered`);
   previous = index;
 }
+
+assert.match(topbarSource, /<TopbarMoreMenu\s+className="topbar-narrow-only"[\s\S]*?label: "工作流"[\s\S]*?label: "设置"/);
+assert.ok(!topbarSource.includes("反选"), "inversion belongs to the selection actions");
+assert.match(app, /onClick=\{invertVisibleSelection\}>反选<\/Button>/);
 
 console.log("main shell dark and narrow layout regression passed");

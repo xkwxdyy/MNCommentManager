@@ -78,6 +78,7 @@ it('pins editor data through A→B, then returns to the latest A instead of stal
   expect(field('评论正文').value).toBe('保留输入');
   await sync(a);
   await click(document.querySelector('.rich-editor-dialog footer .secondary'));
+  await click(document.querySelector('.rich-editor-discard'));
   expect(host.querySelector('.topbar-title').textContent).toContain('有界算子');
   expect(document.querySelector('.rich-editor-dialog')).toBeNull();
 });
@@ -205,5 +206,39 @@ it('preselects main-list selected comments when opening paste preview from RichC
   await click(host.querySelector('#comment-1 input[type="checkbox"]'));
   await click(field('批量粘贴已复制的格式'));
   expect(document.querySelector('.brush-dialog')).toBeTruthy();
+  expect(document.querySelector('[aria-label="选择目标评论 #1"]').checked).toBe(true);
+});
+it('asks before discarding unsaved edits; a second Escape keeps editing', async () => {
+  await click(field('编辑富文本评论 #0'));
+  await fill(field('评论正文'), '未保存的修改');
+  const esc = () =>
+    act(async () =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+    );
+  await esc();
+  expect(document.querySelector('.rich-editor-discard')).toBeTruthy();
+  await esc();
+  expect(document.querySelector('.rich-editor-discard')).toBeNull();
+  expect(field('评论正文').value).toBe('未保存的修改');
+  await click(document.querySelector('.rich-editor-dialog header button'));
+  await click(document.querySelector('.rich-editor-discard'));
+  expect(document.querySelector('.rich-editor-dialog')).toBeNull();
+  expect(store.card.comments[0].text).toBe('证明');
+});
+it('marks the copied source row and lets the editor apply the copied format', async () => {
+  await click(field('复制评论 #0 的格式'));
+  expect(host.querySelector('#comment-0 .rich-copy-format').classList).toContain('is-format-source');
+  await click(field('编辑富文本评论 #2'));
+  await click(document.querySelector('.rich-editor-use-clipboard'));
+  expect(field('文字颜色').value).toBe('#175D62');
+  expect(document.querySelector('.rich-editor-use-clipboard')).toBeNull();
+});
+it('skips comments that already use the format when selecting all paste targets', async () => {
+  await click(field('复制评论 #0 的格式'));
+  await click(field('批量粘贴已复制的格式'));
+  const same = document.querySelector('[aria-label="选择目标评论 #0"]');
+  expect(same.closest('.brush-target').querySelector('.brush-target-tag')).toBeTruthy();
+  await click([...document.querySelectorAll('.brush-target-heading button')][0]);
+  expect(same.checked).toBe(false);
   expect(document.querySelector('[aria-label="选择目标评论 #1"]').checked).toBe(true);
 });

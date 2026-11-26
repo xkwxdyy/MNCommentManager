@@ -1,8 +1,42 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-15T17:19:38.050604+00:00",
+  "updatedAt": "2026-11-26T02:36:56.361864+00:00",
   "entries": [
+    {
+      "version": "0.1.45",
+      "channel": "stable",
+      "date": "2026-11-26",
+      "items": [
+        {
+          "zh": "iPhone 和 iPad 的「添加」按钮固定在标题栏，键盘打开时也可直接发送评论。",
+          "en": "The Add button stays in the title bar on iPhone and iPad, making it possible to send a comment while the keyboard is open."
+        },
+        {
+          "zh": "拖动标题区域可移动输入面板，顶部短横条继续调整高度。拖动时保留正文和输入焦点。",
+          "en": "Drag the title area to move the comment panel. Use the top handle to resize it. Moving the panel preserves the draft and input focus."
+        }
+      ]
+    },
+    {
+      "version": "0.1.44",
+      "channel": "stable",
+      "date": "2026-11-18",
+      "items": [
+        {
+          "zh": "整理富文本编辑器和格式刷控件，改善样式预览及键盘焦点。",
+          "en": "Refine rich-text editing and format brush controls, with improved style previews and keyboard focus."
+        },
+        {
+          "zh": "窄窗口可从更多操作访问模块划分、工作流和设置，常用操作保留在面板顶部。",
+          "en": "Access modules, workflows, and settings from the More menu in narrow panels while keeping common actions in the toolbar."
+        },
+        {
+          "zh": "简化评论筛选和快捷编辑，搜索无匹配时可从筛选栏恢复全部评论。",
+          "en": "Streamline comment filtering and quick editing, with a reset action to restore all comments when a search has no matches."
+        }
+      ]
+    },
     {
       "version": "0.1.43",
       "channel": "stable",

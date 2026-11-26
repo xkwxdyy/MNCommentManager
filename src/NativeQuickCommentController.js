@@ -170,6 +170,7 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       s.pending = false; changed(controller); focus(controller);
     });
   }
+  function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
   function layout(controller) {
     const s = state(controller);
     if (!s || !s.ready || controller._quickClosePending) return;
@@ -180,21 +181,27 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       const width = Math.max(0, Math.min(560, right - left - margin * 2));
       const maximum = Math.max(0, bottom - top - margin * 2);
       const height = Math.min(maximum, Math.max(Math.min(194, maximum), preferredHeight));
-      return { maximum, frame: { x: left + (right - left - width) / 2,
-        y: bounds.width <= 600 ? bottom - margin - height : top + (bottom - top - height) / 2, width, height } };
+      const center = { x: left + (right - left - width) / 2, y: top + (bottom - top - height) / 2 };
+      const position = s.position || center;
+      const insetX = Math.min(margin, (right - left) / 2);
+      const insetY = Math.min(margin, (bottom - top) / 2);
+      return { maximum, frame: {
+        x: clamp(position.x, left + insetX, right - insetX - width),
+        y: clamp(position.y, top + insetY, bottom - insetY - height),
+        width, height,
+      } };
     };
     let placement = candidate(0, 0, bounds.width, bounds.height);
     const keyboard = s.keyboard;
     const frame = placement.frame;
     if (keyboard && keyboard.width > 0 && keyboard.height > 0 && keyboard.x < frame.x + frame.width && keyboard.x + keyboard.width > frame.x && keyboard.y < frame.y + frame.height && keyboard.y + keyboard.height > frame.y) {
-      const clamp = (value, maximum) => Math.max(0, Math.min(maximum, value));
-      const above = candidate(0, 0, bounds.width, clamp(keyboard.y, bounds.height));
-      const below = candidate(0, clamp(keyboard.y + keyboard.height, bounds.height), bounds.width, bounds.height);
+      const above = candidate(0, 0, bounds.width, clamp(keyboard.y, 0, bounds.height));
+      const below = candidate(0, clamp(keyboard.y + keyboard.height, 0, bounds.height), bounds.width, bounds.height);
       placement = above.maximum >= below.maximum ? above : below;
       if (placement.frame.height < 194) {
-        const sides = [candidate(0, 0, clamp(keyboard.x, bounds.width), bounds.height),
-          candidate(clamp(keyboard.x + keyboard.width, bounds.width), 0, bounds.width, bounds.height)];
-        // 188 points keeps every existing footer control inside the panel.
+        const sides = [candidate(0, 0, clamp(keyboard.x, 0, bounds.width), bounds.height),
+          candidate(clamp(keyboard.x + keyboard.width, 0, bounds.width), 0, bounds.width, bounds.height)];
+        // Keep enough width for the title and the two header controls.
         sides.forEach(side => {
           if (side.frame.width >= 188 && (side.frame.height > placement.frame.height || side.frame.height === placement.frame.height && side.frame.width > placement.frame.width)) placement = side;
         });
@@ -209,24 +216,28 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     const errorHeight = s.error.text && !footerError ? compact ? 32 : 48 : 0;
     const fieldY = compact ? 60 : 82;
     const textHeight = Math.max(40, height - fieldY - 62 - errorHeight);
-    const footerY = fieldY + textHeight + errorHeight + 4;
-    s.panel.contentSize = { width, height: footerY + 56 };
+    const footerY = textHeight + errorHeight + 4;
+    s.body.frame = { x: 0, y: fieldY, width, height: Math.max(0, height - fieldY) };
+    s.body.contentSize = { width, height: footerY + 56 };
     s.grabber.frame = { x: s.panel.frame.x + Math.max(0, (width - 88) / 2), y: s.panel.frame.y, width: Math.min(88, width), height: 30 };
     s.grabber.accessibilityValue = "高度 " + Math.round(height) + " 点";
     s.grabberLine.frame = { x: Math.max(0, (s.grabber.frame.width - 34) / 2), y: 9, width: 34, height: 5 };
-    s.title.frame = { x: 16, y: compact ? 28 : 30, width: Math.max(0, width - 76), height: 20 };
-    s.subtitle.frame = { x: 16, y: 52, width: Math.max(0, width - 76), height: 18 }; s.subtitle.hidden = compact;
-    s.close.frame = { x: width - 56, y: 24, width: 44, height: 44 };
-    s.input.frame = { x: 14, y: fieldY, width: Math.max(0, width - 28), height: textHeight };
-    s.placeholder.frame = { x: 20, y: fieldY + 6, width: Math.max(0, width - 40), height: 26 };
+    s.header.frame = { x: 12, y: 22, width: Math.max(0, width - 126), height: fieldY - 22 };
+    const titleWidth = Math.max(0, s.header.frame.width - 4);
+    s.title.frame = { x: 4, y: compact ? 6 : 8, width: titleWidth, height: 20 };
+    s.subtitle.frame = { x: 4, y: 30, width: titleWidth, height: 18 }; s.subtitle.hidden = compact;
+    const actionY = clamp(height - 44, 0, 24);
+    s.submit.frame = { x: width - 108, y: actionY, width: 44, height: 44 };
+    s.close.frame = { x: width - 56, y: actionY, width: 44, height: 44 };
+    s.input.frame = { x: 14, y: 0, width: Math.max(0, width - 28), height: textHeight };
+    s.placeholder.frame = { x: 20, y: 6, width: Math.max(0, width - 40), height: 26 };
     s.error.frame = footerError
-      ? { x: 16, y: footerY + 8, width: Math.max(0, width - 210), height: 36 }
-      : { x: 16, y: fieldY + textHeight, width: Math.max(0, width - 32), height: errorHeight };
-    s.hint.frame = { x: 16, y: footerY + 8, width: Math.max(0, width - 210), height: 36 };
+      ? { x: 16, y: footerY + 8, width: Math.max(0, width - 158), height: 36 }
+      : { x: 16, y: textHeight, width: Math.max(0, width - 32), height: errorHeight };
+    s.hint.frame = { x: 16, y: footerY + 8, width: Math.max(0, width - 158), height: 36 };
     s.hint.hidden = compact || width < 300;
-    s.markdownButton.frame = { x: width - 188, y: footerY + 4, width: 76, height: 44 };
-    s.newline.frame = { x: width - 108, y: footerY + 4, width: 44, height: 44 };
-    s.submit.frame = { x: width - 60, y: footerY + 4, width: 44, height: 44 };
+    s.markdownButton.frame = { x: width - 136, y: footerY + 4, width: 76, height: 44 };
+    s.newline.frame = { x: width - 56, y: footerY + 4, width: 44, height: 44 };
   }
   function keyboard(controller, event, rect) {
     const s = state(controller);
@@ -259,6 +270,18 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     }
     if (gesture.state >= 3) s.resizeStart = null;
   }
+  function move(controller, gesture) {
+    const s = state(controller);
+    if (!active(controller, s) || !gesture) return;
+    if (gesture.state >= 3 || s.pending) { s.moveStart = null; return; }
+    if (gesture.state === 1) s.moveStart = s.panel.frame;
+    if (gesture.state !== 2 || !s.moveStart) return;
+    const delta = gesture.translationInView(controller.view);
+    if (!delta || !Number.isFinite(delta.x) || !Number.isFinite(delta.y)) return;
+    s.position = { x: s.moveStart.x + delta.x, y: s.moveStart.y + delta.y };
+    layout(controller);
+    s.position = { x: s.panel.frame.x, y: s.panel.frame.y };
+  }
   const nativeClass = JSB.defineClass("MNNativeQuickCommentController_MNCommentManagerAddon : UIViewController <UITextViewDelegate>", {
     viewDidLoad: function () { self.view.backgroundColor = UIColor.clearColor(); self.view.opaque = false; },
     viewDidLayoutSubviews: function () { const controller = self; guarded(controller, s => s && s.actions.layout(controller)); },
@@ -270,6 +293,7 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     mncmNativeMarkdown: function () { const controller = self; guarded(controller, () => toggleMarkdown(controller)); },
     mncmNativeNewline: function () { const controller = self; guarded(controller, () => newline(controller)); },
     mncmNativeResize: function (gesture) { const controller = self; guarded(controller, () => resize(controller, gesture)); },
+    mncmNativeMove: function (gesture) { const controller = self; guarded(controller, () => move(controller, gesture)); },
   });
   function create(actions) {
     const controller = nativeClass.new();
@@ -284,31 +308,38 @@ var __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     const dark = theme === "Dark" || theme === "Gray", ink = dark ? "#edf0f5" : "#202632", muted = dark ? "#a3adbc" : "#707a88";
     s.backdrop = button(controller, controller.view, "", "关闭输入并保留草稿", "mncmNativeClose");
     s.backdrop.backgroundColor = UIColor.clearColor();
-    s.panel = new UIScrollView(controller.view.bounds);
+    s.panel = new UIView(controller.view.bounds);
     s.panel.backgroundColor = color(dark ? "#252b35" : "#fcfcfd"); s.panel.layer.cornerRadius = 24;
-    s.panel.clipsToBounds = true; s.panel.bounces = false;
+    s.panel.clipsToBounds = true;
     controller.view.addSubview(s.panel);
+    s.body = new UIScrollView(s.panel.bounds);
+    s.body.bounces = false;
+    s.panel.addSubview(s.body);
+    s.header = new UIView(s.panel.bounds);
+    s.panel.addSubview(s.header);
+    const moveGesture = new UIPanGestureRecognizer(controller, "mncmNativeMove:");
+    moveGesture.maximumNumberOfTouches = 1; s.header.addGestureRecognizer(moveGesture);
     s.grabber = button(controller, controller.view, "", "上下拖动调整输入框高度", null);
     s.grabberLine = new UIView({ x: 27, y: 9, width: 34, height: 5 });
     s.grabberLine.backgroundColor = color(muted, 0.45); s.grabberLine.layer.cornerRadius = 2.5; s.grabberLine.userInteractionEnabled = false;
     s.grabber.addSubview(s.grabberLine);
     s.resizeGesture = new UIPanGestureRecognizer(controller, "mncmNativeResize:");
     s.resizeGesture.maximumNumberOfTouches = 1; s.grabber.addGestureRecognizer(s.resizeGesture);
-    s.title = label(s.panel, "添加评论", 13, ink);
-    s.subtitle = label(s.panel, current.noteTitle, 12, muted);
+    s.title = label(s.header, "添加评论", 13, ink);
+    s.subtitle = label(s.header, current.noteTitle, 12, muted);
     s.close = button(controller, s.panel, "×", "关闭输入并保留草稿", "mncmNativeClose");
     s.input = UITextView.new(); s.input.font = UIFont.systemFontOfSize(18);
     s.input.textColor = color(ink); s.input.backgroundColor = UIColor.clearColor();
     s.input.textContainerInset = { top: 6, left: 0, bottom: 8, right: 0 };
     s.input.text = current.submission && current.submission.status !== "failed" ? current.submission.text : current.draft;
     s.input.accessibilityLabel = "评论内容"; s.input.delegate = controller;
-    s.panel.addSubview(s.input);
-    s.placeholder = label(s.panel, "输入评论内容", 18, muted); s.placeholder.userInteractionEnabled = false;
-    s.error = label(s.panel, "", 12, dark ? "#ffb4ae" : "#b03e38"); s.error.numberOfLines = 0;
-    s.hint = label(s.panel, "回车换行\n关闭后保留草稿", 11, muted); s.hint.numberOfLines = 2;
-    s.markdownButton = button(controller, s.panel, "Markdown", "启用 Markdown 评论", "mncmNativeMarkdown");
+    s.body.addSubview(s.input);
+    s.placeholder = label(s.body, "输入评论内容", 18, muted); s.placeholder.userInteractionEnabled = false;
+    s.error = label(s.body, "", 12, dark ? "#ffb4ae" : "#b03e38"); s.error.numberOfLines = 0;
+    s.hint = label(s.body, "回车换行\n关闭后保留草稿", 11, muted); s.hint.numberOfLines = 2;
+    s.markdownButton = button(controller, s.body, "Markdown", "启用 Markdown 评论", "mncmNativeMarkdown");
     s.markdownButton.titleLabel.font = UIFont.systemFontOfSize(13); s.markdownButton.layer.cornerRadius = 12;
-    s.newline = button(controller, s.panel, "↵", "插入换行", "mncmNativeNewline");
+    s.newline = button(controller, s.body, "↵", "插入换行", "mncmNativeNewline");
     s.submit = button(controller, s.panel, "添加", "添加评论", "mncmNativeSubmit");
     s.submit.titleLabel.font = UIFont.boldSystemFontOfSize(15);
     s.submit.backgroundColor = color("#3478ed"); s.submit.layer.cornerRadius = 14;

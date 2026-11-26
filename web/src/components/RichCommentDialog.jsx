@@ -6,6 +6,7 @@ export default function RichCommentDialog({
   title,
   busy,
   onClose,
+  onEscape,
   onConfirmShortcut,
   preventBackdropClose = false,
   trigger,
@@ -18,14 +19,17 @@ export default function RichCommentDialog({
   const ref = useRef(null),
     busyRef = useRef(busy),
     closeRef = useRef(onClose),
+    escapeRef = useRef(onEscape),
     confirmRef = useRef(onConfirmShortcut);
   busyRef.current = busy;
   closeRef.current = onClose;
+  escapeRef.current = onEscape;
   confirmRef.current = onConfirmShortcut;
   useEffect(() => {
     const previous = trigger || document.activeElement,
       previousRow = previous?.closest('[data-comment-index]')?.id;
-    ref.current.querySelector('textarea,button,input')?.focus();
+    const dialog = ref.current;
+    (dialog.querySelector('textarea:not(:disabled)') || dialog.querySelector('button,input'))?.focus();
     const key = (e) => {
       if (e.isComposing || e.keyCode === 229) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && confirmRef.current) {
@@ -38,7 +42,7 @@ export default function RichCommentDialog({
         if (ref.current.querySelector('[role="listbox"]')) return;
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (!busyRef.current) closeRef.current();
+        if (!busyRef.current) (escapeRef.current || closeRef.current)();
       }
       if (e.key === 'Tab') {
         const all = [

@@ -1,40 +1,40 @@
 import ActionIcon from './ActionIcon';
-import { RichActionIcon, formatStyleSummary } from './RichCommentPresentation';
-export default function RichClipboardBar({ clipboard, busy, onPaste, onClear }) {
+import { RichActionIcon, formatStyleSummary, richTextStyle } from './RichCommentPresentation';
+export default function RichClipboardBar({ clipboard, busy, selectedCount = 0, onPaste, onClear }) {
   if (!clipboard) return null;
   const summary = formatStyleSummary(clipboard.style);
   const rawText = String(clipboard.text || '').trim();
-  const excerpt = rawText.length > 10 ? rawText.slice(0, 10) + '…' : rawText;
+  const excerpt = rawText.length > 12 ? rawText.slice(0, 12) + '…' : rawText;
+  const origin = [
+    clipboard.noteTitle ? `来自「${clipboard.noteTitle}」` : '',
+    Number.isSafeInteger(clipboard.index) ? `评论 #${clipboard.index}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const pasteLabel = selectedCount > 0 ? `粘贴到所选 ${selectedCount} 条…` : '粘贴到…';
   return (
-    <div className="rich-format-clipboard has-format" aria-label="已复制的格式">
-      <div>
+    <div className="rich-format-clipboard has-format" role="region" aria-label="已复制的格式">
+      <div title={`${origin}${rawText ? `：${rawText}` : ''}`}>
         <RichActionIcon name="copy" />
+        <span className="rich-clipboard-label">已复制格式</span>
         <span
-          className="rich-clipboard-text"
-          title={`${clipboard.noteTitle || '当前卡片'}${rawText ? ` · ${rawText}` : ''}`}
+          className="rich-clipboard-chip"
+          style={{ ...richTextStyle(clipboard.style), fontSize: undefined }}
         >
-          已复制格式：{summary}
-          {excerpt ? `（源：${excerpt}）` : ''}
+          {excerpt || 'Aa'}
         </span>
-        {[clipboard.style.textColor, clipboard.style.backgroundColor].map((c, i) => (
-          <span
-            key={i}
-            className="rich-clipboard-swatch"
-            style={{ background: c || 'transparent' }}
-            title={`${i ? '背景' : '文字'} ${c || '默认'}`}
-          />
-        ))}
+        <span className="rich-clipboard-text">{summary}</span>
       </div>
       <div>
         <button
           className="ghost"
           aria-label="批量粘贴已复制的格式"
-          title="选择目标评论粘贴格式"
+          title={selectedCount > 0 ? '预览并粘贴到所选评论' : '选择要粘贴格式的评论'}
           disabled={busy}
           onClick={onPaste}
         >
           <RichActionIcon name="paste" />
-          粘贴格式…
+          <span className="rich-clipboard-paste-label">{pasteLabel}</span>
         </button>
         <button
           className="rich-comment-icon"

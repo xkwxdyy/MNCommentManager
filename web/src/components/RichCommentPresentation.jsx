@@ -42,6 +42,12 @@ function autoContrastColor(backgroundColor) {
   const b = parseInt(backgroundColor.slice(5, 7), 16);
   return 0.299 * r + 0.587 * g + 0.114 * b >= 150 ? '#1d1d1f' : '#f5f5f7';
 }
+export function sameRichStyle(a, b) {
+  if (!a || !b) return false;
+  return ['fontName', 'fontSize', 'textColor', 'backgroundColor'].every(
+    (key) => String(a[key] ?? '').toUpperCase() === String(b[key] ?? '').toUpperCase(),
+  );
+}
 export function formatStyleSummary(style) {
   if (!style) return '';
   const fontLabel =

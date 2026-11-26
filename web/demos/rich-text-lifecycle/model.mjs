@@ -132,6 +132,7 @@ export function createStore(fixtures = FIXTURES) {
     return {
       style: clone(c.style),
       sourceCard: current().title,
+      sourceCardId: currentId,
       sourceKey: c.key,
       sourceText: c.text,
       sourceIndex: index,
@@ -200,6 +201,7 @@ export function createStore(fixtures = FIXTURES) {
       key: c?.key || null,
       text: c ? (c.kind === 'markdown' && mode === 'rich' ? plain : c.text) : '',
       style: clone(c?.style || clipboard?.style || DEFAULT_STYLE),
+      styleSource: c?.style ? 'comment' : clipboard ? 'clipboard' : 'default',
     };
   }
   return {
@@ -232,6 +234,7 @@ export function createStore(fixtures = FIXTURES) {
                 style: clone(clipboard.style),
                 text: clipboard.sourceText,
                 noteTitle: clipboard.sourceCard,
+                noteId: clipboard.sourceCardId,
                 index: clipboard.sourceIndex,
               }
             : null,

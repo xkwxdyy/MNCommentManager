@@ -194,10 +194,10 @@ it('gates card switching and focus on active module action modals rather than pe
   for(const icon of host.querySelectorAll('.module-icon')) await click(icon);
   expect(btn('全选').disabled).toBe(false);
   await click(btn('全选'));
-  expect(host.querySelector('.status-selected').textContent).toContain('7 条评论');
+  expect(host.querySelector('.selection-summary p').textContent).toContain('7 条评论');
   await click([...host.querySelectorAll('.segmented button')].find(n=>n.textContent.startsWith('文本')));
   expect(host.querySelector('.list-context-summary strong').textContent).toBe('4 / 7 条评论');
-  expect(host.querySelector('.status-visible').textContent).toBe('匹配 4 条（显示 0 条）');
+  expect(host.querySelector('.list-context-visible').textContent).toBe('折叠模块后显示 0 条');
 });
 
 it('supports collapsible sidebar rail with search wake, lossless module title anchors, and contextual selection quick actions',async()=>{
