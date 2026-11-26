@@ -349,58 +349,77 @@ var __MN_DYNAMIC_COMMENT_ACTIONS__ = (function () {
     const menu = adding === "menu", moving = adding === "move";
     const property = menu ? "dynamicCommentMenuButton" : moving ? "dynamicMoveCommentButton" : adding ? "dynamicAddCommentButton" : "dynamicCommentButton";
     const tag = menu ? MENU_BUTTON_TAG : moving ? MOVE_BUTTON_TAG : adding ? ADD_BUTTON_TAG : BUTTON_TAG;
-    let button = addon[property];
-    if (!button) {
-      const staleButton = findHostedButton(hostView, tag);
-      try { if (staleButton && staleButton.removeFromSuperview) staleButton.removeFromSuperview(); } catch (_) {}
-    }
-    if (!button) {
-      button = UIButton.buttonWithType(0);
-      button.tag = tag;
-      button.frame = { x: 0, y: 0, width: BUTTON_SIZE, height: BUTTON_SIZE };
-      button.layer.cornerRadius = BUTTON_SIZE * 0.5;
-      button.layer.shadowOffset = { width: 0, height: 2 };
-      button.layer.shadowRadius = 8;
-      button.layer.shadowOpacity = 0.18;
-      button.layer.shadowColor = MNUtil.hexColorAlpha("#1f2937", 1);
-      button.backgroundColor = MNUtil.hexColorAlpha("#ffffff", 0.96);
-      button.layer.borderWidth = 1;
-      button.layer.borderColor = MNUtil.hexColorAlpha("#d1d5db", 0.95);
-      if (menu) button.setTitleForState("⌄", 0);
-      else if (moving) button.setTitleForState("↕", 0);
-      else try { button.setImageForState(MNUtil.getImage(`${addon.mainPath}/${adding ? "comment-add" : "comment-manage"}.png`, 3), 0); }
-      catch (_) { button.setTitleForState(adding ? "＋" : "☷", 0); }
-      button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1), 0);
-      button.titleLabel.font = UIFont.boldSystemFontOfSize(15);
-      button.accessibilityLabel = menu ? "整卡操作" : moving ? "评论整理" : adding ? "添加评论" : "评论管理器";
-      button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchDown:", 1 << 0);
-      button.addTargetActionForControlEvents(addon, menu ? "dynamicCommentMenuButtonTapped:" : moving ? "dynamicMoveCommentButtonTapped:" : adding ? "dynamicAddCommentButtonTapped:" : "dynamicCommentButtonTapped:", 1 << 6);
-      button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchEnded:", (1 << 7) | (1 << 8));
-      if (!moving && !menu) try {
-        MNButton.addLongPressGesture(button, addon, adding ? "dynamicAddCommentButtonLongPressed:" : "dynamicCommentButtonLongPressed:", 0.45);
-      } catch (error) {
-        console.log(`[MN Comment Manager] dynamic long-press binding failed: ${error && error.message ? error.message : error}`);
+    if (addon.mncmDynamicControlPreparing) return null;
+    addon.mncmDynamicControlPreparing = true;
+    let button;
+    let registeredNewButton = false;
+    try {
+      button = addon[property];
+      const creating = !button;
+      if (creating) {
+        const staleButton = findHostedButton(hostView, tag);
+        if (staleButton) staleButton.removeFromSuperview();
+        button = UIButton.buttonWithType(0);
+        button.tag = tag;
+        button.frame = { x: 0, y: 0, width: BUTTON_SIZE, height: BUTTON_SIZE };
+        button.layer.cornerRadius = BUTTON_SIZE * 0.5;
+        button.layer.shadowOffset = { width: 0, height: 2 };
+        button.layer.shadowRadius = 8;
+        button.layer.shadowOpacity = 0.18;
+        button.layer.shadowColor = MNUtil.hexColorAlpha("#1f2937", 1);
+        button.backgroundColor = MNUtil.hexColorAlpha("#ffffff", 0.96);
+        button.layer.borderWidth = 1;
+        button.layer.borderColor = MNUtil.hexColorAlpha("#d1d5db", 0.95);
+        if (menu) button.setTitleForState("⌄", 0);
+        else if (moving) button.setTitleForState("↕", 0);
+        else try { button.setImageForState(MNUtil.getImage(`${addon.mainPath}/${adding ? "comment-add" : "comment-manage"}.png`, 3), 0); }
+        catch (_) { button.setTitleForState(adding ? "＋" : "☷", 0); }
+        button.setTitleColorForState(MNUtil.hexColorAlpha("#2563eb", 1), 0);
+        button.titleLabel.font = UIFont.boldSystemFontOfSize(15);
+        button.accessibilityLabel = menu ? "整卡操作" : moving ? "评论整理" : adding ? "添加评论" : "评论管理器";
+        button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchDown:", 1 << 0);
+        button.addTargetActionForControlEvents(addon, menu ? "dynamicCommentMenuButtonTapped:" : moving ? "dynamicMoveCommentButtonTapped:" : adding ? "dynamicAddCommentButtonTapped:" : "dynamicCommentButtonTapped:", 1 << 6);
+        button.addTargetActionForControlEvents(addon, "dynamicCommentButtonTouchEnded:", (1 << 7) | (1 << 8));
+        if (!moving && !menu) try {
+          MNButton.addLongPressGesture(button, addon, adding ? "dynamicAddCommentButtonLongPressed:" : "dynamicCommentButtonLongPressed:", 0.45);
+        } catch (error) {
+          console.log(`[MN Comment Manager] dynamic long-press binding failed: ${error && error.message ? error.message : error}`);
+        }
       }
-      hostView.addSubview(button);
-    } else if (button.superview !== hostView) {
-      hostView.addSubview(button);
+      if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, menu ? "down" : moving ? "organize" : adding ? "add" : "manager", button.accessibilityLabel);
+      if (!menu && !moving) {
+        const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings(), prefix = adding ? 'add' : 'management';
+        const tap = settings[prefix + 'TapAction'] || (adding ? 'quickInput' : 'manager');
+        const hold = settings[prefix + 'HoldAction'] || 'menu';
+        const labels = { manager: '评论管理器', quickInput: '添加评论', menu: '整卡操作', none: '不执行操作' };
+        const icons = { manager: 'manager', quickInput: 'add', menu: 'down', none: adding ? 'add' : 'manager' };
+        const holdOnly = tap === 'none' && hold !== 'none', primaryAction = holdOnly ? hold : tap;
+        button.mncmDynamicHasAction = tap !== 'none' || hold !== 'none';
+        button.accessibilityLabel = labels[primaryAction] + (holdOnly ? '（长按）' : '');
+        if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, icons[primaryAction], button.accessibilityLabel);
+        button.accessibilityValue = '点按：' + labels[tap] + '；长按：' + labels[hold];
+      }
+      button.hidden = true;
+      if (creating) {
+        addon[property] = button;
+        registeredNewButton = true;
+      }
+      if (button.superview !== hostView) hostView.addSubview(button);
+      return button;
+    } catch (error) {
+      if (registeredNewButton) {
+        try {
+          button.removeFromSuperview();
+          addon[property] = null;
+        } catch (cleanupError) {
+          console.log(`[MN Comment Manager] dynamic control cleanup failed: ${String(cleanupError)}`);
+        }
+      }
+      console.log(`[MN Comment Manager] dynamic control setup failed (${property}): ${String(error)}`);
+      return null;
+    } finally {
+      addon.mncmDynamicControlPreparing = false;
     }
-    if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, menu ? "down" : moving ? "organize" : adding ? "add" : "manager", button.accessibilityLabel);
-    if (!menu && !moving) {
-      const settings = __MN_COMMENT_ACTION_SETTINGS__.getSettings(), prefix = adding ? 'add' : 'management';
-      const tap = settings[prefix + 'TapAction'] || (adding ? 'quickInput' : 'manager');
-      const hold = settings[prefix + 'HoldAction'] || 'menu';
-      const labels = { manager: '评论管理器', quickInput: '添加评论', menu: '整卡操作', none: '不执行操作' };
-      const icons = { manager: 'manager', quickInput: 'add', menu: 'down', none: adding ? 'add' : 'manager' };
-      const holdOnly = tap === 'none' && hold !== 'none', primaryAction = holdOnly ? hold : tap;
-      button.mncmDynamicHasAction = tap !== 'none' || hold !== 'none';
-      button.accessibilityLabel = labels[primaryAction] + (holdOnly ? '（长按）' : '');
-      if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, icons[primaryAction], button.accessibilityLabel);
-      button.accessibilityValue = '点按：' + labels[tap] + '；长按：' + labels[hold];
-    }
-    button.hidden = true;
-    addon[property] = button;
-    return button;
   }
 
   function hideButton(addon, reason, options) {

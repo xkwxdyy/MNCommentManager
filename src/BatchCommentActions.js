@@ -382,9 +382,39 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
   }
 
   function batchViews(addon) { return [addon.batchCommentButton, addon.batchCommentMenuButton, addon.batchCommentScopeLabel].filter(Boolean); }
+  function mountBatchView(addon, property, hostView, view) {
+    const newlyOwned = !addon[property];
+    if (newlyOwned) addon[property] = view;
+    try {
+      if (view.superview !== hostView) hostView.addSubview(view);
+    } catch (error) {
+      if (newlyOwned) {
+        try {
+          view.removeFromSuperview();
+          addon[property] = null;
+        } catch (cleanupError) {
+          console.log(`[MN Comment Manager] batch control cleanup failed (${property}): ${String(cleanupError)}`);
+        }
+      }
+      throw error;
+    }
+  }
+
   function ensureButton(addon) {
     const hostView = getHostView(addon);
-    if (!hostView) return null;
+    if (!hostView || addon.mncmBatchControlsPreparing) return null;
+    addon.mncmBatchControlsPreparing = true;
+    try {
+      return prepareBatchViews(addon, hostView);
+    } catch (error) {
+      console.log(`[MN Comment Manager] batch control setup failed: ${String(error)}`);
+      return null;
+    } finally {
+      addon.mncmBatchControlsPreparing = false;
+    }
+  }
+
+  function prepareBatchViews(addon, hostView) {
     let button = addon.batchCommentButton || findSubviewByTag(hostView, BUTTON_TAG);
     if (!button) {
       button = UIButton.buttonWithType(0);
@@ -411,37 +441,45 @@ var __MN_BATCH_COMMENT_ACTIONS__ = (function () {
       } catch (error) {
         console.log(`[MN Comment Manager] batch long-press binding failed: ${error && error.message ? error.message : error}`);
       }
-      hostView.addSubview(button);
-    } else if (button.superview !== hostView && hostView.addSubview) {
-      hostView.addSubview(button);
     }
     button.hidden = true;
-    addon.batchCommentButton = button;
     if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, button, 'batch', '多卡评论编辑器');
-    [['batchCommentMenuButton', 'down', '所选卡片操作菜单', 'batchCommentButtonTapped:']].forEach(([key, name, title, selector]) => {
-      if (!addon[key]) {
-        const extra = UIButton.buttonWithType(0); extra.layer.cornerRadius = 9; extra.backgroundColor = MNUtil.hexColorAlpha('#ffffff', 0.96);
-        extra.setTitleForState(name === 'down' ? '⌄' : '✎', 0); extra.setTitleColorForState(MNUtil.hexColorAlpha('#2563eb', 1), 0);
-        extra.accessibilityLabel = title;
-        extra.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchDown:', 1 << 0);
-        extra.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchEnded:', (1 << 7) | (1 << 8));
-        extra.addTargetActionForControlEvents(addon, selector, 1 << 6); hostView.addSubview(extra); addon[key] = extra;
-      }
-      if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, addon[key], name, title);
-      if (addon[key].superview !== hostView) hostView.addSubview(addon[key]);
-      addon[key].hidden = true;
-    });
-    if (!addon.batchCommentScopeLabel && typeof UILabel !== 'undefined') {
-      const label = new UILabel({ x: 0, y: 0, width: BUTTON_WIDTH, height: 20 }); label.font = UIFont.systemFontOfSize(12); label.textColor = MNUtil.hexColorAlpha('#687180', 1); label.userInteractionEnabled = false; label.hidden = true;
-      hostView.addSubview(label); addon.batchCommentScopeLabel = label;
+    mountBatchView(addon, 'batchCommentButton', hostView, button);
+
+    let menuButton = addon.batchCommentMenuButton;
+    const menuTitle = '所选卡片操作菜单';
+    if (!menuButton) {
+      menuButton = UIButton.buttonWithType(0);
+      menuButton.layer.cornerRadius = 9;
+      menuButton.backgroundColor = MNUtil.hexColorAlpha('#ffffff', 0.96);
+      menuButton.setTitleForState('⌄', 0);
+      menuButton.setTitleColorForState(MNUtil.hexColorAlpha('#2563eb', 1), 0);
+      menuButton.accessibilityLabel = menuTitle;
+      menuButton.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchDown:', 1 << 0);
+      menuButton.addTargetActionForControlEvents(addon, 'batchCommentButtonTouchEnded:', (1 << 7) | (1 << 8));
+      menuButton.addTargetActionForControlEvents(addon, 'batchCommentButtonTapped:', 1 << 6);
     }
-    if (addon.batchCommentScopeLabel && addon.batchCommentScopeLabel.superview !== hostView) hostView.addSubview(addon.batchCommentScopeLabel);
-    if (addon.batchCommentScopeLabel && typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') {
-      const p = __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.palette();
-      addon.batchCommentScopeLabel.textColor = MNUtil.hexColorAlpha(p.muted, 1);
-      addon.batchCommentScopeLabel.backgroundColor = MNUtil.hexColorAlpha(p.surface, 1);
-      addon.batchCommentScopeLabel.layer.cornerRadius = 4;
-      addon.batchCommentScopeLabel.layer.masksToBounds = true;
+    menuButton.hidden = true;
+    if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== "undefined") __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.icon(addon, menuButton, 'down', menuTitle);
+    mountBatchView(addon, 'batchCommentMenuButton', hostView, menuButton);
+
+    let label = addon.batchCommentScopeLabel;
+    if (!label && typeof UILabel !== 'undefined') {
+      label = new UILabel({ x: 0, y: 0, width: BUTTON_WIDTH, height: 20 });
+      label.font = UIFont.systemFontOfSize(12);
+      label.textColor = MNUtil.hexColorAlpha('#687180', 1);
+      label.userInteractionEnabled = false;
+    }
+    if (label) {
+      label.hidden = true;
+      if (typeof __MN_COMMENT_ACTION_UI_MNCommentManagerAddon !== 'undefined') {
+        const p = __MN_COMMENT_ACTION_UI_MNCommentManagerAddon.palette();
+        label.textColor = MNUtil.hexColorAlpha(p.muted, 1);
+        label.backgroundColor = MNUtil.hexColorAlpha(p.surface, 1);
+        label.layer.cornerRadius = 4;
+        label.layer.masksToBounds = true;
+      }
+      mountBatchView(addon, 'batchCommentScopeLabel', hostView, label);
     }
     return button;
   }

@@ -212,6 +212,42 @@ test('native layout callbacks keep visible controls inside resized viewports wit
     }
   }
 });
+test('a failed follow control leaves no host child and retries without duplication', () => {
+  for (const failure of ['icon', 'attachment']) {
+    const f = fixture(), key = 'dynamicMoveCommentButton';
+    const tag = f.addon[key].tag;
+    f.addon[key].removeFromSuperview();
+    f.addon[key] = null;
+    f.addon.mnCommentManagerInitialized = true;
+    const controller = f.context.Application.sharedInstance().studyController();
+    const ui = f.context.__MN_COMMENT_ACTION_UI_MNCommentManagerAddon;
+    const icon = ui.icon, addSubview = f.host.addSubview;
+    ui.icon = function (addon, button, ...args) {
+      if (failure === 'icon' && button.tag === tag) throw new Error('image bridge rejected the control');
+      return icon.call(this, addon, button, ...args);
+    };
+    f.host.addSubview = function (view) {
+      addSubview.call(this, view);
+      if (failure === 'attachment' && view.tag === tag) throw new Error('failed after attaching the control');
+    };
+    for (let i = 0; i < 5; i++) {
+      f.addon.controllerWillLayoutSubviews(controller);
+      assert.equal(f.host.subviews.filter(view => view.tag === tag).length, 0, failure);
+      assert.equal(f.addon[key], null);
+    }
+    ui.icon = icon;
+    let attachments = 0;
+    f.host.addSubview = function (view) {
+      if (view.tag === tag && ++attachments === 1) f.addon.controllerWillLayoutSubviews(controller);
+      addSubview.call(this, view);
+    };
+    for (let i = 0; i < 5; i++) f.addon.controllerWillLayoutSubviews(controller);
+    assert.equal(attachments, 1, 're-entrant layout must not attach the control twice');
+    assert.deepEqual(f.host.subviews.filter(view => view.tag === tag), [f.addon[key]]);
+    f.actions.disposeButton(f.addon);
+    assert.equal(f.host.subviews.filter(view => view.tag === tag).length, 0);
+  }
+});
 test('follow controls refresh normal and selected colors and icon assets across themes', () => {
   const f = fixture(), ui = f.context.__MN_COMMENT_ACTION_UI_MNCommentManagerAddon;
   const button = f.addon.dynamicCommentButton;

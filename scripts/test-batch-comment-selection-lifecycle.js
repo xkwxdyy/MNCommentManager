@@ -18,6 +18,11 @@ const hostView = {
   },
 };
 
+function detach() {
+  if (this.superview) this.superview.subviews = this.superview.subviews.filter(view => view !== this);
+  this.superview = null;
+}
+
 function nativeNote(noteId) {
   return { noteId, comments: [] };
 }
@@ -40,10 +45,11 @@ const sandbox = {
         addTargetActionForControlEvents(target, selector, mask) { this.events.push({ target, selector, mask }); },
         setTitleForState() {},
         setTitleColorForState() {},
+        removeFromSuperview: detach,
       };
     },
   },
-  UILabel: function (frame) { return { frame, layer: {} }; },
+  UILabel: function (frame) { return { frame, layer: {}, removeFromSuperview: detach }; },
   UIFont: { boldSystemFontOfSize() { return {}; }, systemFontOfSize() { return {}; } },
   NSTimer: {
     scheduledTimerWithTimeInterval(seconds, repeats, callback) {
@@ -92,6 +98,44 @@ function showSelection(noteIds) {
   assert.strictEqual(showTimer.seconds, 0.02);
   showTimer.callback();
   assert.strictEqual(addon.batchCommentButton.hidden, false);
+}
+
+for (const target of ['main button', 'menu button', 'scope label']) {
+  const selection = ['note-a', 'note-b'].map(selectedView);
+  sandbox.MNUtil.mindmapView.selViewLst = selection;
+  addon.batchCommentContext = {
+    token: 'failure-test',
+    notes: selection.map(view => view.note.note),
+    sender: {},
+  };
+  const matches = view => target === 'main button' ? view.accessibilityLabel === 'MN Comment Manager 批量处理'
+    : target === 'menu button' ? view.accessibilityLabel === '所选卡片操作菜单' : !view.events;
+  const addSubview = hostView.addSubview;
+  let attempts = 0;
+  hostView.addSubview = function (view) {
+    addSubview.call(this, view);
+    if (matches(view)) {
+      attempts++;
+      throw new Error('failed after attaching the batch ' + target);
+    }
+  };
+  for (let i = 0; i < 5; i++) {
+    assert.strictEqual(actions.relayout(addon), false);
+    assert.strictEqual(hostView.subviews.filter(matches).length, 0, target);
+  }
+  assert.strictEqual(attempts, 5);
+  let attachments = 0;
+  hostView.addSubview = function (view) {
+    if (matches(view) && ++attachments === 1) assert.strictEqual(actions.relayout(addon), false);
+    addSubview.call(this, view);
+  };
+  showSelection(['note-a', 'note-b']);
+  for (let i = 0; i < 5; i++) actions.relayout(addon);
+  assert.strictEqual(attachments, 1, 're-entrant layout must not attach the control twice');
+  assert.strictEqual(hostView.subviews.length, 3);
+  hostView.addSubview = addSubview;
+  actions.disposeButton(addon);
+  assert.strictEqual(hostView.subviews.length, 0);
 }
 
 showSelection(["note-a", "note-b"]);
