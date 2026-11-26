@@ -99,6 +99,15 @@ function test(name, fn) {
   if (process.env.MNCM_NATIVE_CASE && !name.includes(process.env.MNCM_NATIVE_CASE)) return;
   fn(); cases.push(name);
 }
+function assertInitiallyReachable(s, description) {
+  const panel = s.panel(), body = s.input().superview;
+  for (const container of [panel, body]) {
+    for (const { frame } of container.subviews.filter(view => view.selector)) {
+      assert(frame.x >= 0 && frame.x + frame.width <= container.frame.width &&
+        frame.y >= 0 && frame.y + frame.height <= container.frame.height, description);
+    }
+  }
+}
 
 for (const platform of ['iphone', 'ipad']) for (const theme of ['Default', 'Sepia', 'Green', 'Gray', 'Dark']) {
   test(`${platform}: ${theme} preserves the background and themed input`, () => {
@@ -198,6 +207,48 @@ test('owned keyboard dismissal closes with the latest composition; frames avoid 
   assert.equal(s.addon.quickCommentController, null); assert.equal(s.observers.size, 0);
   s.controller = s.open(); assert.equal(s.input().text, '关闭前最终草稿');
 });
+test('iPhone submit stays above a docked keyboard before geometry arrives', () => {
+  const s = fixture();
+  s.controller.view.frame = { x: 0, y: 0, width: 393, height: 780 };
+  s.native.layout(s.controller);
+  const keyboard = { x: 0, y: 455, width: 393, height: 325 };
+  const panel = s.panel();
+  const submit = panel.subviews.find(view => view.selector === 'mncmNativeSubmit');
+  s.input().text = '直接发送'; s.change();
+  assert.equal(submit.enabled, true);
+  assert(panel.frame.y + submit.frame.y + submit.frame.height <= keyboard.y,
+    'the submit button must already be visible when the keyboard covers the bottom of the viewport');
+  s.notify('WillShow', keyboard);
+  assert(panel.frame.y + panel.frame.height <= keyboard.y);
+  s.click('mncmNativeSubmit'); s.flush();
+  assert.equal(s.a.comments[1].text, '直接发送');
+});
+test('dragging the native title moves the panel while keeping the draft and keyboard', () => {
+  const s = fixture('ipad');
+  const keyboard = { x: 0, y: 430, width: 900, height: 170 };
+  s.notify('WillShow', keyboard);
+  const panel = s.panel(), before = { ...panel.frame };
+  const title = panel.subviews.find(view => view.gestureRecognizers?.length);
+  assert(title, 'the title region must accept a pan');
+  const gesture = title.gestureRecognizers[0];
+  const pan = (state, x, y) => {
+    s.context.self = s.controller;
+    Object.assign(gesture, { state, translationInView: view => {
+      assert.equal(view, s.controller.view);
+      return { x, y };
+    } });
+    s.nativeBindings[gesture.selector.replace(/:$/, '')](gesture);
+  };
+  s.input().text = '拖动时保留正文'; s.input().selectedRange = { location: 2, length: 1 }; s.change();
+  pan(1, 0, 0); pan(2, 40, -20); pan(3, 40, -20);
+  assert.deepEqual({ ...panel.frame }, { ...before, x: before.x + 40, y: before.y - 20 });
+  assert.equal(s.input().isFirstResponder(), true);
+  assert.equal(s.state().draft, '拖动时保留正文');
+  assert.deepEqual(s.input().selectedRange, { location: 2, length: 1 });
+  pan(1, 0, 0); pan(2, 1000, 1000); pan(3, 1000, 1000);
+  assert(panel.frame.x + panel.frame.width <= 900);
+  assert(panel.frame.y + panel.frame.height <= keyboard.y);
+});
 test('iPad keyboard geometry remains safe when WillShow arrives before first responder confirmation', () => {
   const s = fixture('ipad'), shown = { x: 0, y: 320, width: 900, height: 280 };
   s.input().firstResponder = false;
@@ -276,11 +327,12 @@ test('a save error keeps the native submit and close controls visible above a co
   s.click('mncmNativeSubmit'); s.flush();
   const controls = s.panel().subviews, submit = controls.find(view => view.selector === 'mncmNativeSubmit');
   const close = controls.find(view => view.selector === 'mncmNativeClose');
-  const error = controls.find(view => String(view.text).includes('append failed'));
+  const body = s.input().superview;
+  const error = body.subviews.find(view => String(view.text).includes('append failed'));
   assert(error, 'the error must remain available with the preserved draft');
   assert(submit.frame.y + submit.frame.height <= s.panel().frame.height, 'retry cannot require discovering a hidden outer scroll after a failed save');
   assert(close.frame.y + close.frame.height <= s.panel().frame.height, 'close remains initially reachable');
-  assert(error.frame.y + error.frame.height <= s.panel().frame.height, 'the visible error must share the available compact layout');
+  assert(error.frame.y + error.frame.height <= body.frame.height, 'the visible error must share the available compact layout');
   s.appendError(false); s.click('mncmNativeClose'); s.flush(); s.controller = s.open();
   assert.equal(s.input().text, '紧凑窗口失败后保留草稿');
 });
@@ -297,7 +349,7 @@ test('a tall floating keyboard uses available side space before clipping native 
   s.native.keyboard(s.controller, { type: 'frame' }, { x: 400, y: 50, width: 180, height: 220 });
   const panel = s.panel();
   assert(panel.frame.width >= 204 && panel.frame.height >= 194, 'side space can fit the existing controls while top/bottom space cannot');
-  for (const view of panel.subviews.filter(view => view.selector)) assert(view.frame.x >= 0 && view.frame.x + view.frame.width <= panel.frame.width && view.frame.y + view.frame.height <= panel.frame.height, 'input actions must be initially reachable');
+  assertInitiallyReachable(s, 'input actions must be initially reachable');
   assert(s.input().frame.height >= 40);
 });
 test('iPad keyboard bands avoid docked and floating frames without changing text or selection', () => {
@@ -311,8 +363,8 @@ test('iPad keyboard bands avoid docked and floating frames without changing text
     s.native.keyboard(s.controller, { type: 'frame' }, keyboard);
     assert.equal(intersects(s.panel().frame, keyboard), false, JSON.stringify({ bounds, keyboard }));
     assert.equal(s.input().text, text); assert.deepEqual(s.input().selectedRange, selection);
-    const panel = s.panel();
-    for (const view of panel.subviews.filter(view => view.selector)) assert(view.frame.y + view.frame.height <= panel.contentSize.height, 'every action remains in scrollable content');
+    const body = s.input().superview;
+    for (const view of body.subviews.filter(view => view.selector)) assert(view.frame.y + view.frame.height <= body.contentSize.height, 'every body action remains in scrollable content');
     s.native.keyboard(s.controller, { type: 'frame' }, { x: bounds.width + 50, y: 0, width: 320, height: 200 });
     assert.deepEqual({ ...s.panel().frame }, unobstructed, 'a keyboard moved outside this split-view area cannot leave stale avoidance');
     s.native.keyboard(s.controller, { type: 'frame' }, null);
@@ -328,8 +380,7 @@ test('each rotation split-view and floating keyboard transition preserves drafts
     s.native.keyboard(s.controller, { type: 'frame' }, scene.keyboard);
     assert.equal(s.input().text, text, scene.id); assert.deepEqual(s.input().selectedRange, selection, scene.id);
     assert.equal(s.state().draft, text); assert.equal(s.state().markdown, true);
-    const panel = s.panel();
-    for (const view of panel.subviews.filter(view => view.selector)) assert(view.frame.x >= 0 && view.frame.x + view.frame.width <= panel.frame.width && view.frame.y + view.frame.height <= panel.frame.height, scene.id + ' must expose every native action');
+    assertInitiallyReachable(s, scene.id + ' must expose every native action');
     assert(s.input().frame.height >= 40);
     s.click('mncmNativeClose'); s.flush(); s.controller = s.open();
     assert.equal(s.input().text, text, scene.id + ' draft must survive a real controller close/reopen');
@@ -367,7 +418,10 @@ test('an extremely short keyboard area retains scrollable actions and a reachabl
   const panel = s.panel(), submit = panel.subviews.find(view => view.selector === 'mncmNativeSubmit');
   const close = panel.subviews.find(view => view.selector === 'mncmNativeClose');
   assert.equal(panel.frame.height, 76);
-  assert(panel.contentSize.height > panel.frame.height && submit.frame.y + submit.frame.height <= panel.contentSize.height);
+  const body = s.input().superview;
+  const markdown = body.subviews.find(view => view.selector === 'mncmNativeMarkdown');
+  assert(body.contentSize.height > body.frame.height && markdown.frame.y + markdown.frame.height <= body.contentSize.height);
+  assert(submit.frame.y + submit.frame.height <= panel.frame.height, 'short layouts must keep submit visible without scrolling');
   assert(close.frame.y + close.frame.height <= panel.frame.height, 'the initial compact view still exposes the close button');
   const backdrop = s.controller.view.subviews.find(view => view.selector === 'mncmNativeClose');
   assert.equal(backdrop.enabled, true); assert.deepEqual({ ...backdrop.frame }, s.controller.view.bounds);
@@ -377,11 +431,12 @@ test('an extremely short keyboard area retains scrollable actions and a reachabl
 });
 test('native input actions expose their operation and Markdown state explicitly', () => {
   const s = fixture('ipad'), controls = s.panel().subviews;
-  const markdown = controls.find(view => view.selector === 'mncmNativeMarkdown');
+  const body = s.input().superview;
+  const markdown = body.subviews.find(view => view.selector === 'mncmNativeMarkdown');
   const submit = controls.find(view => view.selector === 'mncmNativeSubmit');
   assert.equal(markdown.title, 'Markdown'); assert.equal(markdown.accessibilityValue, '未启用');
   assert.equal(submit.title, '添加'); assert.equal(submit.accessibilityLabel, '添加评论');
-  assert(controls.some(view => view.text === '输入评论内容'));
+  assert(body.subviews.some(view => view.text === '输入评论内容'));
   s.click('mncmNativeMarkdown'); assert.equal(markdown.accessibilityValue, '已启用');
   s.input().text = '等待核对'; s.change(); s.saveError(true); s.click('mncmNativeSubmit'); s.flush();
   assert.equal(submit.title, '核对'); assert.equal(submit.accessibilityLabel, '核对保存结果');
@@ -416,7 +471,8 @@ test('small landscape viewport keeps the native controls scrollable inside the a
   const s = fixture('ipad'); s.studyView.bounds = { x: 0, y: 0, width: 500, height: 260 }; s.api.layout(s.controller);
   s.notify('WillShow', { x: 0, y: 150, width: 500, height: 110 });
   assert(s.panel().frame.y >= 0); assert(s.panel().frame.y + s.panel().frame.height <= 150);
-  assert(s.panel().contentSize.height > s.panel().frame.height);
+  const body = s.input().superview;
+  assert(body.contentSize.height > body.frame.height);
 });
 test('refused editing termination cannot send marked text or close the draft', () => {
   const s = fixture(); s.input().text = 'zhong'; s.change();
