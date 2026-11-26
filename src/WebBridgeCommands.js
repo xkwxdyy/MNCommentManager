@@ -376,6 +376,7 @@ var __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon = (function () {
     getQuickCommentState: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.getState(context.controller, payload),
     presentQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.present(context.controller, payload),
     appendQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.append(context.controller, payload),
+    openQuickHandwriting: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.openHandwriting(context.controller, payload),
     setQuickCommentExit: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.setExit(context.controller, payload),
     updateQuickCommentDraft: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.updateDraft(context.controller, payload),
     closeQuickComment: (context, payload) => __MN_QUICK_COMMENT_MNCommentManagerAddon.requestClose(context.controller, payload),

@@ -2,6 +2,22 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "Syntax web/handwriting/open.js",
+      "argv": [
+        "node",
+        "--check",
+        "web/handwriting/open.js"
+      ]
+    },
+    {
+      "name": "Syntax src/QuickHandwriting.js",
+      "argv": [
+        "node",
+        "--check",
+        "src/QuickHandwriting.js"
+      ]
+    },
+    {
       "name": "Syntax scripts/build-release.js",
       "argv": [
         "node",

@@ -16,7 +16,7 @@ function setup(preferences = new Map(), nativePropertyBridge = false) {
   const a = note('a'), b = note('b');
   const studyView = { bounds: { x: 0, y: 0, width: 900, height: 600 }, addSubview(view) { view.superview = this; }, bringSubviewToFront() {}, becomeFirstResponder() { events.push('focus-host'); } };
   const nodes = [{ note: a, frame: { x: 600, y: 80, width: 200, height: 160 } }];
-  const study = { view: studyView, notebookController: { view: { hidden: false }, mindmapView: { mindmapNodes: nodes, convertRectToView(rect) { return rect; } } } };
+  const study = { view: studyView, notebookController: { notebookId: 'book', view: { hidden: false }, mindmapView: { mindmapNodes: nodes, convertRectToView(rect) { return rect; } } } };
   const bindings = {}, nativeObjectWrites = [];
   function bridgeObject(value) {
     if (!value || typeof value !== 'object') return value === true ? 1 : value === false ? 0 : value;
@@ -40,7 +40,7 @@ function setup(preferences = new Map(), nativePropertyBridge = false) {
     __MN_UNDO_GROUPING_MNCommentManagerAddon: { run(_name, _opts, callback) { events.push('undo-start'); const result = callback(); events.push('undo-end'); return result; } },
     __MN_DYNAMIC_COMMENT_ACTIONS__: { hideButton(addon) { addon.dynamicCommentContext = null; } },
   });
-  for (const file of ['NoteAccess', 'CommentActionSettings', 'CommentMutations', 'PanelContentBounds', 'QuickCommentController']) vm.runInContext(fs.readFileSync(`${process.env.MNCM_RUNTIME_DIR || 'src'}/${file}.js`, 'utf8'), context);
+  for (const file of ['NoteAccess', 'CommentActionSettings', 'CommentMutations', 'PanelContentBounds', 'QuickHandwriting', 'QuickCommentController']) vm.runInContext(fs.readFileSync(`${process.env.MNCM_RUNTIME_DIR || 'src'}/${file}.js`, 'utf8'), context);
   const api = context.__MN_QUICK_COMMENT_MNCommentManagerAddon;
   const addon = { mainPath: '/addon', window: {} };
   const open = (id = 'a') => { addon.dynamicCommentContext = { noteId: id, anchorRect: { x: 20, y: 20, width: 120, height: 60 } }; api.open(addon, addon.dynamicCommentContext); return addon.quickCommentController; };
@@ -52,6 +52,44 @@ function setup(preferences = new Map(), nativePropertyBridge = false) {
 }
 
 if (require.main === module) {
+(async () => {
+  const s = setup();
+  assert.equal(s.api.getState(s.controller).supportsHandwriting, false);
+  let panel;
+  s.context.AddonWebPanel = { panel() {
+    panel = { loadPanel: () => true, showFloatingInMode() {}, teardown() {} };
+    return panel;
+  } };
+  s.api.dispose(s.addon); s.timers.length = 0;
+  s.controller = s.open(); s.payload.sessionId = s.api.getState(s.controller).sessionId;
+  assert.equal(s.api.getState(s.controller).supportsHandwriting, true);
+  const opening = s.api.openHandwriting(s.controller, s.payload);
+  assert.equal(s.controller.view.hidden, true);
+  assert.equal(panel.onMessage('getQuickHandwritingTarget').noteId, 'a');
+  assert.equal(panel.onMessage('startQuickHandwriting', { noteId: 'b' }).accepted, false);
+  assert.equal(panel.onMessage('startQuickHandwriting', { noteId: 'a' }).accepted, true);
+  assert.equal(panel.onMessage('startQuickHandwriting', { noteId: 'a' }).accepted, false);
+  panel.onMessage('quickHandwritingFailed', { noteId: 'a', message: '原生编辑器不可用' });
+  await assert.rejects(opening, /原生编辑器不可用/);
+  assert.equal(s.controller.view.hidden, false);
+  assert.equal(s.api.getState(s.controller).draft, s.payload.text);
+
+  const opened = s.api.openHandwriting(s.controller, s.payload);
+  const editorPanel = panel;
+  panel.onMessage('startQuickHandwriting', { noteId: 'a' });
+  panel.onMessage('quickHandwritingOpened', { noteId: 'a' });
+  assert.equal((await opened).editorOpened, true);
+  while (s.timers.length) s.timers.shift()();
+  assert.equal(s.addon.quickCommentController, null);
+  assert.equal(s.api.getState(s.open()).draft, s.payload.text);
+  assert.equal(s.a.comments.length, 1, 'opening handwriting must not append the text draft');
+
+  s.addon.webController = { view: { window: s.addon.window } };
+  s.context.__MN_WEB_API_MNCommentManagerAddon = { syncCurrentNote(controller) { assert.equal(controller, s.addon.webController); s.events.push('handwriting-refresh'); } };
+  assert.equal(editorPanel.onMessage('quickHandwritingFinished', { noteId: 'b', saved: true }).accepted, false);
+  editorPanel.onMessage('quickHandwritingFinished', { noteId: 'a', saved: true });
+  assert(s.events.includes('handwriting-refresh'));
+})().catch(error => { console.error(error); process.exitCode = 1; });
 {
   const s = setup();
   assert.equal(s.addon.dynamicCommentContext, null);

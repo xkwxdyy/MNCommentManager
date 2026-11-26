@@ -42,6 +42,23 @@ it('focuses only after the textarea becomes enabled', () => {
   expect(host.querySelector('.quick-ready')).not.toBeNull();
   expect(MNBridge.send).toHaveBeenCalledWith('presentQuickComment', { sessionId: 'session', reducedMotion: false });
 });
+it('sends the current draft to the handwriting handoff and keeps it if opening fails', async () => {
+  expect(host.querySelector('button[aria-label="新增手写评论"]')).toBeNull();
+  await act(async () => root.unmount());
+  nativeState.supportsHandwriting = true;
+  root = createRoot(host);
+  await act(async () => root.render(<QuickComment />));
+  await type('未发送的正文');
+  const send = MNBridge.send.getMockImplementation();
+  MNBridge.send.mockImplementation((command, payload) => command === 'openQuickHandwriting'
+    ? Promise.reject(new Error('当前场景无法打开手写')) : send(command, payload));
+  await click('新增手写评论');
+  expect(MNBridge.send).toHaveBeenCalledWith('openQuickHandwriting', { sessionId: 'session', text: '未发送的正文', markdown: false, draftRevision: 1 });
+  expect(host.querySelector('[role=alert]').textContent).toContain('当前场景无法打开手写');
+  expect(input().value).toBe('未发送的正文');
+  expect(input().disabled).toBe(false);
+  expect(MNBridge.send.mock.calls.some(([command]) => command === 'appendQuickComment')).toBe(false);
+});
 it('rejects empty input and ignores Return during Chinese composition', async () => {
   await type(' \n '); await key('Enter'); expect(MNBridge.send.mock.calls.filter(([cmd]) => cmd === 'appendQuickComment')).toHaveLength(0);
   await type('文字');

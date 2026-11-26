@@ -328,6 +328,7 @@ function createMNCommentManagerAddon(mainPath) {
 
     notebookWillClose: function () {
       __MN_NATIVE_CARD_MENU_MNCommentManagerAddon.dispose(self);
+      if (typeof __MN_QUICK_HANDWRITING_MNCommentManagerAddon !== "undefined") __MN_QUICK_HANDWRITING_MNCommentManagerAddon.dispose(self);
       __MN_DYNAMIC_COMMENT_ACTIONS__.hideButton(self, "notebook.close");
       if (typeof __MN_BATCH_COMMENT_ACTIONS__ !== 'undefined') __MN_BATCH_COMMENT_ACTIONS__.hideButton(self, "notebook.close");
       if (typeof __MN_CARD_EDITOR_MNCommentManagerAddon !== "undefined") __MN_CARD_EDITOR_MNCommentManagerAddon.clear(self.webController);

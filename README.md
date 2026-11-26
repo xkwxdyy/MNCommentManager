@@ -44,7 +44,7 @@
 最低宿主版本为 **MarginNote 4.2.3**，运行依赖为 **MN Utils**。
 
 1. 安装并启用 MN Utils。
-2. 从[正式发布页](https://github.com/xkwxdyy/MNCommentManager/releases/latest)下载 `.mnaddon` 安装包，并导入 MarginNote。当前正式版本为 [v0.1.46](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.46)，安装包为 `mn-comment-manager-v0.1.46.mnaddon`。
+2. 从[正式发布页](https://github.com/xkwxdyy/MNCommentManager/releases/latest)下载 `.mnaddon` 安装包，并导入 MarginNote。当前正式版本为 [v0.1.46](https://github.com/xkwxdyy/MNCommentManager/releases/tag/v0.1.46)，安装包为 `mn-comment-manager-v0.1.47.mnaddon`。
 3. 启用评论管理器，选择一张卡片，再通过评论管理入口打开面板。
 4. 先尝试搜索和查看评论，再按需要选择评论并进行整理。
 

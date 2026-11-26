@@ -2,7 +2,9 @@
   "addonid": "marginnote.extension.mncommentmanager",
   "author": "Kangwei Xia",
   "title": "MN Comment Manager",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "marginnote_version_min": "4.2.3",
-  "cert_key": ""
+  "cert_key": "",
+  "panel": "web-dist/handwriting/index.html",
+  "events": ["practice", "comments"]
 }

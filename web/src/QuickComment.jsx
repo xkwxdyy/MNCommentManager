@@ -84,7 +84,7 @@ export default function QuickComment() {
       } else if (event.type === 'hide') {
         const owned = keyboardOwned.current;
         keyboardOwned.current = false;
-        if (!owned || keyboardFocusMoved.current || !event.eventId || ['loading', 'saving', 'saved', 'closed'].includes(livePhase.current)) return;
+        if (!owned || keyboardFocusMoved.current || !event.eventId || ['loading', 'saving', 'saved', 'closed', 'opening-handwriting'].includes(livePhase.current)) return;
         closeLatest.current(false, { reason: 'keyboard', eventId: event.eventId, reducedMotion: !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches });
       }
     };
@@ -163,6 +163,7 @@ export default function QuickComment() {
   }, [text, state, phase]);
 
   async function close(saved = false, cause = null) {
+    if (livePhase.current === 'opening-handwriting') return;
     if (closing.current || pendingCompositionClose.current || !saved && locked.current && submission.current && livePhase.current !== 'uncertain') return;
     if (!saved && composing.current) {
       try {
@@ -310,6 +311,23 @@ export default function QuickComment() {
     cursor.current = start + 1;
     change(`${text.slice(0, start)}\n${text.slice(end)}`);
   }
+  async function openHandwriting() {
+    if (!current.current?.supportsHandwriting || locked.current || closing.current || pendingCompositionClose.current) return;
+    if (composing.current) { setError('请先完成当前组词，再打开手写编辑器'); return; }
+    locked.current = true;
+    setError(''); setPhase('opening-handwriting');
+    try {
+      const result = await MNBridge.send('openQuickHandwriting', {
+        sessionId: current.current.sessionId, text: textValue.current, markdown: markdownValue.current, draftRevision: draftRevision.current,
+      });
+      if (result?.editorOpened !== true && result?.cardEditorRequested !== true) throw new Error('未确认手写编辑器已打开');
+      if (alive.current) setPhase('closed');
+    } catch (error) {
+      if (!alive.current) return;
+      locked.current = false;
+      setError(messageOf(error)); setPhase('editing');
+    }
+  }
   function keyDown(event) {
     allowLineBreak.current = event.key === 'Enter' && event.shiftKey;
     const ime = composing.current || event.nativeEvent.isComposing || event.keyCode === 229;
@@ -317,13 +335,13 @@ export default function QuickComment() {
     if (ime) return;
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }
   }
-  const busy = phase === 'saving' || phase === 'saved' || phase === 'closing';
+  const busy = phase === 'saving' || phase === 'saved' || phase === 'closing' || phase === 'opening-handwriting';
   return <main className={`quick-overlay ${ready ? 'quick-ready' : ''} ${exitVisual.current && (phase === 'saved' || phase === 'closing' || nativeClosing) ? 'quick-success' : ''} ${!exitVisual.current && (phase === 'closing' || nativeClosing) ? 'quick-paused' : ''} ${phase === 'closed' ? 'quick-closed' : ''} ${nativeClosing ? 'quick-native-close' : ''}`}
     onPointerDownCapture={event => { keyboardFocusMoved.current = event.target !== input.current; }}
     onPointerDown={event => { if (event.target === event.currentTarget && !busy) { if (!text.trim()) close(); else focus(); } }}>
     <div className="quick-backdrop" aria-hidden="true" />
     <div className="quick-positioner" style={{ top: viewport.top, left: viewport.left, width: viewport.width, height: viewport.height }}>
-      <section ref={panel} className="quick-card" role="dialog" aria-modal="true" aria-labelledby="quick-title" aria-busy={phase === 'saving'}
+      <section ref={panel} className="quick-card" role="dialog" aria-modal="true" aria-labelledby="quick-title" aria-busy={phase === 'saving' || phase === 'opening-handwriting'}
         onAnimationEnd={event => {
           if (event.target === panel.current && confirmed.current && !closing.current && ['quick-flight', 'quick-fade', 'quick-text-out'].includes(event.animationName)) close(true);
         }}
@@ -361,6 +379,7 @@ export default function QuickComment() {
           return <div className="quick-error" role="alert"><span className="quick-error-copy"><span>{parts.text}</span>{parts.code ? <code className="quick-error-code">（{parts.code}）</code> : null}</span><span className="quick-error-actions">{phase === 'load-error' && <button type="button" onClick={() => { setPhase('loading'); setError(''); panel.current?.querySelector('.quick-close:not(:disabled)')?.focus({ preventScroll: true }); loadState(); }}>重新读取</button>}{phase === 'uncertain' && <><button onClick={check}>核对保存</button><button onClick={() => deliver(submission.current)}>重试同次提交</button></>}{phase === 'save-close-error' && <button onClick={() => close(true)}>关闭</button>}</span></div>;
         })()}
         <footer><span className="quick-hint">{markdown ? <b className="quick-mode-pill">Markdown</b> : null}回车提交<span> · Shift＋回车换行</span></span><div className="quick-actions">
+          {state?.supportsHandwriting && <button type="button" className="quick-icon" aria-label={state.handwritingViaCard ? "在卡片编辑器中新建手写" : "新增手写评论"} title={state.handwritingViaCard ? "在卡片编辑器中新建手写" : "新增手写评论"} disabled={locked.current} onClick={openHandwriting}><ActionIcon name="edit" size={22} /></button>}
           <button className="quick-icon quick-markdown" role="switch" aria-label="Markdown 评论" aria-checked={markdown} title={markdown ? 'Markdown 已开启：保存为 Markdown 评论' : 'Markdown 已关闭：保存为普通文本评论'} disabled={!state || locked.current}
             onClick={() => {
               if (composing.current) return;

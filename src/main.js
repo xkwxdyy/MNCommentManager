@@ -33,6 +33,7 @@ JSB.require("WebBridgeCommands");
 JSB.require("PanelContentBounds");
 JSB.require("WebPanelController");
 JSB.require("NativeQuickCommentController");
+JSB.require("QuickHandwriting");
 JSB.require("QuickCommentController");
 JSB.require("ExternalCardEditor");
 JSB.require("NativeEntryPolicy");

@@ -93,6 +93,7 @@ function main() {
   fs.writeFileSync(path.join(distDirPath, "quick-comment.html"), `<!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" /><title>添加评论</title><link rel="stylesheet" href="./quick-assets/quick-comment.css" /></head>
 <body><div id="root"></div><script src="./quick-assets/quick-comment.js"></script></body></html>`);
+  fs.cpSync(path.join(rootDir, "web", "handwriting"), path.join(distDirPath, "handwriting"), { recursive: true });
 
   console.log(`Web build successful: ${distIndexPath}`);
 }

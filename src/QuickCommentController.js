@@ -1,5 +1,5 @@
 var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
-  const ALLOWED_COMMANDS = ["getQuickCommentState", "appendQuickComment", "updateQuickCommentDraft", "closeQuickComment", "setQuickCommentExit", "presentQuickComment"];
+  const ALLOWED_COMMANDS = ["getQuickCommentState", "appendQuickComment", "openQuickHandwriting", "updateQuickCommentDraft", "closeQuickComment", "setQuickCommentExit", "presentQuickComment"];
   // Native dynamic properties can bridge dictionaries and booleans; keep the ledger in JS.
   const owners = Object.create(null), sessions = Object.create(null);
   function ownerStore(addon) {
@@ -10,6 +10,9 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   }
   function sessionFor(controller) { return controller && sessions[String(controller._mncmQuickSessionId || '')]; }
   function isNative(controller) { return !!(controller && controller._mncmNativeQuickId); }
+  function handwritingMode() {
+    return typeof __MN_QUICK_HANDWRITING_MNCommentManagerAddon === "undefined" ? "" : __MN_QUICK_HANDWRITING_MNCommentManagerAddon.mode();
+  }
   function id() { return `${Date.now()}_${Math.random().toString(36).slice(2)}`; }
   function log(error) { console.log(`[MN Comment Manager][quick-input] ${error && error.message ? error.message : error}`); }
   function host(controller) { return Application.sharedInstance().studyController(controller.addon.window).view; }
@@ -105,7 +108,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   function keyboardChanged(controller, notification) {
     try {
       const session = sessionFor(controller), window = controller.addon && controller.addon.window;
-      if (!session || controller._quickClosed || controller._quickClosePending || session.exitActive || controller.addon.quickCommentController !== controller || !window || Number(window.keyWindow) !== 1) return;
+      if (!session || controller._quickClosed || controller._quickClosePending || session.exitActive || session.handwritingPending || controller.addon.quickCommentController !== controller || !window || Number(window.keyWindow) !== 1) return;
       const info = notification.userInfo || {};
       if (infoValue(info, "UIKeyboardIsLocalUserInfoKey") === false || infoValue(info, "UIKeyboardIsLocalUserInfoKey") === 0) return;
       if (notification.object && window.screen && !sameView(notification.object, window.screen)) return;
@@ -222,6 +225,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     }
     return {
       sessionId: session.id, noteId: session.noteId, noteTitle: session.noteTitle, draft: session.draft, draftRevision: session.draftRevision, markdown: session.markdown === true,
+      supportsHandwriting: !!session.handwritingMode, handwritingViaCard: session.handwritingMode === "card",
       targetRect: targetRect(controller), nativeViewport: { width: controller.view.bounds.width, height: controller.view.bounds.height },
       submission: attempt ? { submissionId: attempt.id, text: attempt.text, markdown: attempt.markdown === true, draftRevision: attempt.draftRevision, status: attempt.status, error: attempt.error || "", receipt: attempt.receipt || null } : null,
     };
@@ -250,6 +254,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   }
   function append(controller, payload) {
     const session = checkedSession(controller, payload);
+    if (session.handwritingPending) throw new Error("正在打开手写编辑器");
     if (controller._quickClosePending) throw new Error("输入窗口正在关闭，请重新打开后提交");
     if (!payload || payload.sessionId !== session.id || typeof payload.submissionId !== "string" || !payload.submissionId ||
         typeof payload.text !== "string" || !payload.text.trim() ||
@@ -276,6 +281,44 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       log(error);
     }
     return getState(controller, payload);
+  }
+  function prepareHandwriting(controller) {
+    const session = checkedSession(controller);
+    if (!session.handwritingMode) throw new Error("当前 MarginNote 版本不支持新增手写评论");
+    if (session.handwritingMode !== handwritingMode()) throw new Error("学习集界面已变化，请重新打开添加评论");
+    if (session.handwritingMode === "card") return null;
+    if (!session.handwritingPanel) session.handwritingPanel = __MN_QUICK_HANDWRITING_MNCommentManagerAddon.prepare();
+    if (!session.handwritingPanel) throw new Error("手写需要场景面板。请在学习集的场景模板中启用评论管理器，再重新打开添加评论。");
+    return session.handwritingPanel;
+  }
+  async function openHandwriting(controller, payload) {
+    const session = checkedSession(controller, payload);
+    if (controller._quickClosed || controller._quickClosePending || session.handwritingPending || session.attempt && session.attempt.status !== "failed") {
+      throw new Error("请先完成当前评论操作");
+    }
+    if (!retainDraft(session, payload)) throw new Error("草稿已更新，请重新打开手写编辑器");
+    const panel = prepareHandwriting(controller);
+    session.handwritingPending = true;
+    try {
+      controller.view.endEditing(true);
+      controller.view.hidden = true;
+      let opening;
+      if (panel) {
+        opening = __MN_QUICK_HANDWRITING_MNCommentManagerAddon.open(controller.addon, session.noteId, panel, session.topicId);
+        session.handwritingPanel = null; // The handwriting session now owns teardown.
+      } else {
+        opening = __MN_QUICK_HANDWRITING_MNCommentManagerAddon.openCardEditor(controller.addon, session.noteId, session.topicId);
+      }
+      const result = await opening;
+      NSTimer.scheduledTimerWithTimeInterval(0, false, function () {
+        if (!controller._quickClosed && controller.addon.quickCommentController === controller) close(controller, true);
+      });
+      return result;
+    } catch (error) {
+      session.handwritingPending = false;
+      if (!controller._quickClosed && controller.addon.quickCommentController === controller) controller.view.hidden = false;
+      throw error;
+    }
   }
   function present(controller, payload) {
     const session = checkedSession(controller, payload);
@@ -341,6 +384,11 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
         if (session && (!session.attempt || session.attempt.status === "failed")) retainDraft(session, __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon.snapshot(controller));
       } catch (error) { log(error); }
     }
+    const closingSession = sessionFor(controller);
+    if (closingSession && closingSession.handwritingPanel) {
+      try { closingSession.handwritingPanel.teardown(); } catch (error) { log(error); }
+      closingSession.handwritingPanel = null;
+    }
     controller._quickClosed = true;
     observeKeyboard(controller, false);
     const addon = controller.addon;
@@ -366,6 +414,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   }
   function requestClose(controller, payload) {
     const session = checkedSession(controller, payload);
+    if (session.handwritingPending) throw new Error("正在打开手写编辑器");
     if (controller._quickClosePending) return { closed: true, nativeClosing: true };
     const keyboard = payload && payload.reason === "keyboard" ? session.keyboard.hide : null;
     if (payload && payload.reason === "keyboard" && (!keyboard || payload.eventId !== keyboard.id)) throw new Error("键盘关闭事件已失效，请重新关闭输入窗口");
@@ -428,6 +477,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       close(self, true);
     },
     webViewShouldStartLoadWithRequestNavigationType: function (webView, request) {
+      const controller = self;
       const transport = __MN_WEB_API_MNCommentManagerAddon;
       let message;
       try {
@@ -435,8 +485,14 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
         if (String(url.scheme || "").toLowerCase() !== "mnaddon") return String(url.scheme || "").toLowerCase() === "file" || !!__MNGetWebDevServerURL_MNCommentManagerAddon();
         message = transport.decodeBridgeMessage(url);
         if (ALLOWED_COMMANDS.indexOf(message.command) < 0) throw new Error("快速输入窗口不支持该操作");
-        const result = __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands[message.command]({ controller: self, addon: self.addon }, message.payload);
-        transport.sendBridgeResponse(webView, message.requestId, result, null);
+        const result = __MN_WEB_BRIDGE_COMMANDS_MNCommentManagerAddon.commands[message.command]({ controller, addon: controller.addon }, message.payload);
+        if (result && typeof result.then === "function") {
+          result.then(value => {
+            if (!controller._quickClosed) transport.sendBridgeResponse(webView, message.requestId, value, null);
+          }, error => {
+            if (!controller._quickClosed) transport.sendBridgeResponse(webView, message.requestId, null, transport.normalizeBridgeError(error, message.command));
+          });
+        } else transport.sendBridgeResponse(webView, message.requestId, result, null);
       } catch (error) {
         transport.sendBridgeResponse(webView, message && message.requestId || "unknown", null, transport.normalizeBridgeError(error, message && message.command));
         log(error);
@@ -467,6 +523,13 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
       session.draftRevision += 1;
     }
     session.keyboard = { visible: false, hide: null };
+    session.handwritingPending = false;
+    // Allocate in the quick-comment entry while the host still knows the addon.
+    // Loading and displaying the page wait for an explicit handwriting action.
+    session.topicId = String(study.notebookController && study.notebookController.notebookId || "");
+    session.handwritingMode = handwritingMode();
+    try { session.handwritingPanel = session.handwritingMode === "panel" ? __MN_QUICK_HANDWRITING_MNCommentManagerAddon.prepare() : null; }
+    catch (error) { session.handwritingPanel = null; log(error); }
     session.noteTitle = String(note.noteTitle || "未命名卡片");
     session.anchorRect = context.anchorRect;
     session.initialWidth = study.view.bounds.width;
@@ -474,7 +537,7 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
     owner.drafts[context.noteId] = session;
     sessions[session.id] = session;
     const nativeInput = typeof MNUtil.isIOS === "function" && MNUtil.isIOS() || typeof MNUtil.isIPadOS === "function" && MNUtil.isIPadOS();
-    const controller = nativeInput ? __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon.create({ getState, updateDraft, append, requestClose, layout, keyboardChanged }) : controllerClass.new();
+    const controller = nativeInput ? __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon.create({ getState, updateDraft, append, prepareHandwriting, openHandwriting, requestClose, layout, keyboardChanged }) : controllerClass.new();
     controller.mainPath = addon.mainPath;
     controller.addon = addon;
     controller._mncmQuickSessionId = session.id;
@@ -493,10 +556,11 @@ var __MN_QUICK_COMMENT_MNCommentManagerAddon = (function () {
   function dispose(addon) {
     close(addon && addon.quickCommentController, true);
     if (!addon) return;
+    if (typeof __MN_QUICK_HANDWRITING_MNCommentManagerAddon !== "undefined") __MN_QUICK_HANDWRITING_MNCommentManagerAddon.dispose(addon);
     const key = String(addon._mncmQuickOwnerId || ''), owner = owners[key];
     if (owner) Object.keys(owner.drafts).forEach(noteId => { delete sessions[owner.drafts[noteId].id]; });
     delete owners[key];
     if (typeof __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon !== "undefined") __MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon.dispose(addon);
   }
-  return { open, layout, getState, updateDraft, append, present, setExit, requestClose, dispose };
+  return { open, layout, getState, updateDraft, append, openHandwriting, present, setExit, requestClose, dispose };
 })();
