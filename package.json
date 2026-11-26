@@ -45,7 +45,7 @@
     "test:format-brush": "node scripts/test-rich-format.js && node scripts/test-format-brush.js && node scripts/test-rich-comment-lifecycle.js && vitest run web/src/App.format-brush.test.jsx web/src/App.rich-comment.test.jsx"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "clean-css": "^5.3.3",
     "html-minifier-terser": "^7.2.0",
     "jsdom": "29.0.2",
