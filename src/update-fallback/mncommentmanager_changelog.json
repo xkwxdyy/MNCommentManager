@@ -1,8 +1,23 @@
 {
   "id": "mncommentmanager",
   "title": "MN Comment Manager",
-  "updatedAt": "2026-11-26T10:54:24.593966+00:00",
+  "updatedAt": "2026-11-26T16:51:01.474633+00:00",
   "entries": [
+    {
+      "version": "0.1.47",
+      "channel": "stable",
+      "date": "2026-11-27",
+      "items": [
+        {
+          "zh": "「添加评论」可打开当前卡片的手写入口，并保留文字草稿。",
+          "en": "Open the current card’s handwriting editor from Add Comment while keeping the text draft."
+        },
+        {
+          "zh": "移动端输入工具集中到顶栏。拖动短横条移动面板，拖动右下角调高，回车键换行。",
+          "en": "Use the fixed toolbar on mobile, drag the handle to move the panel, drag the bottom corner to resize it, and use Return to insert a line break."
+        }
+      ]
+    },
     {
       "version": "0.1.46",
       "channel": "stable",

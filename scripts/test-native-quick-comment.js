@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { setup } = require('./test-quick-comment');
 
-function fixture(platform = 'iphone', wrapActions = null, theme = 'Default') {
+function fixture(platform = 'iphone', wrapActions = null, theme = 'Default', configureHost = null) {
   const s = setup();
   s.api.dispose(s.addon); s.timers.length = 0;
   const root = s.context;
@@ -19,7 +19,8 @@ function fixture(platform = 'iphone', wrapActions = null, theme = 'Default') {
     endEditing() {}
     convertRectFromView(rect) { return rect; }
     setTitleForState(text) { this.title = text; }
-    setTitleColorForState() {}
+    setTitleColorForState(color) { this.titleColor = color; }
+    setImageForState(image) { this.image = image; }
     addTargetActionForControlEvents(controller, selector, events) { this.target = controller; this.selector = selector; this.events = events; }
     addGestureRecognizer(gesture) { gesture.view = this; this.gestureRecognizers = (this.gestureRecognizers || []).concat(gesture); }
   }
@@ -51,7 +52,9 @@ function fixture(platform = 'iphone', wrapActions = null, theme = 'Default') {
     s.nativeBindings = members;
     return { new() { return { view: new View(), callbacks: members }; } };
   };
-  vm.runInContext(fs.readFileSync(`${process.env.MNCM_RUNTIME_DIR || 'src'}/NativeQuickCommentController.js`, 'utf8'), root);
+  for (const file of ['CommentActionUI', 'NativeQuickCommentController']) {
+    vm.runInContext(fs.readFileSync(`${process.env.MNCM_RUNTIME_DIR || 'src'}/${file}.js`, 'utf8'), root);
+  }
   s.native = root.__MN_NATIVE_QUICK_COMMENT_MNCommentManagerAddon;
   if (wrapActions) {
     const create = s.native.create;
@@ -64,6 +67,7 @@ function fixture(platform = 'iphone', wrapActions = null, theme = 'Default') {
   }) };
   s.addon.window.keyWindow = 1; s.addon.window.screen = {};
   s.addon.window.convertRectFromWindow = rect => rect;
+  if (configureHost) configureHost(root, s);
   s.controller = s.open();
   s.click = name => { root.self = s.controller; s.nativeBindings[name](); };
   s.change = () => s.click('textViewDidChange');
@@ -190,11 +194,13 @@ test('uncertain submission survives closing and reopening', () => {
   assert.equal(s.input().text, '待核对'); assert.equal(s.input().editable, false);
   s.saveError(false); s.click('mncmNativeSubmit'); s.flush(); assert.equal(s.a.comments.length, 2);
 });
-test('newline replaces the selection after completing composition and retains the draft', () => {
-  const s = fixture(); s.input().text = 'abc'; s.input().selectedRange = { location: 1, length: 1 }; s.change();
-  s.click('mncmNativeNewline'); s.flush();
-  assert.equal(s.input().text, 'a\nc'); assert.equal(s.state().draft, 'a\nc');
-  assert.equal(s.input().selectedRange.location, 2); assert.equal(s.input().firstResponder, true);
+test('Return edits the native multiline draft and the panel has a single submit action', () => {
+  const s = fixture('ipad');
+  const controls = [...s.panel().subviews, ...s.input().superview.subviews];
+  assert.equal(controls.filter(view => view.selector === 'mncmNativeSubmit').length, 1);
+  assert(!controls.some(view => view.title === '↵'));
+  s.input().text = 'a\nc'; s.change();
+  assert.equal(s.state().draft, 'a\nc'); assert.equal(s.a.comments.length, 1);
 });
 test('owned keyboard dismissal closes with the latest composition; frames avoid the keyboard', () => {
   const s = fixture();
@@ -223,13 +229,13 @@ test('iPhone submit stays above a docked keyboard before geometry arrives', () =
   s.click('mncmNativeSubmit'); s.flush();
   assert.equal(s.a.comments[1].text, '直接发送');
 });
-test('dragging the native title moves the panel while keeping the draft and keyboard', () => {
+test('dragging the visible native grip moves the panel while keeping the draft and keyboard', () => {
   const s = fixture('ipad');
   const keyboard = { x: 0, y: 430, width: 900, height: 170 };
   s.notify('WillShow', keyboard);
   const panel = s.panel(), before = { ...panel.frame };
-  const title = panel.subviews.find(view => view.gestureRecognizers?.length);
-  assert(title, 'the title region must accept a pan');
+  const title = panel.subviews.find(view => view.accessibilityLabel === '拖动移动输入框');
+  assert(title && title.subviews.length, 'the visible grip must accept a pan');
   const gesture = title.gestureRecognizers[0];
   const pan = (state, x, y) => {
     s.context.self = s.controller;
@@ -397,7 +403,7 @@ test('each rotation split-view and floating keyboard transition preserves drafts
 test('keyboard avoidance restores a user-resized height after floating and docked transitions', () => {
   const s = fixture('ipad'), gesture = { state: 1, translationInView: () => ({ x: 0, y: 0 }) };
   s.context.self = s.controller; s.nativeBindings.mncmNativeResize(gesture);
-  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: -140 }); s.nativeBindings.mncmNativeResize(gesture);
+  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: 140 }); s.nativeBindings.mncmNativeResize(gesture);
   gesture.state = 3; s.nativeBindings.mncmNativeResize(gesture);
   assert.equal(s.panel().frame.height, 460);
   s.controller.view.frame = { x: 0, y: 0, width: 900, height: 500 };
@@ -411,7 +417,7 @@ test('keyboard avoidance restores a user-resized height after floating and docke
   s.click('mncmNativeClose'); s.flush(); s.controller = s.open();
   assert.equal(s.panel().frame.height, 460);
 });
-test('an extremely short keyboard area retains scrollable actions and a reachable draft-preserving close', () => {
+test('an extremely short keyboard area retains fixed actions and a reachable draft-preserving close', () => {
   const s = fixture('ipad');
   s.controller.view.frame = { x: 0, y: 0, width: 900, height: 200 };
   s.notify('WillChangeFrame', { x: 0, y: 100, width: 900, height: 100 });
@@ -419,8 +425,8 @@ test('an extremely short keyboard area retains scrollable actions and a reachabl
   const close = panel.subviews.find(view => view.selector === 'mncmNativeClose');
   assert.equal(panel.frame.height, 76);
   const body = s.input().superview;
-  const markdown = body.subviews.find(view => view.selector === 'mncmNativeMarkdown');
-  assert(body.contentSize.height > body.frame.height && markdown.frame.y + markdown.frame.height <= body.contentSize.height);
+  const markdown = s.panel().subviews.find(view => view.selector === 'mncmNativeMarkdown');
+  assert(markdown.frame.y + markdown.frame.height <= panel.frame.height, 'Markdown must be visible without scrolling');
   assert(submit.frame.y + submit.frame.height <= panel.frame.height, 'short layouts must keep submit visible without scrolling');
   assert(close.frame.y + close.frame.height <= panel.frame.height, 'the initial compact view still exposes the close button');
   const backdrop = s.controller.view.subviews.find(view => view.selector === 'mncmNativeClose');
@@ -432,7 +438,7 @@ test('an extremely short keyboard area retains scrollable actions and a reachabl
 test('native input actions expose their operation and Markdown state explicitly', () => {
   const s = fixture('ipad'), controls = s.panel().subviews;
   const body = s.input().superview;
-  const markdown = body.subviews.find(view => view.selector === 'mncmNativeMarkdown');
+  const markdown = s.panel().subviews.find(view => view.selector === 'mncmNativeMarkdown');
   const submit = controls.find(view => view.selector === 'mncmNativeSubmit');
   assert.equal(markdown.title, 'Markdown'); assert.equal(markdown.accessibilityValue, '未启用');
   assert.equal(submit.title, '添加'); assert.equal(submit.accessibilityLabel, '添加评论');
@@ -440,6 +446,24 @@ test('native input actions expose their operation and Markdown state explicitly'
   s.click('mncmNativeMarkdown'); assert.equal(markdown.accessibilityValue, '已启用');
   s.input().text = '等待核对'; s.change(); s.saveError(true); s.click('mncmNativeSubmit'); s.flush();
   assert.equal(submit.title, '核对'); assert.equal(submit.accessibilityLabel, '核对保存结果');
+});
+for (const theme of ['Default', 'Dark']) test(`submit uses the themed toolbar icon and keeps review explicit in ${theme}`, () => {
+  const s = fixture('ipad', null, theme, host => {
+    host.MNUtil.getImage = (name, scale) => ({ name, scale });
+  });
+  const submit = s.panel().subviews.find(v => v.selector === 'mncmNativeSubmit');
+  const hitArea = { ...submit.frame };
+  assert.equal(hitArea.width, 44); assert.equal(hitArea.height, 44);
+  assert.equal(submit.image.name, '/addon/action-icons/' + (theme === 'Dark' ? 'dark/' : '') + 'add.png');
+  assert.equal(submit.image.scale, 3); assert.equal(submit.title, '');
+  assert.equal(submit.accessibilityLabel, '添加评论'); assert.equal(submit.backgroundColor, 'clear');
+  assert.equal(submit.enabled, false); assert(submit.alpha < 0.5);
+  s.input().text = '正文'; s.change();
+  assert.equal(submit.enabled, true); assert.equal(submit.alpha, 1);
+  s.saveError(true); s.click('mncmNativeSubmit'); s.flush();
+  assert.equal(submit.image, null); assert.equal(submit.title, '核对');
+  assert.equal(submit.accessibilityLabel, '核对保存结果');
+  assert.deepEqual({ ...submit.frame }, hitArea);
 });
 test('keyboard hide caused by submit does not race the save', () => {
   const s = fixture(); s.notify('WillShow', { x: 0, y: 370, width: 900, height: 230 });
@@ -467,12 +491,13 @@ test('a delayed action from an old controller cannot write to a new target', () 
   s.api.dispose(s.addon); s.controller = s.open('b'); s.flush();
   assert.equal(s.a.comments.length, 1); assert.equal(s.b.comments.length, 1); assert.equal(s.state().noteId, 'b');
 });
-test('small landscape viewport keeps the native controls scrollable inside the available frame', () => {
+test('small landscape viewport keeps Markdown above the keyboard without scrolling', () => {
   const s = fixture('ipad'); s.studyView.bounds = { x: 0, y: 0, width: 500, height: 260 }; s.api.layout(s.controller);
   s.notify('WillShow', { x: 0, y: 150, width: 500, height: 110 });
   assert(s.panel().frame.y >= 0); assert(s.panel().frame.y + s.panel().frame.height <= 150);
   const body = s.input().superview;
-  assert(body.contentSize.height > body.frame.height);
+  const md = s.panel().subviews.find(v => v.selector === 'mncmNativeMarkdown');
+  assert(md && md.frame.y + md.frame.height <= body.frame.y);
 });
 test('refused editing termination cannot send marked text or close the draft', () => {
   const s = fixture(); s.input().text = 'zhong'; s.change();
@@ -576,9 +601,12 @@ test('native drafts, recovery and duplicate submission remain isolated over repe
 });
 test('resize remains within the keyboard area and restores height after reopening', () => {
   const s = fixture();
-  const gesture = { state: 1, translationInView: () => ({ x: 0, y: 0 }) };
+  const grip = s.panel().subviews.find(v => v.accessibilityLabel === '上下拖动调整输入框高度');
+  const gesture = grip.gestureRecognizers[0];
+  assert.equal(gesture.selector, 'mncmNativeResize:');
+  Object.assign(gesture, { state: 1, translationInView: () => ({ x: 0, y: 0 }) });
   s.context.self = s.controller; s.nativeBindings.mncmNativeResize(gesture);
-  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: -140 }); s.nativeBindings.mncmNativeResize(gesture);
+  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: 140 }); s.nativeBindings.mncmNativeResize(gesture);
   assert.equal(s.panel().frame.height, 460);
   gesture.state = 3; s.nativeBindings.mncmNativeResize(gesture);
   s.click('mncmNativeClose'); s.flush(); s.controller = s.open(); assert.equal(s.panel().frame.height, 460);
@@ -586,7 +614,7 @@ test('resize remains within the keyboard area and restores height after reopenin
   assert(s.panel().frame.y + s.panel().frame.height <= 380);
   assert.equal(s.panel().frame.height, 356);
   s.context.self = s.controller; gesture.state = 1; gesture.translationInView = () => ({ x: 0, y: 0 }); s.nativeBindings.mncmNativeResize(gesture);
-  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: 10000 }); s.nativeBindings.mncmNativeResize(gesture);
+  gesture.state = 2; gesture.translationInView = () => ({ x: 0, y: -10000 }); s.nativeBindings.mncmNativeResize(gesture);
   assert.equal(s.panel().frame.height, 194);
   s.input().text = '调节高度后仍保留正文'; s.change();
   assert.equal(s.state().draft, '调节高度后仍保留正文');
@@ -599,5 +627,76 @@ test('pending composition and uncertain submissions cannot be resized or changed
   s.nativeBindings.mncmNativeResize({ state: 2, translationInView: () => ({ x: 0, y: -200 }) });
   assert.equal(s.panel().frame.height, height); assert.equal(s.state().draft, '待确认正文');
 });
-if (require.main === module) console.log(JSON.stringify({ passed: cases.length, cases }, null, 2));
+async function handwritingCases() {
+  let panelCalls = 0, dispatched = [], accept = false;
+  const classic = fixture('ipad', null, 'Default', (host, s) => {
+    host.AddonWebPanel = { panel() { panelCalls++; return null; } };
+    Object.assign(host.MNUtil, {
+      immersiveMode: false, currentWindow: s.addon.window,
+      generateMNUIStatusURL(config) {
+        assert.deepEqual({ ...config }, { topicid: 'book', cardid: 'a', cardedit: 1 });
+        return 'marginnote4app://uistatus/test';
+      },
+      openURLOptionsCompletionHandler: async url => { dispatched.push(url); return accept; },
+    });
+  });
+  classic.controller.view.frame = { x: 0, y: 0, width: 375, height: 540 };
+  classic.notify('WillChangeFrame', { x: 0, y: 203, width: 375, height: 337 });
+  const panel = classic.panel(), tools = panel.subviews.filter(v => v.selector);
+  assert.equal(tools.length, 4);
+  const grip = panel.subviews.find(v => v.accessibilityLabel === '拖动移动输入框');
+  for (const action of tools) {
+    const a = action.frame;
+    assert(panel.frame.y + a.y + a.height <= 203 && a.width >= 44 && a.height >= 44);
+    assert(!tools.some(v => v !== action && v.frame.x < a.x + a.width && v.frame.x + v.frame.width > a.x));
+    assert(grip.frame.x + grip.frame.width <= a.x);
+  }
+  const before = { ...panel.frame };
+  const pan = (state, dx, dy) => classic.nativeBindings.mncmNativeMove({ state, translationInView: () => ({ x: dx, y: dy }) });
+  pan(1, 0, 0); pan(2, 9, 6); pan(3, 9, 6);
+  assert.deepEqual({ ...panel.frame }, { ...before, x: before.x + 9, y: before.y + 6 });
+  assert.equal(classic.input().isFirstResponder(), true);
+  const pencil = tools.find(v => v.selector === 'mncmNativeHandwriting');
+  assert.equal(pencil.accessibilityLabel, '在卡片编辑器中新建手写');
+  classic.input().text = 'zhong'; classic.input().finalComposition = '中文草稿'; classic.change();
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  classic.click(pencil.selector); classic.flush(); await tick();
+  assert.equal(classic.controller.view.hidden, false);
+  assert(classic.input().isFirstResponder()); assert.equal(classic.state().draft, '中文草稿');
+  accept = true;
+  classic.click(pencil.selector); classic.click(pencil.selector); classic.flush(); await tick(); classic.flush();
+  assert.deepEqual(dispatched, Array(2).fill('marginnote4app://uistatus/test'));
+  assert.equal(classic.addon.quickCommentController, null); assert.equal(classic.a.comments.length, 1);
+  classic.controller = classic.open(); assert.equal(classic.input().text, '中文草稿');
+  classic.context.MNUtil.currentWindow = {};
+  classic.click(pencil.selector); classic.flush(); await tick();
+  assert.equal(dispatched.length, 2, 'a different active window must not receive the request');
+  assert.equal(classic.controller.view.hidden, false);
+  assert.equal(panelCalls, 0, 'classic mode must work with the scene panel factory entirely unavailable');
+  cases.push('classic iPad pencil, keyboard toolbar, drag, draft and window targeting');
+
+  let bound = true, prepared, destroyed = 0;
+  const scene = fixture('ipad', null, 'Default', host => {
+    host.AddonWebPanel = { panel() {
+      assert(bound, 'panel creation must run in the original addon entry callback');
+      return prepared = { loadPanel: () => true, showFloatingIn() {}, teardown() { destroyed++; } };
+    } };
+  });
+  bound = false;
+  scene.click('mncmNativeHandwriting');
+  scene.timers.shift()(); // UIKit finished composing. The addon identity is no longer available.
+  assert.equal(typeof prepared.onMessage, 'function');
+  assert(prepared.onMessage('startQuickHandwriting', { noteId: 'a' }).accepted);
+  prepared.onMessage('quickHandwritingOpened', { noteId: 'a' });
+  await tick(); scene.flush();
+  assert.equal(scene.addon.quickCommentController, null);
+  prepared.onMessage('quickHandwritingFinished', { noteId: 'a', saved: false }); scene.flush();
+  assert.equal(destroyed, 1);
+  bound = true; scene.controller = scene.open();
+  scene.click('mncmNativeClose'); scene.flush(); assert.equal(destroyed, 2, 'closing text input releases the unused panel');
+  cases.push('scene pencil uses the owner-bound panel after UIKit editing ends');
+}
+if (require.main === module) handwritingCases()
+  .then(() => console.log(JSON.stringify({ passed: cases.length, cases }, null, 2)))
+  .catch(error => { console.error(error); process.exitCode = 1; });
 module.exports = { fixture, nativeLayoutScenarios };

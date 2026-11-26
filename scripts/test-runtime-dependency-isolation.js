@@ -245,6 +245,7 @@ function loadAddon({
     "PanelContentBounds",
     "WebPanelController",
     "NativeQuickCommentController",
+    "QuickHandwriting",
     "QuickCommentController",
     "ExternalCardEditor",
     "NativeEntryPolicy",
